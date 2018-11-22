@@ -152,9 +152,14 @@ function New-WordCloud {
         [Alias('FontFace')]
         [ArgumentCompleter(
             {
-                return [FontFamily]::Families.Name.Where{-not [string]::IsNullOrWhiteSpace($_)}.ForEach{
-                    if ($_ -match '[\s ]') { "'$_'" }
-                    else { $_ }
+                param($Command, $Parameter, $WordToComplete, $CommandAst, $FakeBoundParams)
+                $FontLibrary = [FontFamily]::Families.Name.Where{-not [string]::IsNullOrWhiteSpace($_)}
+
+                if (!$WordToComplete) {
+                    return $FontLibrary
+                }
+                else {
+                    return $FontLibrary.Where{$_ -match "^$([regex]::Escape($WordToComplete))"} -replace '(?="|`|$)', '`' -replace '^|$', '"'
                 }
             }
         )]
@@ -326,7 +331,7 @@ function New-WordCloud {
 
         $FontScale = ($ImageSize.Height + $ImageSize.Width) / ($AverageFrequency * $SortedWordList.Count)
 
-        Write-Verbose "Unique Words Count: $($WordHeightTable.PSObject.BaseObject.Count)"
+        Write-Verbose "Unique Words Count: $($WordHeightTable.GetEnumerator().Name.Count)"
         Write-Verbose "Highest Word Frequency: $HighestFrequency; Average: $AverageFrequency"
         Write-Verbose "Max Font Size: $($HighestFrequency * $FontScale)"
 
@@ -370,7 +375,7 @@ function New-WordCloud {
 
         try {
             $WordCloudImage = [Bitmap]::new($ImageSize.Width, $ImageSize.Height)
-            $DrawingSurface = [Graphics]::FromImage($WordCloudImage)
+            [Graphics]$DrawingSurface = [Graphics]::FromImage($WordCloudImage)
 
             if ($BackgroundColor) {
                 $DrawingSurface.Clear([Color]::FromKnownColor($BackgroundColor))
@@ -420,8 +425,10 @@ function New-WordCloud {
                         $Radians = Convert-ToRadians -Degrees $Angle
                         $Complex = [Complex]::FromPolarCoordinates($RadialDistance, $Radians)
 
-                        $OffsetX = $WordSizeTable[$Word].Width * $Jitter.NextDouble()
-                        $OffsetY = $WordSizeTable[$Word].Height * $Jitter.NextDouble()
+                        if ($WordHeightTable[$Word] -ne $HighestFrequency * $FontScale -and $AspectRatio -lt 1) {
+                            $OffsetX = $WordSizeTable[$Word].Width * $Jitter.NextDouble()
+                            $OffsetY = $WordSizeTable[$Word].Height * $Jitter.NextDouble()
+                        }
                         $DrawLocation = [PointF]::new(
                             $Complex.Real * $AspectRatio + $CentrePoint.X - $OffsetX,
                             $Complex.Imaginary + $CentrePoint.Y - $OffsetY
@@ -433,8 +440,8 @@ function New-WordCloud {
                             $IsColliding = (
                                 $WordRectangle.IntersectsWith($Rectangle) -or
                                 $WordRectangle.Top -lt 0 -or
-                                $WordRectangle.Bottom -gt $ImageSize.Height -or
                                 $WordRectangle.Left -lt 0 -or
+                                $WordRectangle.Bottom -gt $ImageSize.Height -or
                                 $WordRectangle.Right -gt $ImageSize.Width
                             )
 
