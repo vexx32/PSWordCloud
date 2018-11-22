@@ -110,13 +110,13 @@ function New-WordCloud {
 
         $PathList = foreach ($FilePath in $Path) {
             if ($FilePath -notmatch "\.$OutputFormat$") {
-                $tempPath += $OutputFormat
+                $FilePath += $OutputFormat
             }
-            if (-not (Test-Path -Path $tempPath)) {
-                (New-Item -ItemType File -Path $tempPath).FullName
+            if (-not (Test-Path -Path $FilePath)) {
+                (New-Item -ItemType File -Path $FilePath).FullName
             }
             else {
-                (Get-Item -Path $tempPath).FullName
+                (Get-Item -Path $FilePath).FullName
             }
         }
 

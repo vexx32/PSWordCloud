@@ -4,7 +4,7 @@ Write-Verbose "PSKoans module root: $script:ModuleRoot"
 $PublicFunctions = Get-ChildItem "$script:ModuleRoot\Public"
 $PrivateFunctions = Get-ChildItem "$script:ModuleRoot\Private"
 
-foreach ($Function in $PublicFunctions, $PrivateFunctions) {
+foreach ($Function in @($PublicFunctions) + @($PrivateFunctions)) {
     Write-Verbose "Importing functions from file: [$($Function.Name)]"
     . $Function
 }
