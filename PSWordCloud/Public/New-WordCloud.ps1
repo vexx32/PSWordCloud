@@ -137,7 +137,10 @@ function New-WordCloud {
         [Alias('FontFace')]
         [ArgumentCompleter(
             {
-                [FontFamily]::Families.Name.Where{-not [string]::IsNullOrWhiteSpace($_)}
+                [FontFamily]::Families.Name.Where{-not [string]::IsNullOrWhiteSpace($_)}.ForEach{
+                    if ($_ -match '[\s ]') { "'$_'" }
+                    else { $_ }
+                }
             }
         )]
         [FontFamily]
@@ -378,14 +381,14 @@ function New-WordCloud {
 
                     $AngleIncrement = 360 / ( ($RadialDistance + 1) * $RadialGranularity / 10 )
                     switch ([int]$RadialScanCount -band 7) {
-                        0 { $Start = 0;    $End = 360 }
-                        1 { $Start = -90;  $End = 270 }
+                        0 { $Start = 0; $End = 360 }
+                        1 { $Start = -90; $End = 270 }
                         2 { $Start = -180; $End = 180 }
                         3 { $Start = -270; $End = 90  }
-                        4 { $Start = 360;  $End = 0;    $AngleIncrement *= -1 }
-                        5 { $Start = 270;  $End = -90;  $AngleIncrement *= -1 }
-                        6 { $Start = 180;  $End = -180; $AngleIncrement *= -1 }
-                        7 { $Start = 90;   $End = -270; $AngleIncrement *= -1 }
+                        4 { $Start = 360; $End = 0; $AngleIncrement *= -1 }
+                        5 { $Start = 270; $End = -90; $AngleIncrement *= -1 }
+                        6 { $Start = 180; $End = -180; $AngleIncrement *= -1 }
+                        7 { $Start = 90; $End = -270; $AngleIncrement *= -1 }
                     }
 
                     $IsColliding = $false
