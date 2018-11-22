@@ -1,16 +1,119 @@
-﻿using namespace System.Drawing
-using namespace System.Collections.Generic
+﻿using namespace System.Collections.Generic
+using namespace System.Drawing
+using namespace System.Management.Automation
 using namespace System.Numerics
 
+class SizeTransformAttribute : ArgumentTransformationAttribute {
+    [object] Transform([EngineIntrinsics]$engineIntrinsics, [object] $inputData) {
+        $Size = switch ($inputData) {
+            { $_ -is [Size] } {
+                $inputData
+            }
+            { $_ -is [SizeF] } {
+                $inputData.ToSize()
+            }
+            { $_ -is [string] } {
+                if ($_ -match '(?<Width>\d+)x(?<Height>\d+)(px)?') {
+                    [Size]::new($Matches['Width'], $Matches['Height'])
+                }
+
+                if ($_ -match '(?<Size>\d+)(px)?') {
+                    [Size]::new($Matches['Size'], $Matches['Size'])
+                }
+            }
+            { $_ -is [int] -or $_ -is [double] } {
+                [Size]::new($_, $_)
+            }
+            default {
+                throw [ArgumentTransformationMetadataException]::new("Unable to convert entered value $inputData to a valid Size.")
+            }
+        }
+
+        $Area = $Size.Height * $Size.Width
+        if ($Area -ge 100 * 100 -and $Area -le 20000 * 20000) {
+            return $Size
+        }
+        else {
+            throw [ArgumentTransformationMetadataException]::new(
+                "Specified size $inputData is either too small to use for an image size, or would exceed GDI+ limitations."
+            )
+        }
+    }
+}
+
 function New-WordCloud {
-    [CmdletBinding()]
+    <#
+    .SYNOPSIS
+    Creates a word cloud from the input text.
+
+    .DESCRIPTION
+    Measures the frequency of use of each word, taking into account plural and similar forms, and creates an image
+    with each word's visual size corresponding to the frequency of occurrence in the input text.
+
+    .PARAMETER InputString
+    The string data to examine and create the word cloud image from.
+
+    .PARAMETER Path
+    The output path of the word cloud.
+
+    .PARAMETER ColorSet
+    Define a set of colors to use when rendering the word cloud. Any set of [System.Drawing.KnownColor] values will be
+    accepted.
+
+    .PARAMETER MaxColors
+    Limit the maximum number of colors from either a standard or custom set that will be used. A random selection of
+    this many colors will be used to render the word cloud.
+
+    .PARAMETER FontFamily
+    Specify the font family as a string or [FontFamily] value. System.Drawing supports primarily TrueType fonts.
+
+    .PARAMETER FontStyle
+    Specify the font style to use for the word cloud.
+
+    .PARAMETER ImageSize
+    Specify the image size to use in pixels. This value will be used for both the width and height of the rendered
+    image. The image dimensions can be any value between 500 and 20,000px. 4096 will be used by default.
+
+    .PARAMETER DistanceStep
+    The number of pixels to increment per radial sweep. Higher values will make the operation quicker, but may reduce
+    the effectiveness of the packing algorithm. Lower values will take longer, but will generally ensure a more
+    tightly-packed word cloud.
+
+    .PARAMETER RadialGranularity
+    The number of radial points at each distance step to check during a single sweep. This value is scaled as the radius
+    expands to retain some consistency in the overall step distance as the distance from the center increases.
+
+    .PARAMETER BackgroundColor
+    Set the background color of the image. Colors with similar names to the background color are automatically excluded
+    from being selected. Specify $null to render a transparent image with the word cloud superimposed.
+
+    .PARAMETER Monochrome
+    Use only shades of grey to create the word cloud.
+
+    .PARAMETER OutputFormat
+    Specify the output image file format to use.
+
+    .PARAMETER MaxWords
+    Specify the maximum number of words to include in the word cloud. 100 is default. If there are fewer unique words
+    than the maximum set, all unique words will be rendered.
+
+    .EXAMPLE
+    Get-Content .\Words.txt | New-WordCloud -Path .\WordCloud.png
+
+    Generates a word cloud from the words in the specified file, and saves it to the specified image file.
+
+    .NOTES
+    Only the top 100 most frequent words will be included in the word cloud by default; typically, words that fall under
+    this ranking end up being impossible to render cleanly.
+    #>
+    [CmdletBinding(DefaultParameterSetName = 'SelectColors')]
     [Alias('wordcloud', 'wcloud')]
     param(
         [Parameter(Mandatory, Position = 0, ValueFromPipeline)]
-        [Alias('Text', 'String', 'Words', 'Document', 'Page')]
+        [Alias('InputString', 'InputObject', 'String', 'Words', 'Document', 'Page')]
         [AllowEmptyString()]
         [string[]]
-        $InputString,
+        $Text,
 
         [Parameter(Mandatory, Position = 1)]
         [Alias('OutFile', 'ExportPath', 'ImagePath')]
@@ -20,7 +123,7 @@ function New-WordCloud {
         [string[]]
         $Path,
 
-        [Parameter()]
+        [Parameter(ParameterSetName = 'SelectColors')]
         [Alias('ColourSet')]
         [KnownColor[]]
         $ColorSet = [KnownColor].GetEnumNames(),
@@ -32,21 +135,26 @@ function New-WordCloud {
 
         [Parameter()]
         [Alias('FontFace')]
-        [string]
-        $FontFamily = 'Consolas',
+        [ArgumentCompleter(
+            {
+                [FontFamily]::Families.Name.Where{-not [string]::IsNullOrWhiteSpace($_)}
+            }
+        )]
+        [FontFamily]
+        $FontFamily = [FontFamily]::new('Consolas'),
 
         [Parameter()]
         [FontStyle]
         $FontStyle = [FontStyle]::Regular,
 
         [Parameter()]
-        [ValidateRange(512, 16384)]
+        [SizeTransformAttribute()]
         [Alias('ImagePixelSize')]
-        [int]
-        $ImageSize = 4096,
+        [Size]
+        $ImageSize = [Size]::new(4096, 2160),
 
         [Parameter()]
-        [ValidateRange(1, 20)]
+        [ValidateRange(1, 500)]
         $DistanceStep = 5,
 
         [Parameter()]
@@ -54,20 +162,26 @@ function New-WordCloud {
         $RadialGranularity = 15,
 
         [Parameter()]
-        [AllowNull()]
         [Alias('BackgroundColour')]
         [Nullable[KnownColor]]
         $BackgroundColor = [KnownColor]::Black,
 
-        [Parameter()]
-        [switch]
+        [Parameter(Mandatory, ParameterSetName = 'Monochrome')]
         [Alias('Greyscale', 'Grayscale')]
+        [switch]
         $Monochrome,
 
         [Parameter()]
         [Alias('ImageFormat', 'Format')]
         [ValidateSet("Bmp", "Emf", "Exif", "Gif", "Jpeg", "Png", "Tiff", "Wmf")]
-        $OutputFormat = "Png"
+        [string]
+        $OutputFormat = "Png",
+
+        [Parameter()]
+        [Alias('MaxWords')]
+        [ValidateRange(10, 500)]
+        [int]
+        $MaxUniqueWords = 100
     )
     begin {
         $ExcludedWords = @(
@@ -95,9 +209,9 @@ function New-WordCloud {
         $WordHeightTable = @{}
         $WordSizeTable = @{}
 
-        $ExportFormat = $OutputFormat | ConvertTo-ImageFormat
+        $ExportFormat = $OutputFormat | Get-ImageFormat
 
-        if ($Monochrome) {
+        if ($PSCmdlet.ParameterSetName -eq 'Monochrome') {
             $MinSaturation = 0
         }
         else {
@@ -126,32 +240,32 @@ function New-WordCloud {
             Sort-Object {Get-Random} |
             Select-Object -First $MaxColors |
             ForEach-Object {
-                if (-not $Monochrome) {
-                    [Color]::FromKnownColor($_)
-                }
-                else {
-                    [int]$Brightness = [Color]::FromKnownColor($_).GetBrightness() * 255
-                    [Color]::FromArgb($Brightness, $Brightness, $Brightness)
-                }
-            } |
-            Where-Object {
-                if ($BackgroundColor) {
-                    $_.Name -notmatch $BackgroundColor -and
-                    $_.GetSaturation() -ge $MinSaturation
-                }
-                else {
-                    $_.GetSaturation() -ge $MinSaturation
-                }
-            } |
-            Sort-Object -Descending {
-                $Value = $_.GetBrightness()
-                $Random = (-$Value..$Value | Get-Random) / (1 - $_.GetSaturation())
-                $Value + $Random
+            if (-not $Monochrome) {
+                [Color]::FromKnownColor($_)
             }
+            else {
+                [int]$Brightness = [Color]::FromKnownColor($_).GetBrightness() * 255
+                [Color]::FromArgb($Brightness, $Brightness, $Brightness)
+            }
+        } |
+            Where-Object {
+            if ($BackgroundColor) {
+                $_.Name -notmatch $BackgroundColor -and
+                $_.GetSaturation() -ge $MinSaturation
+            }
+            else {
+                $_.GetSaturation() -ge $MinSaturation
+            }
+        } |
+            Sort-Object -Descending {
+            $Value = $_.GetBrightness()
+            $Random = (-$Value..$Value | Get-Random) / (1 - $_.GetSaturation())
+            $Value + $Random
+        }
     }
     process {
         $WordList.AddRange(
-            $InputString.Split($SplitChars, [StringSplitOptions]::RemoveEmptyEntries).Where{
+            $Text.Split($SplitChars, [StringSplitOptions]::RemoveEmptyEntries).Where{
                 $_ -notmatch "^($ExcludedWords)s?$|^[^a-z]+$|[^a-z0-9'_-]" -and $_.Length -gt 1
             } -replace "^'|'$" -as [string[]]
         )
@@ -179,16 +293,15 @@ function New-WordCloud {
         }
 
         $SortedWordList = $WordHeightTable.GetEnumerator().Name |
-            Sort-Object -Descending {
-                $WordHeightTable[$_]
-            } | Select-Object -First 100
+            Sort-Object -Descending { $WordHeightTable[$_] } |
+            Select-Object -First $MaxUniqueWords
 
         $HighestFrequency, $AverageFrequency = $SortedWordList |
             ForEach-Object { $WordHeightTable[$_] } |
             Measure-Object -Average -Maximum |
             ForEach-Object {$_.Maximum, $_.Average}
 
-        $FontScale = $ImageSize * 2 / ($AverageFrequency * $SortedWordList.Count)
+        $FontScale = ($ImageSize.Height + $ImageSize.Width) / ($AverageFrequency * $SortedWordList.Count)
 
         Write-Verbose "Unique Words Count: $($WordHeightTable.PSObject.BaseObject.Count)"
         Write-Verbose "Highest Word Frequency: $HighestFrequency; Average: $AverageFrequency"
@@ -227,11 +340,13 @@ function New-WordCloud {
             }
         }
 
-        $CentrePoint = [PointF]::new($ImageSize / 2, $ImageSize / 2)
-        Write-Verbose "Final Image size will be ${ImageSize}x${ImageSize} px"
+        $MaxSideLength = [Math]::Max($ImageSize.Width, $ImageSize.Height)
+        $Ratio = $ImageSize.Width / $ImageSize.Height
+        $CentrePoint = [PointF]::new($ImageSize.Width / 2, $ImageSize.Height / 2)
+        Write-Verbose "Image dimensions: $ImageSize with centrepoint $CentrePoint and ratio $Ratio."
 
         try {
-            $WordCloudImage = [Bitmap]::new($ImageSize, $ImageSize)
+            $WordCloudImage = [Bitmap]::new($ImageSize.Width, $ImageSize.Height)
             $DrawingSurface = [Graphics]::FromImage($WordCloudImage)
 
             if ($BackgroundColor) {
@@ -255,8 +370,8 @@ function New-WordCloud {
                 $RadialScanCount /= 3
                 $WordRectangle = $null
                 do {
-                    if ( $RadialDistance -gt ($ImageSize / 2) ) {
-                        $RadialDistance = $ImageSize / $DistanceStep / 25
+                    if ( $RadialDistance -gt ($MaxSideLength / 2) ) {
+                        $RadialDistance = $MaxSideLength / $DistanceStep / 25
                         continue words
                     }
 
@@ -284,7 +399,7 @@ function New-WordCloud {
                         $OffsetX = $WordSizeTable[$Word].Width * 0.5
                         $OffsetY = $WordSizeTable[$Word].Height * 0.5
                         $DrawLocation = [PointF]::new(
-                            $Complex.Real + $CentrePoint.X - $OffsetX,
+                            $Complex.Real * $Ratio + $CentrePoint.X - $OffsetX,
                             $Complex.Imaginary + $CentrePoint.Y - $OffsetY
                         )
 
@@ -294,9 +409,9 @@ function New-WordCloud {
                             $IsColliding = (
                                 $WordRectangle.IntersectsWith($Rectangle) -or
                                 $WordRectangle.Top -lt 0 -or
-                                $WordRectangle.Bottom -gt $ImageSize -or
+                                $WordRectangle.Bottom -gt $ImageSize.Height -or
                                 $WordRectangle.Left -lt 0 -or
-                                $WordRectangle.Right -gt $ImageSize
+                                $WordRectangle.Right -gt $ImageSize.Width
                             )
 
                             if ($IsColliding) {
