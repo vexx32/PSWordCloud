@@ -1,5 +1,5 @@
 $script:ModuleRoot = $PSScriptRoot
-Write-Verbose "PSKoans module root: $script:ModuleRoot"
+Write-Verbose "PSWordCloud module root: $script:ModuleRoot"
 
 $PublicFunctions = Get-ChildItem "$script:ModuleRoot\Public"
 $PrivateFunctions = Get-ChildItem "$script:ModuleRoot\Private"
