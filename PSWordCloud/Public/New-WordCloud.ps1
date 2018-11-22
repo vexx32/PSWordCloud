@@ -341,9 +341,9 @@ function New-WordCloud {
         }
 
         $MaxSideLength = [Math]::Max($ImageSize.Width, $ImageSize.Height)
-        $Ratio = $ImageSize.Width / $ImageSize.Height
+        $AspectRatio = $ImageSize.Width / $ImageSize.Height
         $CentrePoint = [PointF]::new($ImageSize.Width / 2, $ImageSize.Height / 2)
-        Write-Verbose "Image dimensions: $ImageSize with centrepoint $CentrePoint and ratio $Ratio."
+        Write-Verbose "Image dimensions: $ImageSize with centrepoint $CentrePoint and ratio $AspectRatio."
 
         try {
             $WordCloudImage = [Bitmap]::new($ImageSize.Width, $ImageSize.Height)
@@ -357,6 +357,7 @@ function New-WordCloud {
 
             $RectangleList = [List[RectangleF]]::new()
             $RadialScanCount = 0
+            $Jitter = [Random]::new()
             :words foreach ($Word in $SortedWordList) {
                 if (-not $WordSizeTable[$Word]) { continue }
 
@@ -396,10 +397,10 @@ function New-WordCloud {
                         $Radians = Convert-ToRadians -Degrees $Angle
                         $Complex = [Complex]::FromPolarCoordinates($RadialDistance, $Radians)
 
-                        $OffsetX = $WordSizeTable[$Word].Width * 0.5
-                        $OffsetY = $WordSizeTable[$Word].Height * 0.5
+                        $OffsetX = $WordSizeTable[$Word].Width * $Jitter.NextDouble()
+                        $OffsetY = $WordSizeTable[$Word].Height * $Jitter.NextDouble()
                         $DrawLocation = [PointF]::new(
-                            $Complex.Real * $Ratio + $CentrePoint.X - $OffsetX,
+                            $Complex.Real * $AspectRatio + $CentrePoint.X - $OffsetX,
                             $Complex.Imaginary + $CentrePoint.Y - $OffsetY
                         )
 
