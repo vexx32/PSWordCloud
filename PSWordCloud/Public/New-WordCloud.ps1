@@ -3,8 +3,8 @@ using namespace System.Drawing
 using namespace System.Management.Automation
 using namespace System.Numerics
 
-class SizeTransformAttribute : ArgumentTransformationAttribute, Attribute {
-    static [Dictionary[string, Size]] $StandardSizes = @{
+class SizeTransformAttribute : ArgumentTransformationAttribute {
+    static [hashtable] $StandardSizes = @{
         '720p'  = [Size]::new(1024, 720)
         '1080p' = [Size]::new(1920, 1080)
         '4K'    = [Size]::new(4096, 2160)
@@ -152,7 +152,7 @@ function New-WordCloud {
         [Alias('FontFace')]
         [ArgumentCompleter(
             {
-                [FontFamily]::Families.Name.Where{-not [string]::IsNullOrWhiteSpace($_)}.ForEach{
+                return [FontFamily]::Families.Name.Where{-not [string]::IsNullOrWhiteSpace($_)}.ForEach{
                     if ($_ -match '[\s ]') { "'$_'" }
                     else { $_ }
                 }
@@ -169,10 +169,10 @@ function New-WordCloud {
         [Alias('ImagePixelSize')]
         [ArgumentCompleter(
             {
-                '720p', '1080p', '4K', '640x1146', '480x800'
+                return @('720p', '1080p', '4K', '640x1146', '480x800')
             }
         )]
-        [SizeTransform()]
+        [SizeTransformAttribute()]
         [Size]
         $ImageSize = [Size]::new(4096, 2160),
 
