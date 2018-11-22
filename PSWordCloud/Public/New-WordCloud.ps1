@@ -3,26 +3,41 @@ using namespace System.Drawing
 using namespace System.Management.Automation
 using namespace System.Numerics
 
-class SizeTransformAttribute : ArgumentTransformationAttribute {
+class SizeTransformAttribute : ArgumentTransformationAttribute, Attribute {
+    static [Dictionary[string, Size]] $StandardSizes = @{
+        '720p'  = [Size]::new(1024, 720)
+        '1080p' = [Size]::new(1920, 1080)
+        '4K'    = [Size]::new(4096, 2160)
+    }
+
     [object] Transform([EngineIntrinsics]$engineIntrinsics, [object] $inputData) {
         $Size = switch ($inputData) {
             { $_ -is [Size] } {
-                $inputData
+                $_
+                break
             }
             { $_ -is [SizeF] } {
-                $inputData.ToSize()
-            }
-            { $_ -is [string] } {
-                if ($_ -match '(?<Width>\d+)x(?<Height>\d+)(px)?') {
-                    [Size]::new($Matches['Width'], $Matches['Height'])
-                }
-
-                if ($_ -match '(?<Size>\d+)(px)?') {
-                    [Size]::new($Matches['Size'], $Matches['Size'])
-                }
+                $_.ToSize()
+                break
             }
             { $_ -is [int] -or $_ -is [double] } {
                 [Size]::new($_, $_)
+                break
+            }
+            { $_ -in [SizeTransformAttribute]::StandardSizes.Keys } {
+                [SizeTransformAttribute]::StandardSizes[$_]
+                break
+            }
+            { $_ -is [string] } {
+                if ($_ -match '^(?<Width>\d+)x(?<Height>\d+)(px)?$') {
+                    [Size]::new($Matches['Width'], $Matches['Height'])
+                    break
+                }
+
+                if ($_ -match '^(?<Size>\d+)(px)?$') {
+                    [Size]::new($Matches['Size'], $Matches['Size'])
+                    break
+                }
             }
             default {
                 throw [ArgumentTransformationMetadataException]::new("Unable to convert entered value $inputData to a valid Size.")
@@ -151,8 +166,13 @@ function New-WordCloud {
         $FontStyle = [FontStyle]::Regular,
 
         [Parameter()]
-        [SizeTransformAttribute()]
         [Alias('ImagePixelSize')]
+        [ArgumentCompleter(
+            {
+                '720p', '1080p', '4K', '640x1146', '480x800'
+            }
+        )]
+        [SizeTransform()]
         [Size]
         $ImageSize = [Size]::new(4096, 2160),
 
