@@ -1,4 +1,4 @@
-﻿using namespace System.Collections.Generic
+using namespace System.Collections.Generic
 using namespace System.Drawing
 using namespace System.Management.Automation
 using namespace System.Numerics
@@ -192,7 +192,7 @@ function New-WordCloud {
                 $Values = @('720p', '1080p', '4K', '640x1146', '480x800')
 
                 if ($WordToComplete) {
-                    return $Values.Where {$_ -match "^$WordToComplete"}
+                    return $Values.Where{$_ -match "^$WordToComplete"}
                 }
                 else {
                     return $Values
