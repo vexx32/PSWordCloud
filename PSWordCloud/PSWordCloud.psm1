@@ -6,7 +6,7 @@ $PrivateFunctions = Get-ChildItem "$script:ModuleRoot\Private"
 
 foreach ($Function in @($PublicFunctions) + @($PrivateFunctions)) {
     Write-Verbose "Importing functions from file: [$($Function.Name)]"
-    . $Function
+    . $Function.Fullname
 }
 
 # PowerShell Core uses System.Drawing.Common assembly instead of System.Drawing
