@@ -24,20 +24,20 @@ Using the poem _Paterson_ by William Carlos Williams
 
 ### 4K 4096x2160 Resolution (Default)
 
-![4K Color](./images/Paterson_4K.png)
+![4K Color](./_images/Paterson_4K.png)
 
 ### 4K 4096x2160 Resolution (Monochrome)
 
-![4K Monochrome](./images/Paterson_4K_mono.png)
+![4K Monochrome](./_images/Paterson_4K_mono.png)
 
 ### 4K 4096x4096 Resolution (Default)
 
-![4K Square, Color](./images/Paterson_4K-_q.png)
+![4K Square, Color](./_images/Paterson_4K-_q.png)
 
 ### Mobile Format 640x1146 (Default)
 
-![Mobile Color](./images/Paterson_mobile.png)
+![Mobile Color](./_images/Paterson_mobile.png)
 
 ### Mobile Format 640x1146 (Monochrome)
 
-![Mobile Monochrome](./images/Paterson_mobile_mono.png)
+![Mobile Monochrome](./_images/Paterson_mobile_mono.png)
