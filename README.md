@@ -32,7 +32,7 @@ Using the poem _Paterson_ by William Carlos Williams
 
 ### 4K 4096x4096 Resolution (Default)
 
-![4K Square, Color](./_images/Paterson_4K-_q.png)
+![4K Square, Color](./_images/Paterson_4K_sq.png)
 
 ### Mobile Format 640x1146 (Default)
 
