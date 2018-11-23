@@ -5,7 +5,7 @@ using namespace System.Numerics
 
 class SizeTransformAttribute : ArgumentTransformationAttribute {
     static [hashtable] $StandardSizes = @{
-        '720p'  = [Size]::new(1024, 720)
+        '720p'  = [Size]::new(1280, 720)
         '1080p' = [Size]::new(1920, 1080)
         '4K'    = [Size]::new(4096, 2160)
     }
@@ -29,12 +29,12 @@ class SizeTransformAttribute : ArgumentTransformationAttribute {
                 break
             }
             { $_ -is [string] } {
-                if ($_ -match '^(?<Width>\d+)x(?<Height>\d+)(px)?$') {
+                if ($_ -match '^(?<Width>[\d\.,]+)x(?<Height>[\d\.,]+)(px)?$') {
                     [Size]::new($Matches['Width'], $Matches['Height'])
                     break
                 }
 
-                if ($_ -match '^(?<Size>\d+)(px)?$') {
+                if ($_ -match '^(?<Size>[\d\.,]+)(px)?$') {
                     [Size]::new($Matches['Size'], $Matches['Size'])
                     break
                 }
@@ -86,8 +86,21 @@ function New-WordCloud {
     Specify the font style to use for the word cloud.
 
     .PARAMETER ImageSize
-    Specify the image size to use in pixels. This value will be used for both the width and height of the rendered
-    image. The image dimensions can be any value between 500 and 20,000px. 4096 will be used by default.
+    Specify the image size to use in pixels. The image dimensions can be any value between 500 and 20,000px. Any of the
+    following size specifier formats are permitted:
+
+    - Any valid [System.Drawing.Size] object
+    - Any valid [System.Drawing.SizeF] object
+    - 1000x1000
+    - 1000x1000px
+    - 1000
+    - 1000px
+    - 720p	        (Creates an image of size 1280x720px)
+    - 1080p         (Creates an image of size 1920x1080px)
+    - 4K	        (Creates an image of size 4096x2160px)
+
+    4096x2160 will be used by default. Note that the minimum image resolution is 10,000 pixels (100 x 100px), and the
+    maximum resolution is 400,000,000 pixels (20,000 x 20,000px, 400MP).
 
     .PARAMETER DistanceStep
     The number of pixels to increment per radial sweep. Higher values will make the operation quicker, but may reduce
@@ -370,7 +383,7 @@ function New-WordCloud {
             AverageFrequency = $AverageFrequency
             MaxFontSize      = $HighestFrequency * $FontScale
             ImageSize        = $ImageSize
-            ImageCentre	     = $CentrePoint
+            ImageCentre      = $CentrePoint
             AspectRatio      = "$($ImageSize.Width / $GCD) : $($ImageSize.Height / $GCD)"
             FontFamily       = $FontFamily
         } | Format-List | Out-String | Write-Verbose
