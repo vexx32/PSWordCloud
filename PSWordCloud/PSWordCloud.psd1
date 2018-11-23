@@ -87,7 +87,7 @@
     # ModuleList = @()
 
     # List of all files packaged with this module
-    FileList = @('ConvertTo-ImageFormat.ps1','ConvertTo-Radians.ps1','New-WordCloud.ps1','PSWordCloud.psd1','PSWordCloud.psm1')
+    FileList = @('Private/Get-ImageFormat.ps1','Private/ConvertTo-Radians.ps1','Public/New-WordCloud.ps1','PSWordCloud.psd1','PSWordCloud.psm1')
 
     # Private data to pass to the module specified in RootModule/ModuleToProcess. This may also contain a PSData hashtable with additional module metadata used by PowerShell.
     PrivateData           = @{
