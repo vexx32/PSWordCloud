@@ -1,4 +1,4 @@
-$script:ModuleRoot = $PSScriptRoot
+﻿$script:ModuleRoot = $PSScriptRoot
 Write-Verbose "PSWordCloud module root: $script:ModuleRoot"
 
 $PublicFunctions = Get-ChildItem "$script:ModuleRoot\Public"

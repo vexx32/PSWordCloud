@@ -1,4 +1,4 @@
-using namespace System.Drawing
+﻿using namespace System.Drawing
 
 function Get-ImageFormat {
     [CmdletBinding()]
