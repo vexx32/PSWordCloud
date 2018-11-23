@@ -187,7 +187,16 @@ function New-WordCloud {
         [Alias('ImagePixelSize')]
         [ArgumentCompleter(
             {
-                return @('720p', '1080p', '4K', '640x1146', '480x800')
+                param($Command, $Parameter, $WordToComplete, $CommandAst, $FakeBoundParams)
+
+                $Values = @('720p', '1080p', '4K', '640x1146', '480x800')
+
+                if ($WordToComplete) {
+                    return $Values.Where {$_ -match "^$WordToComplete"}
+                }
+                else {
+                    return $Values
+                }
             }
         )]
         [SizeTransformAttribute()]
