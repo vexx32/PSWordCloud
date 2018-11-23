@@ -156,10 +156,10 @@ function New-WordCloud {
                 $FontLibrary = [FontFamily]::Families.Name.Where{-not [string]::IsNullOrWhiteSpace($_)}
 
                 if (!$WordToComplete) {
-                    return $FontLibrary
+                    return $FontLibrary -replace '(?="|`|\$)', '`' -replace '^|$', '"'
                 }
                 else {
-                    return $FontLibrary.Where{$_ -match "^$([regex]::Escape($WordToComplete))"} -replace '(?="|`|$)', '`' -replace '^|$', '"'
+                    return $FontLibrary.Where{$_ -match "^$([regex]::Escape($WordToComplete))"} -replace '(?="|`|\$)', '`' -replace '^|$', '"'
                 }
             }
         )]
@@ -262,8 +262,6 @@ function New-WordCloud {
             }
         }
 
-        Write-Verbose "Export Format: $ExportFormat"
-
         $ColorList = $ColorSet |
             Sort-Object {Get-Random} |
             Select-Object -First $MaxColors |
@@ -331,10 +329,6 @@ function New-WordCloud {
 
         $FontScale = ($ImageSize.Height + $ImageSize.Width) / ($AverageFrequency * $SortedWordList.Count)
 
-        Write-Verbose "Unique Words Count: $($WordHeightTable.GetEnumerator().Name.Count)"
-        Write-Verbose "Highest Word Frequency: $HighestFrequency; Average: $AverageFrequency"
-        Write-Verbose "Max Font Size: $($HighestFrequency * $FontScale)"
-
         try {
             # Create a graphics object to measure the text's width and height.
             $DummyImage = [Bitmap]::new(1, 1)
@@ -369,9 +363,21 @@ function New-WordCloud {
         }
 
         $MaxSideLength = [Math]::Max($ImageSize.Width, $ImageSize.Height)
+        $GCD = Get-GreatestCommonDivisor -Numerator $MaxSideLength -Denominator ([Math]::Min($ImageSize.Width, $ImageSize.Height))
         $AspectRatio = $ImageSize.Width / $ImageSize.Height
         $CentrePoint = [PointF]::new($ImageSize.Width / 2, $ImageSize.Height / 2)
-        Write-Verbose "Image dimensions: $ImageSize with centrepoint $CentrePoint and ratio $AspectRatio."
+
+        [PSCustomObject]@{
+            ExportFormat     = $ExportFormat
+            UniqueWords      = $WordHeightTable.GetEnumerator().Name.Count
+            HighestFrequency = $HighestFrequency
+            AverageFrequency = $AverageFrequency
+            MaxFontSize      = $HighestFrequency * $FontScale
+            ImageSize        = $ImageSize
+            ImageCentre	     = $CentrePoint
+            AspectRatio      = "$($ImageSize.Width / $GCD) : $($ImageSize.Height / $GCD)"
+            FontFamily       = $FontFamily
+        } | Format-List | Out-String | Write-Verbose
 
         try {
             $WordCloudImage = [Bitmap]::new($ImageSize.Width, $ImageSize.Height)
