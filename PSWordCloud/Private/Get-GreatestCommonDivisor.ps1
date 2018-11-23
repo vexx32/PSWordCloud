@@ -12,8 +12,8 @@ function Get-GreatestCommonDivisor {
         $Denominator
     )
     process {
-        while ($Denominator -gt 0) {
-            $Numerator, $Denominator = $Denominator, $Numerator % $Denominator
+        while ($Denominator -gt 0 -and $Numerator -ne $Denominator) {
+            $Numerator, $Denominator = $Denominator, ($Numerator % $Denominator)
         }
 
         return $Numerator
