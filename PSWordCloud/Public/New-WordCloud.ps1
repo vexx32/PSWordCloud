@@ -76,7 +76,7 @@ function New-WordCloud {
     accepted.
 
     .PARAMETER MaxColors
-    Limit the maximum number of colors from either a standard or custom set that will be used. A random selection of
+    Limit the maximum number of colors from either the standard or custom set that will be used. A random selection of
     this many colors will be used to render the word cloud.
 
     .PARAMETER FontFamily
@@ -113,7 +113,7 @@ function New-WordCloud {
 
     .PARAMETER BackgroundColor
     Set the background color of the image. Colors with similar names to the background color are automatically excluded
-    from being selected. Specify $null to render a transparent image with the word cloud superimposed.
+    from being selected. Specify $null to render the word cloud on a transparent background.
 
     .PARAMETER Monochrome
     Use only shades of grey to create the word cloud.
@@ -123,7 +123,7 @@ function New-WordCloud {
 
     .PARAMETER MaxWords
     Specify the maximum number of words to include in the word cloud. 100 is default. If there are fewer unique words
-    than the maximum set, all unique words will be rendered.
+    than the maximum amount, all unique words will be rendered.
 
     .EXAMPLE
     Get-Content .\Words.txt | New-WordCloud -Path .\WordCloud.png
@@ -132,7 +132,10 @@ function New-WordCloud {
 
     .NOTES
     Only the top 100 most frequent words will be included in the word cloud by default; typically, words that fall under
-    this ranking end up being impossible to render cleanly.
+    this ranking end up being impossible to render cleanly except on very high resolutions.
+
+    The word cloud will be rendered according to the image size; landscape or portrait configurations will result in
+    ovoid clouds, whereas square images will result mainly in circular clouds.
     #>
     [CmdletBinding(DefaultParameterSetName = 'SelectColors')]
     [Alias('wordcloud', 'wcloud')]
