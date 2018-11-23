@@ -301,16 +301,16 @@ function New-WordCloud {
         $RemoveList = [List[string]]::new()
         switch ($WordList) {
             { $WordHeightTable[($_ -replace 's$')] } {
-                $WordHeightTable[($_ -replace 's$')] += 1
+                $WordHeightTable[($_ -replace 's$')] ++
                 continue
             }
-            { $WordHeightTable[("${_}s")] } {
-                $WordHeightTable[($_)] = $WordHeightTable[("${_}s")] + 1
+            { $WordHeightTable["${_}s"] } {
+                $WordHeightTable[$_] = $WordHeightTable["${_}s"] + 1
                 $RemoveList.Add("${_}s")
                 continue
             }
             default {
-                $WordHeightTable[($_)] += 1
+                $WordHeightTable[$_] ++
                 continue
             }
         }
