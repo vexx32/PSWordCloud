@@ -298,7 +298,6 @@ function New-WordCloud {
     }
     end {
         # Count occurrence of each word
-        $RemoveList = [List[string]]::new()
         switch ($WordList) {
             { $WordHeightTable[($_ -replace 's$')] } {
                 $WordHeightTable[($_ -replace 's$')] ++
@@ -306,16 +305,13 @@ function New-WordCloud {
             }
             { $WordHeightTable["${_}s"] } {
                 $WordHeightTable[$_] = $WordHeightTable["${_}s"] + 1
-                $RemoveList.Add("${_}s")
+                $WordHeightTable.Remove("${_}s")
                 continue
             }
             default {
                 $WordHeightTable[$_] ++
                 continue
             }
-        }
-        foreach ($Word in $RemoveList) {
-            $WordHeightTable.Remove($Word)
         }
 
         $SortedWordList = $WordHeightTable.GetEnumerator().Name |
