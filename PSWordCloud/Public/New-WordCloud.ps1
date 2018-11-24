@@ -40,7 +40,7 @@ class SizeTransformAttribute : ArgumentTransformationAttribute {
                 }
             }
             default {
-                throw [ArgumentTransformationMetadataException]::new("Unable to convert entered value $inputData to a valid Size.")
+                throw [ArgumentTransformationMetadataException]::new("Unable to convert entered value $inputData to a valid [System.Drawing.Size].")
             }
         }
 
@@ -55,6 +55,51 @@ class SizeTransformAttribute : ArgumentTransformationAttribute {
         }
     }
 }
+
+class ColorTransformAttribute : ArgumentTransformationAttribute {
+    static [string[]] $ColorNames = @(
+        [KnownColor].GetEnumNames()
+        "Transparent"
+    )
+
+    [object] Transform([EngineIntrinsics]$engineIntrinsics, [object] $inputData) {
+        $Items = switch ($inputData) {
+            { $_ -eq $null -or $_ -eq 'Transparent' } {
+                [Color]::Transparent
+                continue
+            }
+            { $_ -as [KnownColor] } {
+                [Color]::FromKnownColor($_ -as [KnownColor])
+                continue
+            }
+            { $_ -is [Color] } {
+                $_
+                continue
+            }
+            { $_ -is [string] } {
+                if ($_ -match 'R(?<Red>[0-9]{1,3})G(?<Green>[0-9]{1,3})B(?<Blue>[0-9]{1,3})') {
+                    [Color]::FromArgb($Matches['Red'], $Matches['Green'], $Matches['Blue'])
+                    continue
+                }
+
+                if ($_ -match 'R(?<Red>[0-9]{1,3})G(?<Green>[0-9]{1,3})B(?<Blue>[0-9]{1,3})A(?<Alpha>[0-9]{1,3})') {
+                    [Color]::FromArgb($Matches['Alpha'], $Matches['Red'], $Matches['Green'], $Matches['Blue'])
+                    continue
+                }
+            }
+            { $- -is [int] } {
+                [Color]::FromArgb($_)
+                continue
+            }
+            default {
+                throw [ArgumentTransformationMetadataException]::new("Could not convert value '$_' to a valid [System.Drawing.Color] or [System.Drawing.KnownColor].")
+            }
+        }
+
+        return $Items
+    }
+}
+
 
 function New-WordCloud {
     <#
@@ -72,8 +117,15 @@ function New-WordCloud {
     The output path of the word cloud.
 
     .PARAMETER ColorSet
-    Define a set of colors to use when rendering the word cloud. Any set of [System.Drawing.KnownColor] values will be
-    accepted.
+    Define a set of colors to use when rendering the word cloud. Any array of values in any mix of the following formats
+    is acceptable:
+
+    - Valid [System.Drawing.Color] objects
+    - Valid [System.Drawing.KnownColor] values in enum or string format
+    - Strings of the format r255g255b255 or r255g255b255a255 where the integers are the R, G, B, and optionally Alpha
+      values of the desired color.
+    - Any valid integer value; these are passed directly to [System.Drawing.Color]::FromArgb($Integer) to be converted
+      into valid colors.
 
     .PARAMETER MaxColors
     Limit the maximum number of colors from either the standard or custom set that will be used. A random selection of
@@ -113,7 +165,16 @@ function New-WordCloud {
 
     .PARAMETER BackgroundColor
     Set the background color of the image. Colors with similar names to the background color are automatically excluded
-    from being selected. Specify $null to render the word cloud on a transparent background.
+    from being selected for use in word coloring. Any value in of the following formats is acceptable:
+
+    - Valid [System.Drawing.Color] objects
+    - Valid [System.Drawing.KnownColor] values in enum or string format
+    - Strings of the format r255g255b255 or r255g255b255a255 where the integers are the R, G, B, and optionally Alpha
+      values of the desired color.
+    - Any valid integer value; these are passed directly to [System.Drawing.Color]::FromArgb($Integer) to be converted
+      into valid colors.
+
+    Specify $null or Transparent as the background color value to render the word cloud on a transparent background.
 
     .PARAMETER Monochrome
     Use only shades of grey to create the word cloud.
@@ -156,8 +217,20 @@ function New-WordCloud {
 
         [Parameter(ParameterSetName = 'SelectColors')]
         [Alias('ColourSet')]
-        [KnownColor[]]
-        $ColorSet = [KnownColor].GetEnumNames(),
+        [ArgumentCompleter(
+            {
+                param($Command, $Parameter, $WordToComplete, $CommandAst, $FakeBoundParams)
+                if (!$WordToComplete) {
+                    return [ColorTransformAttribute]::ColorNames
+                }
+                else {
+                    return [ColorTransformAttribute]::ColorNames.Where{ $_.StartsWith($WordToComplete) }
+                }
+            }
+        )]
+        [ColorTransformAttribute()]
+        [Color[]]
+        $ColorSet = [ColorTransformAttribute]::ColorNames,
 
         [Parameter()]
         [Alias('MaxColours')]
@@ -175,7 +248,7 @@ function New-WordCloud {
                     return $FontLibrary -replace '(?="|`|\$)', '`' -replace '^|$', '"'
                 }
                 else {
-                    return $FontLibrary.Where{$_ -match "^$([regex]::Escape($WordToComplete))"} -replace '(?="|`|\$)', '`' -replace '^|$', '"'
+                    return $FontLibrary.Where{$_ -match "^('|`")?$([regex]::Escape($WordToComplete))"} -replace '(?="|`|\$)', '`' -replace '^|$', '"'
                 }
             }
         )]
@@ -216,8 +289,20 @@ function New-WordCloud {
 
         [Parameter()]
         [Alias('BackgroundColour')]
-        [Nullable[KnownColor]]
-        $BackgroundColor = [KnownColor]::Black,
+        [ArgumentCompleter(
+            {
+                param($Command, $Parameter, $WordToComplete, $CommandAst, $FakeBoundParams)
+                if (!$WordToComplete) {
+                    return [ColorTransformAttribute]::ColorNames
+                }
+                else {
+                    return [ColorTransformAttribute]::ColorNames.Where{ $_.StartsWith($WordToComplete) }
+                }
+            }
+        )]
+        [ColorTransformAttribute()]
+        [Color]
+        $BackgroundColor = [Color]::Black,
 
         [Parameter(Mandatory, ParameterSetName = 'Monochrome')]
         [Alias('Greyscale', 'Grayscale')]
@@ -276,14 +361,13 @@ function New-WordCloud {
             Select-Object -First $MaxColors |
             ForEach-Object {
             if (-not $Monochrome) {
-                [Color]::FromKnownColor($_)
+                $_
             }
             else {
-                [int]$Brightness = [Color]::FromKnownColor($_).GetBrightness() * 255
+                [int]$Brightness = $_.GetBrightness() * 255
                 [Color]::FromArgb($Brightness, $Brightness, $Brightness)
             }
-        } |
-            Where-Object {
+        } | Where-Object {
             if ($BackgroundColor) {
                 $_.Name -notmatch $BackgroundColor -and
                 $_.GetSaturation() -ge $MinSaturation
@@ -291,8 +375,7 @@ function New-WordCloud {
             else {
                 $_.GetSaturation() -ge $MinSaturation
             }
-        } |
-            Sort-Object -Descending {
+        } | Sort-Object -Descending {
             $Value = $_.GetBrightness()
             $Random = (-$Value..$Value | Get-Random) / (1 - $_.GetSaturation())
             $Value + $Random
@@ -388,9 +471,8 @@ function New-WordCloud {
             $WordCloudImage = [Bitmap]::new($ImageSize.Width, $ImageSize.Height)
             [Graphics]$DrawingSurface = [Graphics]::FromImage($WordCloudImage)
 
-            if ($BackgroundColor) {
-                $DrawingSurface.Clear([Color]::FromKnownColor($BackgroundColor))
-            }
+            $DrawingSurface.Clear($BackgroundColor)
+
             $DrawingSurface.SmoothingMode = [Drawing2D.SmoothingMode]::AntiAlias
             $DrawingSurface.TextRenderingHint = [Text.TextRenderingHint]::AntiAlias
 
