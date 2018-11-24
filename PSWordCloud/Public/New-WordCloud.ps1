@@ -322,6 +322,9 @@ function New-WordCloud {
         $MaxUniqueWords = 100
     )
     begin {
+        Write-Debug "Color set: $($ColorSet -join ', ')"
+        Write-Debug "Background color: $BackgroundColor"
+
         $ExcludedWords = (Get-Content "$script:ModuleRoot/Data/StopWords.txt") -join '|'
         $SplitChars = " `n.,`"?!{}[]:()`“`”™*#%^&+=" -as [char[]]
         $ColorIndex = 0
@@ -406,6 +409,8 @@ function New-WordCloud {
             }
         }
 
+        $WordHeightTable | Out-String | Write-Debug
+
         $SortedWordList = $WordHeightTable.GetEnumerator().Name |
             Sort-Object -Descending { $WordHeightTable[$_] } |
             Select-Object -First $MaxUniqueWords
@@ -435,8 +440,6 @@ function New-WordCloud {
 
                 $WordSizeTable[$Word] = $Graphics.MeasureString($Word, $Font)
             }
-
-            $WordHeightTable | Out-String | Write-Debug
         }
         catch {
             $PSCmdlet.ThrowTerminatingError($_)
