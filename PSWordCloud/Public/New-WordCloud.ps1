@@ -436,9 +436,11 @@ function New-WordCloud {
                         $Radians = Convert-ToRadians -Degrees $Angle
                         $Complex = [Complex]::FromPolarCoordinates($RadialDistance, $Radians)
 
-                        if ($WordHeightTable[$Word] -ne $HighestFrequency * $FontScale -and $AspectRatio -lt 1) {
-                            $OffsetX = $WordSizeTable[$Word].Width * $Jitter.NextDouble()
-                            $OffsetY = $WordSizeTable[$Word].Height * $Jitter.NextDouble()
+                        $OffsetX = $WordSizeTable[$Word].Width * 0.5
+                        $OffsetY = $WordSizeTable[$Word].Height * 0.5
+                        if ($WordHeightTable[$Word] -ne $HighestFrequency * $FontScale -and $AspectRatio -gt 1) {
+                            $OffsetX = $OffsetX * $Jitter.NextDouble() + 0.25
+                            $OffsetY = $OffsetY * $Jitter.NextDouble() + 0.25
                         }
                         $DrawLocation = [PointF]::new(
                             $Complex.Real * $AspectRatio + $CentrePoint.X - $OffsetX,
