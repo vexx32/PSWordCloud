@@ -379,7 +379,12 @@ function New-WordCloud {
         [Alias('BaseImage')]
         [FileTransformAttribute()]
         [FileInfo]
-        $BackgroundImage
+        $BackgroundImage,
+
+        [Parameter()]
+        [Alias('Seed')]
+        [int]
+        $RandomSeed
     )
     begin {
         Write-Debug "Color set: $($ColorSet -join ', ')"
@@ -537,7 +542,12 @@ function New-WordCloud {
         try {
             $RectangleList = [List[RectangleF]]::new()
             $RadialScanCount = 0
-            $RNG = [Random]::new()
+            $RNG = if ($PSBoundParameters.ContainsKey('RandomSeed')) {
+                [Random]::new($RandomSeed)
+            }
+            else {
+                [Random]::new()
+            }
 
             '{0,-20} | {1,23} | {2,10} | {3,26} | {4,-10}' -f 'Word', 'Color', 'FontSize', 'Location', 'Direction' |
                 Write-Verbose
@@ -545,7 +555,6 @@ function New-WordCloud {
             :words foreach ($Word in $SortedWordList) {
                 if (-not $WordSizeTable[$Word]) { continue }
                 $RadialDistance = 0
-                $Rotate = !$DisableWordRotation -and $RNG.NextDouble() -gt 0.65
 
                 $Font = [Font]::new(
                     $FontFamily,
@@ -579,6 +588,7 @@ function New-WordCloud {
                         $( if ($Start -lt $End) {$Angle -le $End} else {$End -le $Angle} );
                         $Angle += $AngleIncrement
                     ) {
+                        $Rotate = $false
                         $IsColliding = $false
                         $Radians = Convert-ToRadians -Degrees $Angle
                         $Complex = [Complex]::FromPolarCoordinates($RadialDistance, $Radians)
@@ -589,50 +599,84 @@ function New-WordCloud {
                             $OffsetX = $OffsetX * $RNG.NextDouble() + 0.25
                             $OffsetY = $OffsetY * $RNG.NextDouble() + 0.25
                         }
+
                         $DrawLocation = [PointF]::new(
                             $Complex.Real * $AspectRatio + $CentrePoint.X - $OffsetX,
                             $Complex.Imaginary + $CentrePoint.Y - $OffsetY
                         )
 
-                        $WordRectangle = if ($Rotate) {
-                            [RectangleF]::new(
-                                [PointF]$DrawLocation,
-                                [SizeF]::new($WordSizeTable[$Word].Height, $WordSizeTable[$Word].Width)
-                            )
+                        try {
+                            $WordCloudImage.GetPixel($DrawLocation.X, $DrawLocation.Y) > $null
                         }
-                        else {
-                            [RectangleF]::new([PointF]$DrawLocation, [SizeF]$WordSizeTable[$Word])
-                        }
-
-                        $OutsideImage = (
-                            $WordRectangle.Top -lt 0 -or
-                            $WordRectangle.Left -lt 0 -or
-                            $WordRectangle.Bottom -gt $WordCloudImage.Height -or
-                            $WordRectangle.Right -gt $WordCloudImage.Width
-                        )
-                        if ($OutsideImage) {
+                        catch [ArgumentOutOfRangeException] {
                             continue
                         }
 
-                        foreach ($Rectangle in $RectangleList) {
-                            if ($WordRectangle.IntersectsWith($Rectangle)) {
-                                $IsColliding = $true
-                                break
+                        $Order = if ($DisableWordRotation) {
+                            'Normal'
+                        }
+                        else {
+                            'Normal', 'Rotated' | Sort-Object { $RNG.Next() }
+                        }
+                        switch ($Order) {
+                            'Normal' {
+                                $WordRectangle = [RectangleF]::new([PointF]$DrawLocation, [SizeF]$WordSizeTable[$Word])
+                                $OutsideImage = (
+                                    $WordRectangle.Top -lt 0 -or
+                                    $WordRectangle.Left -lt 0 -or
+                                    $WordRectangle.Bottom -gt $WordCloudImage.Height -or
+                                    $WordRectangle.Right -gt $WordCloudImage.Width
+                                )
+                                if ($OutsideImage) { continue }
+
+                                foreach ($Rectangle in $RectangleList) {
+                                    if ($WordRectangle.IntersectsWith($Rectangle)) {
+                                        $IsColliding = $true
+                                        break
+                                    }
+                                }
+
+                                if (-not $IsColliding) {
+                                    # Available location found; break loop and draw
+                                    break
+                                }
+                            }
+                            'Rotated' {
+                                $WordRectangle = [RectangleF]::new(
+                                    [PointF]$DrawLocation,
+                                    [SizeF]::new(
+                                        $WordSizeTable[$Word].Height,
+                                        $WordSizeTable[$Word].Width
+                                    )
+                                )
+                                $OutsideImage = (
+                                    $WordRectangle.Top -lt 0 -or
+                                    $WordRectangle.Left -lt 0 -or
+                                    $WordRectangle.Bottom -gt $WordCloudImage.Height -or
+                                    $WordRectangle.Right -gt $WordCloudImage.Width
+                                )
+                                if ($OutsideImage) { continue }
+
+                                foreach ($Rectangle in $RectangleList) {
+                                    if ($WordRectangle.IntersectsWith($Rectangle)) {
+                                        $IsColliding = $true
+                                        break
+                                    }
+                                }
+
+                                if (-not $IsColliding) {
+                                    # Available location found; break loop and draw
+                                    $Rotate = $true
+                                    break
+                                }
                             }
                         }
 
-                        if (!$IsColliding) {
-                            break
-                        }
+                        if (-not $IsColliding) { break }
                     }
 
                     if ($IsColliding) {
-                        $RadialDistance += if ($Rotate) {
-                            $WordRectangle.Width * $DistanceStep / 10
-                        }
-                        else {
-                            $WordRectangle.Height * $DistanceStep / 10
-                        }
+                        $RadialDistance += $RNG.NextDouble() * ($WordRectangle.Width + $WordRectangle.Height) * $DistanceStep / 20
                         $RadialScanCount++
                     }
                 } while ($IsColliding)
