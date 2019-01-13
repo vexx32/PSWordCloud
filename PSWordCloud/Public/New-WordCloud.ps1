@@ -1,5 +1,6 @@
 ﻿using namespace System.Collections.Generic
 using namespace System.Drawing
+using namespace System.IO
 using namespace System.Management.Automation
 using namespace System.Numerics
 
@@ -100,6 +101,34 @@ class ColorTransformAttribute : ArgumentTransformationAttribute {
     }
 }
 
+class FileTransformAttribute : ArgumentTransformationAttribute {
+    [object] Transform([EngineIntrinsics]$engineIntrinsics, [object] $inputData) {
+        $Items = switch ($inputData) {
+            { $_ -as [FileInfo] } {
+                $_
+                break
+            }
+            { $_ -is [string] } {
+                $Path = Resolve-Path -Path $_
+                if (@($Path).Count -gt 1) {
+                    throw [ArgumentTransformationMetadataException]::new("Multiple files found, please enter only one: $($Path -join ', ')")
+                }
+
+                if (Test-Path -Path $Path -PathType Leaf) {
+                    [FileInfo]::new($Path)
+                }
+
+                break
+            }
+            default {
+                throw [ArgumentTransformationMetadataException]::new("Could not convert value '$_' to a valid [System.IO.FileInfo] object.")
+            }
+        }
+
+        return $Items
+    }
+}
+
 function New-WordCloud {
     <#
     .SYNOPSIS
@@ -187,6 +216,9 @@ function New-WordCloud {
     Specify the maximum number of words to include in the word cloud. 100 is default. If there are fewer unique words
     than the maximum amount, all unique words will be rendered.
 
+    .PARAMETER BackgroundImage
+    Specify the background image to be used as a base for the word cloud image. The original image size will be retained.
+
     .EXAMPLE
     Get-Content .\Words.txt | New-WordCloud -Path .\WordCloud.png
 
@@ -199,16 +231,22 @@ function New-WordCloud {
     The word cloud will be rendered according to the image size; landscape or portrait configurations will result in
     ovoid clouds, whereas square images will result mainly in circular clouds.
     #>
-    [CmdletBinding(DefaultParameterSetName = 'SelectColors')]
+    [CmdletBinding(DefaultParameterSetName = 'ColorBackground')]
     [Alias('wordcloud', 'wcloud')]
     param(
-        [Parameter(Mandatory, Position = 0, ValueFromPipeline)]
+        [Parameter(Mandatory, Position = 0, ValueFromPipeline, ParameterSetName = 'ColorBackground')]
+        [Parameter(Mandatory, Position = 0, ValueFromPipeline, ParameterSetName = 'ColorBackground-Mono')]
+        [Parameter(Mandatory, Position = 0, ValueFromPipeline, ParameterSetName = 'FileBackground')]
+        [Parameter(Mandatory, Position = 0, ValueFromPipeline, ParameterSetName = 'FileBackground-Mono')]
         [Alias('InputString', 'Text', 'String', 'Words', 'Document', 'Page')]
         [AllowEmptyString()]
         [object[]]
         $InputObject,
 
-        [Parameter(Mandatory, Position = 1)]
+        [Parameter(Mandatory, Position = 1, ParameterSetName = 'ColorBackground')]
+        [Parameter(Mandatory, Position = 1, ParameterSetName = 'ColorBackground-Mono')]
+        [Parameter(Mandatory, Position = 1, ParameterSetName = 'FileBackground')]
+        [Parameter(Mandatory, Position = 1, ParameterSetName = 'FileBackground-Mono')]
         [Alias('OutFile', 'ExportPath', 'ImagePath')]
         [ValidateScript(
             { Test-Path -IsValid $_ -PathType Leaf }
@@ -216,7 +254,10 @@ function New-WordCloud {
         [string[]]
         $Path,
 
-        [Parameter(ParameterSetName = 'SelectColors')]
+        [Parameter(ParameterSetName = 'ColorBackground')]
+        [Parameter(ParameterSetName = 'ColorBackground-Mono')]
+        [Parameter(ParameterSetName = 'FileBackground')]
+        [Parameter(ParameterSetName = 'FileBackground-Mono')]
         [Alias('ColourSet')]
         [ArgumentCompleter(
             {
@@ -236,7 +277,7 @@ function New-WordCloud {
         [Parameter()]
         [Alias('MaxColours')]
         [int]
-        $MaxColors,
+        $MaxColors = [int]::MaxValue,
 
         [Parameter()]
         [Alias('FontFace')]
@@ -260,7 +301,8 @@ function New-WordCloud {
         [FontStyle]
         $FontStyle = [FontStyle]::Regular,
 
-        [Parameter()]
+        [Parameter(ParameterSetName = 'ColorBackground')]
+        [Parameter(ParameterSetName = 'ColorBackground-Mono')]
         [Alias('ImagePixelSize')]
         [ArgumentCompleter(
             {
@@ -288,7 +330,8 @@ function New-WordCloud {
         [ValidateRange(1, 50)]
         $RadialGranularity = 15,
 
-        [Parameter()]
+        [Parameter(ParameterSetName = 'ColorBackground')]
+        [Parameter(ParameterSetName = 'ColorBackground-Mono')]
         [Alias('BackgroundColour')]
         [ArgumentCompleter(
             {
@@ -305,7 +348,8 @@ function New-WordCloud {
         [Color]
         $BackgroundColor = [Color]::Black,
 
-        [Parameter(Mandatory, ParameterSetName = 'Monochrome')]
+        [Parameter(Mandatory, ParameterSetName = 'ColorBackground-Mono')]
+        [Parameter(Mandatory, ParameterSetName = 'FileBackground-Mono')]
         [Alias('Greyscale', 'Grayscale')]
         [switch]
         $Monochrome,
@@ -325,7 +369,14 @@ function New-WordCloud {
         [Parameter()]
         [Alias('DisableRotation', 'NoRotation')]
         [switch]
-        $DisableWordRotation
+        $DisableWordRotation,
+
+        [Parameter(Mandatory, ParameterSetName = 'FileBackground')]
+        [Parameter(Mandatory, ParameterSetName = 'FileBackground-Mono')]
+        [Alias('BaseImage')]
+        [FileTransformAttribute()]
+        [FileInfo]
+        $BackgroundImage
     )
     begin {
         Write-Debug "Color set: $($ColorSet -join ', ')"
@@ -347,10 +398,6 @@ function New-WordCloud {
         }
         else {
             $MinSaturation = 0.5
-        }
-
-        if (-not $PSBoundParameters.ContainsKey('MaxColors')) {
-            $MaxColors = [int]::MaxValue
         }
 
         $PathList = foreach ($FilePath in $Path) {
@@ -427,12 +474,21 @@ function New-WordCloud {
             Measure-Object -Average -Maximum |
             ForEach-Object {$_.Maximum, $_.Average}
 
-        $FontScale = ($ImageSize.Height + $ImageSize.Width) / ($AverageFrequency * $SortedWordList.Count)
-
         try {
-            # Create a graphics object to measure the text's width and height.
-            $DummyImage = [Bitmap]::new(1, 1)
-            $Graphics = [Graphics]::FromImage($DummyImage)
+            if ($BackgroundImage.FullName) {
+                $WordCloudImage = [Bitmap]::new($BackgroundImage.FullName)
+                $DrawingSurface = [Graphics]::FromImage($WordCloudImage)
+            }
+            else {
+                $WordCloudImage = [Bitmap]::new($ImageSize.Width, $ImageSize.Height)
+                $DrawingSurface = [Graphics]::FromImage($WordCloudImage)
+
+                $DrawingSurface.Clear($BackgroundColor)
+            }
+
+            $FontScale = ($WordCloudImage.Height + $WordCloudImage.Width) / ($AverageFrequency * $SortedWordList.Count)
+            $DrawingSurface.SmoothingMode = [Drawing2D.SmoothingMode]::AntiAlias
+            $DrawingSurface.TextRenderingHint = [Text.TextRenderingHint]::AntiAlias
 
             foreach ($Word in $SortedWordList) {
                 $WordHeightTable[$Word] = [Math]::Round($WordHeightTable[$Word] * $FontScale)
@@ -445,25 +501,23 @@ function New-WordCloud {
                     [GraphicsUnit]::Pixel
                 )
 
-                $WordSizeTable[$Word] = $Graphics.MeasureString($Word, $Font)
+                $WordSizeTable[$Word] = $DrawingSurface.MeasureString($Word, $Font)
             }
         }
         catch {
             $PSCmdlet.ThrowTerminatingError($_)
-        }
-        finally {
-            if ($Graphics) {
-                $Graphics.Dispose()
+            if ($DrawingSurface) {
+                $DrawingSurface.Dispose()
             }
             if ($DummyImage) {
-                $DummyImage.Dispose()
+                $WordCloudImage.Dispose()
             }
         }
 
-        $MaxSideLength = [Math]::Max($ImageSize.Width, $ImageSize.Height)
-        $GCD = Get-GreatestCommonDivisor -Numerator $MaxSideLength -Denominator ([Math]::Min($ImageSize.Width, $ImageSize.Height))
-        $AspectRatio = $ImageSize.Width / $ImageSize.Height
-        $CentrePoint = [PointF]::new($ImageSize.Width / 2, $ImageSize.Height / 2)
+        $MaxSideLength = [Math]::Max($WordCloudImage.Width, $WordCloudImage.Height)
+        $GCD = Get-GreatestCommonDivisor -Numerator $MaxSideLength -Denominator ([Math]::Min($WordCloudImage.Width, $WordCloudImage.Height))
+        $AspectRatio = $WordCloudImage.Width / $WordCloudImage.Height
+        $CentrePoint = [PointF]::new($WordCloudImage.Width / 2, $WordCloudImage.Height / 2)
 
         [PSCustomObject]@{
             ExportFormat     = $ExportFormat
@@ -471,24 +525,20 @@ function New-WordCloud {
             HighestFrequency = $HighestFrequency
             AverageFrequency = $AverageFrequency
             MaxFontSize      = $HighestFrequency * $FontScale
-            ImageSize        = $ImageSize
+            ImageSize        = $WordCloudImage.Size
             ImageCentre      = $CentrePoint
-            AspectRatio      = "$($ImageSize.Width / $GCD) : $($ImageSize.Height / $GCD)"
-            FontFamily       = $FontFamily
+            AspectRatio      = "$($WordCloudImage.Width / $GCD) : $($WordCloudImage.Height / $GCD)"
+            FontFamily       = $FontFamily.Name
         } | Format-List | Out-String | Write-Verbose
 
         try {
-            $WordCloudImage = [Bitmap]::new($ImageSize.Width, $ImageSize.Height)
-            [Graphics]$DrawingSurface = [Graphics]::FromImage($WordCloudImage)
-
-            $DrawingSurface.Clear($BackgroundColor)
-
-            $DrawingSurface.SmoothingMode = [Drawing2D.SmoothingMode]::AntiAlias
-            $DrawingSurface.TextRenderingHint = [Text.TextRenderingHint]::AntiAlias
-
             $RectangleList = [List[RectangleF]]::new()
             $RadialScanCount = 0
             $RNG = [Random]::new()
+
+            '{0,-20} | {1,23} | {2,10} | {3,26} | {4,-10}' -f 'Word', 'Color', 'FontSize', 'Location', 'Direction' |
+                Write-Verbose
+            Write-Verbose "$("-" * 21)+$("-" * 25)+$("-" * 12)+$("-" * 28)+$("-" * 11)"
             :words foreach ($Word in $SortedWordList) {
                 if (-not $WordSizeTable[$Word]) { continue }
                 $RadialDistance = 0
@@ -554,8 +604,8 @@ function New-WordCloud {
                         $OutsideImage = (
                             $WordRectangle.Top -lt 0 -or
                             $WordRectangle.Left -lt 0 -or
-                            $WordRectangle.Bottom -gt $ImageSize.Height -or
-                            $WordRectangle.Right -gt $ImageSize.Width
+                            $WordRectangle.Bottom -gt $WordCloudImage.Height -or
+                            $WordRectangle.Right -gt $WordCloudImage.Width
                         )
                         if ($OutsideImage) {
                             continue
@@ -592,12 +642,32 @@ function New-WordCloud {
                     $ColorIndex = 0
                 }
 
-                Write-Verbose "Writing $Word with font $Font in $Color at $DrawLocation"
+                $FormatString = '{0,-20} | R:{1,3} G:{2,3} B:{3,3} A:{4,3} | {5,10} | {6,26} | {7,-10}'
                 if ($Rotate) {
+                    $FormatString -f @(
+                        "'$Word'"
+                        $Color.R
+                        $Color.G
+                        $Color.B
+                        $Color.A
+                        "$($Font.SizeInPoints) pt"
+                        $DrawLocation.ToString()
+                        'Vertical'
+                    ) | Write-Verbose
                     $RotateFormat = [StringFormat]::new([StringFormatFlags]::DirectionVertical)
                     $DrawingSurface.DrawString($Word, $Font, [SolidBrush]::new($Color), $DrawLocation, $RotateFormat)
                 }
                 else {
+                    $FormatString -f @(
+                        "'$Word'"
+                        $Color.R
+                        $Color.G
+                        $Color.B
+                        $Color.A
+                        "$($Font.SizeInPoints) pt"
+                        $DrawLocation.ToString()
+                        'Horizontal'
+                    ) | Write-Verbose
                     $DrawingSurface.DrawString($Word, $Font, [SolidBrush]::new($Color), $DrawLocation)
                 }
             }
