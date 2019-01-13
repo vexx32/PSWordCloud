@@ -219,6 +219,9 @@ function New-WordCloud {
     .PARAMETER BackgroundImage
     Specify the background image to be used as a base for the word cloud image. The original image size will be retained.
 
+    .PARAMETER DisableWordRotation
+    Disables rotated words in the final image.
+
     .EXAMPLE
     Get-Content .\Words.txt | New-WordCloud -Path .\WordCloud.png
 
