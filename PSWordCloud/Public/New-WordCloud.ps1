@@ -100,7 +100,6 @@ class ColorTransformAttribute : ArgumentTransformationAttribute {
     }
 }
 
-
 function New-WordCloud {
     <#
     .SYNOPSIS
@@ -110,8 +109,10 @@ function New-WordCloud {
     Measures the frequency of use of each word, taking into account plural and similar forms, and creates an image
     with each word's visual size corresponding to the frequency of occurrence in the input text.
 
-    .PARAMETER InputString
-    The string data to examine and create the word cloud image from.
+    .PARAMETER InputObject
+    The string data to examine and create the word cloud image from. Any non-string data piped in will be passed through
+    Out-String first to obtain a proper string representation of the object, which will then be broken down into its
+    constituent words.
 
     .PARAMETER Path
     The output path of the word cloud.
@@ -202,10 +203,10 @@ function New-WordCloud {
     [Alias('wordcloud', 'wcloud')]
     param(
         [Parameter(Mandatory, Position = 0, ValueFromPipeline)]
-        [Alias('InputString', 'InputObject', 'String', 'Words', 'Document', 'Page')]
+        [Alias('InputString', 'Text', 'String', 'Words', 'Document', 'Page')]
         [AllowEmptyString()]
-        [string[]]
-        $Text,
+        [object[]]
+        $InputObject,
 
         [Parameter(Mandatory, Position = 1)]
         [Alias('OutFile', 'ExportPath', 'ImagePath')]
@@ -319,7 +320,12 @@ function New-WordCloud {
         [Alias('MaxWords')]
         [ValidateRange(10, 500)]
         [int]
-        $MaxUniqueWords = 100
+        $MaxUniqueWords = 100,
+
+        [Parameter()]
+        [Alias('DisableRotation', 'NoRotation')]
+        [switch]
+        $DisableWordRotation
     )
     begin {
         Write-Debug "Color set: $($ColorSet -join ', ')"
@@ -385,8 +391,9 @@ function New-WordCloud {
         }
     }
     process {
+        $Lines = ($InputObject | Out-String) -split '\r?\n'
         $WordList.AddRange(
-            $Text.Split($SplitChars, [StringSplitOptions]::RemoveEmptyEntries).Where{
+            $Lines.Split($SplitChars, [StringSplitOptions]::RemoveEmptyEntries).Where{
                 $_ -notmatch "^($ExcludedWords)s?$|^[^a-z]+$|[^a-z0-9'_-]" -and $_.Length -gt 1
             } -replace "^('|_)|('|_)$" -as [string[]]
         )
@@ -481,9 +488,11 @@ function New-WordCloud {
 
             $RectangleList = [List[RectangleF]]::new()
             $RadialScanCount = 0
-            $Jitter = [Random]::new()
+            $RNG = [Random]::new()
             :words foreach ($Word in $SortedWordList) {
                 if (-not $WordSizeTable[$Word]) { continue }
+                $RadialDistance = 0
+                $Rotate = !$DisableWordRotation -and $RNG.NextDouble() -gt 0.65
 
                 $Font = [Font]::new(
                     $FontFamily,
@@ -512,38 +521,49 @@ function New-WordCloud {
                         7 { $Start = 90; $End = -270; $AngleIncrement *= -1 }
                     }
 
-                    $IsColliding = $false
                     for (
                         $Angle = $Start;
                         $( if ($Start -lt $End) {$Angle -le $End} else {$End -le $Angle} );
                         $Angle += $AngleIncrement
                     ) {
+                        $IsColliding = $false
                         $Radians = Convert-ToRadians -Degrees $Angle
                         $Complex = [Complex]::FromPolarCoordinates($RadialDistance, $Radians)
 
                         $OffsetX = $WordSizeTable[$Word].Width * 0.5
                         $OffsetY = $WordSizeTable[$Word].Height * 0.5
                         if ($WordHeightTable[$Word] -ne $HighestFrequency * $FontScale -and $AspectRatio -gt 1) {
-                            $OffsetX = $OffsetX * $Jitter.NextDouble() + 0.25
-                            $OffsetY = $OffsetY * $Jitter.NextDouble() + 0.25
+                            $OffsetX = $OffsetX * $RNG.NextDouble() + 0.25
+                            $OffsetY = $OffsetY * $RNG.NextDouble() + 0.25
                         }
                         $DrawLocation = [PointF]::new(
                             $Complex.Real * $AspectRatio + $CentrePoint.X - $OffsetX,
                             $Complex.Imaginary + $CentrePoint.Y - $OffsetY
                         )
 
-                        $WordRectangle = [RectangleF]::new([PointF]$DrawLocation, [SizeF]$WordSizeTable[$Word])
+                        $WordRectangle = if ($Rotate) {
+                            [RectangleF]::new(
+                                [PointF]$DrawLocation,
+                                [SizeF]::new($WordSizeTable[$Word].Height, $WordSizeTable[$Word].Width)
+                            )
+                        }
+                        else {
+                            [RectangleF]::new([PointF]$DrawLocation, [SizeF]$WordSizeTable[$Word])
+                        }
+
+                        $OutsideImage = (
+                            $WordRectangle.Top -lt 0 -or
+                            $WordRectangle.Left -lt 0 -or
+                            $WordRectangle.Bottom -gt $ImageSize.Height -or
+                            $WordRectangle.Right -gt $ImageSize.Width
+                        )
+                        if ($OutsideImage) {
+                            continue
+                        }
 
                         foreach ($Rectangle in $RectangleList) {
-                            $IsColliding = (
-                                $WordRectangle.IntersectsWith($Rectangle) -or
-                                $WordRectangle.Top -lt 0 -or
-                                $WordRectangle.Left -lt 0 -or
-                                $WordRectangle.Bottom -gt $ImageSize.Height -or
-                                $WordRectangle.Right -gt $ImageSize.Width
-                            )
-
-                            if ($IsColliding) {
+                            if ($WordRectangle.IntersectsWith($Rectangle)) {
+                                $IsColliding = $true
                                 break
                             }
                         }
@@ -554,7 +574,12 @@ function New-WordCloud {
                     }
 
                     if ($IsColliding) {
-                        $RadialDistance += $DistanceStep
+                        $RadialDistance += if ($Rotate) {
+                            $WordRectangle.Width * $DistanceStep / 10
+                        }
+                        else {
+                            $WordRectangle.Height * $DistanceStep / 10
+                        }
                         $RadialScanCount++
                     }
                 } while ($IsColliding)
@@ -567,10 +592,14 @@ function New-WordCloud {
                     $ColorIndex = 0
                 }
 
-                Write-Debug "Writing $Word with font $Font in $Color at $DrawLocation"
-                $DrawingSurface.DrawString($Word, $Font, [SolidBrush]::new($Color), $DrawLocation)
-
-                $RadialDistance -= $DistanceStep * ($RadialScanCount / 2)
+                Write-Verbose "Writing $Word with font $Font in $Color at $DrawLocation"
+                if ($Rotate) {
+                    $RotateFormat = [StringFormat]::new([StringFormatFlags]::DirectionVertical)
+                    $DrawingSurface.DrawString($Word, $Font, [SolidBrush]::new($Color), $DrawLocation, $RotateFormat)
+                }
+                else {
+                    $DrawingSurface.DrawString($Word, $Font, [SolidBrush]::new($Color), $DrawLocation)
+                }
             }
 
             $DrawingSurface.Flush()
