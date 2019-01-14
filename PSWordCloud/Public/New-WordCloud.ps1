@@ -494,7 +494,7 @@ function New-WordCloud {
                 $DrawingSurface.Clear($BackgroundColor)
             }
 
-            $FontScale = ($WordCloudImage.Height + $WordCloudImage.Width) / ($AverageFrequency * $SortedWordList.Count)
+            $FontScale = 2 * ($WordCloudImage.Height + $WordCloudImage.Width) / ($AverageFrequency * $SortedWordList.Count)
             $DrawingSurface.SmoothingMode = [Drawing2D.SmoothingMode]::AntiAlias
             $DrawingSurface.TextRenderingHint = [Text.TextRenderingHint]::AntiAlias
 
@@ -540,7 +540,8 @@ function New-WordCloud {
         } | Format-List | Out-String | Write-Verbose
 
         try {
-            $RectangleList = [List[RectangleF]]::new()
+            $FilledRegion = [Region]::new()
+            $FilledRegion.MakeEmpty()
             $RadialScanCount = 0
             $RNG = if ($PSBoundParameters.ContainsKey('RandomSeed')) {
                 [Random]::new($RandomSeed)
@@ -555,6 +556,8 @@ function New-WordCloud {
             :words foreach ($Word in $SortedWordList) {
                 if (-not $WordSizeTable[$Word]) { continue }
                 $RadialDistance = 0
+                $Color = $ColorList[$ColorIndex]
+                $Brush = [SolidBrush]::new($Color)
 
                 $Font = [Font]::new(
                     $FontFamily,
@@ -563,11 +566,8 @@ function New-WordCloud {
                     [GraphicsUnit]::Pixel
                 )
 
-                $RadialScanCount /= 3
-                $WordRectangle = $null
                 do {
                     if ( $RadialDistance -gt ($MaxSideLength / 2) ) {
-                        $RadialDistance = $MaxSideLength / $DistanceStep / 25
                         continue words
                     }
 
@@ -589,7 +589,6 @@ function New-WordCloud {
                         $Angle += $AngleIncrement
                     ) {
                         $Rotate = $false
-                        $IsColliding = $false
                         $Radians = Convert-ToRadians -Degrees $Angle
                         $Complex = [Complex]::FromPolarCoordinates($RadialDistance, $Radians)
 
@@ -605,120 +604,105 @@ function New-WordCloud {
                             $Complex.Imaginary + $CentrePoint.Y - $OffsetY
                         )
 
-                        try {
-                            $WordCloudImage.GetPixel($DrawLocation.X, $DrawLocation.Y) > $null
-                        }
-                        catch [ArgumentOutOfRangeException] {
+                        if (-not $DrawingSurface.IsVisible($DrawLocation)) {
                             continue
                         }
 
-                        $Order = if ($DisableWordRotation) {
-                            'Normal'
+                        $FormatList = if ($DisableWordRotation) {
+                            [StringFormat]::new()
                         }
                         else {
-                            'Normal', 'Rotated' | Sort-Object { $RNG.Next() }
+                            [StringFormat]::new(), [StringFormat]::new([StringFormatFlags]::DirectionVertical) |
+                                Sort-Object { $RNG.Next() }
                         }
-                        switch ($Order) {
-                            'Normal' {
-                                $WordRectangle = [RectangleF]::new([PointF]$DrawLocation, [SizeF]$WordSizeTable[$Word])
-                                $OutsideImage = (
-                                    $WordRectangle.Top -lt 0 -or
-                                    $WordRectangle.Left -lt 0 -or
-                                    $WordRectangle.Bottom -gt $WordCloudImage.Height -or
-                                    $WordRectangle.Right -gt $WordCloudImage.Width
-                                )
-                                if ($OutsideImage) { continue }
 
-                                foreach ($Rectangle in $RectangleList) {
-                                    if ($WordRectangle.IntersectsWith($Rectangle)) {
-                                        $IsColliding = $true
-                                        break
-                                    }
-                                }
-
-                                if (-not $IsColliding) {
-                                    # Available location found; break loop and draw
-                                    break
-                                }
-                            }
-                            'Rotated' {
-                                $WordRectangle = [RectangleF]::new(
+                        foreach ($Format in @($FormatList)) {
+                            try {
+                                $WordIntersects = $false
+                                $Rotate = $Format.FormatFlags -eq [StringFormatFlags]::DirectionVertical
+                                $WordPath = [Drawing2d.GraphicsPath]::new()
+                                $WordPath.AddString(
+                                    $Word,
+                                    $FontFamily,
+                                    [int]$FontStyle,
+                                    $WordHeightTable[$Word],
                                     [PointF]$DrawLocation,
-                                    [SizeF]::new(
-                                        $WordSizeTable[$Word].Height,
-                                        $WordSizeTable[$Word].Width
-                                    )
+                                    $Format
                                 )
+                                $WordPath.Widen([Pen]::new($Brush, $WordHeightTable[$Word] / 25))
+
+                                $Bounds = $WordPath.GetBounds()
                                 $OutsideImage = (
-                                    $WordRectangle.Top -lt 0 -or
-                                    $WordRectangle.Left -lt 0 -or
-                                    $WordRectangle.Bottom -gt $WordCloudImage.Height -or
-                                    $WordRectangle.Right -gt $WordCloudImage.Width
+                                    $Bounds.Top -lt 0 -or
+                                    $Bounds.Left -lt 0 -or
+                                    $Bounds.Bottom -gt $WordCloudImage.Height -or
+                                    $Bounds.Right -gt $WordCloudImage.Width
                                 )
                                 if ($OutsideImage) { continue }
 
-                                foreach ($Rectangle in $RectangleList) {
-                                    if ($WordRectangle.IntersectsWith($Rectangle)) {
-                                        $IsColliding = $true
-                                        break
-                                    }
-                                }
+                                $WordIntersects = -not $FilledRegion.IsVisible($Bounds)
 
-                                if (-not $IsColliding) {
+                                if (-not $WordIntersects) {
                                     # Available location found; break loop and draw
-                                    $Rotate = $true
+                                    $FilledRegion.Union($WordPath)
                                     break
                                 }
                             }
+                            finally {
+                                $WordPath.Dispose()
+                            }
                         }
 
-                        if (-not $IsColliding) { break }
+                        if (-not $WordIntersects) { break }
                     }
 
-                    if ($IsColliding) {
-                        $RadialDistance += $RNG.NextDouble() * ($WordRectangle.Width + $WordRectangle.Height) * $DistanceStep / 20
+                    # No available free space anywhere in this radial scan, keep scanning
+                    if ($WordIntersects) {
+                        $RadialDistance += $RNG.NextDouble() * ($Bounds.Width + $Bounds.Height) * $DistanceStep / 20
                         $RadialScanCount++
                     }
-                } while ($IsColliding)
+                } while ($WordIntersects)
 
-                $RectangleList.Add($WordRectangle)
-                $Color = $ColorList[$ColorIndex]
 
                 $ColorIndex++
                 if ($ColorIndex -ge $ColorList.Count) {
                     $ColorIndex = 0
                 }
 
-                $FormatString = '{0,-20} | R:{1,3} G:{2,3} B:{3,3} A:{4,3} | {5,10} | {6,26} | {7,-10}'
-                if ($Rotate) {
-                    $FormatString -f @(
-                        "'$Word'"
-                        $Color.R
-                        $Color.G
-                        $Color.B
-                        $Color.A
-                        "$($Font.SizeInPoints) pt"
-                        $DrawLocation.ToString()
-                        'Vertical'
-                    ) | Write-Verbose
-                    $RotateFormat = [StringFormat]::new([StringFormatFlags]::DirectionVertical)
-                    $DrawingSurface.DrawString($Word, $Font, [SolidBrush]::new($Color), $DrawLocation, $RotateFormat)
-                }
-                else {
-                    $FormatString -f @(
-                        "'$Word'"
-                        $Color.R
-                        $Color.G
-                        $Color.B
-                        $Color.A
-                        "$($Font.SizeInPoints) pt"
-                        $DrawLocation.ToString()
-                        'Horizontal'
-                    ) | Write-Verbose
-                    $DrawingSurface.DrawString($Word, $Font, [SolidBrush]::new($Color), $DrawLocation)
+                if (-not $WordIntersects) {
+                    $FormatString = '{0,-20} | R:{1,3} G:{2,3} B:{3,3} A:{4,3} | {5,10} | {6,26} | {7,-10}'
+                    if ($Rotate) {
+                        $FormatString -f @(
+                            "'$Word'"
+                            $Color.R
+                            $Color.G
+                            $Color.B
+                            $Color.A
+                            "$($Font.SizeInPoints) pt"
+                            $DrawLocation.ToString()
+                            'Vertical'
+                        ) | Write-Verbose
+                        $RotateFormat = [StringFormat]::new([StringFormatFlags]::DirectionVertical)
+                        $DrawingSurface.DrawString($Word, $Font, $Brush, $DrawLocation, $RotateFormat)
+
+                    }
+                    else {
+                        $FormatString -f @(
+                            "'$Word'"
+                            $Color.R
+                            $Color.G
+                            $Color.B
+                            $Color.A
+                            "$($Font.SizeInPoints) pt"
+                            $DrawLocation.ToString()
+                            'Horizontal'
+                        ) | Write-Verbose
+                        $DrawingSurface.DrawString($Word, $Font, $Brush, $DrawLocation)
+                    }
                 }
             }
 
+            # All words written that we can
             $DrawingSurface.Flush()
             foreach ($FilePath in $PathList) {
                 $WordCloudImage.Save($FilePath, $ExportFormat)
