@@ -10,6 +10,6 @@ queue:
   name: Hosted VS2017
 
 steps:
-- powershell: 'ls env:'
+- powershell: 'pwd; ls'
   displayName: 'First one'
 
