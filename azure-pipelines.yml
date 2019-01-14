@@ -1,0 +1,32 @@
+trigger:
+- master
+
+queue:
+  name: Hosted VS2017
+
+steps:
+- task: PowerShell@2
+  inputs:
+    targetType: filePath
+    filePath: '.\Build\runpssa.ps1'
+    arguments: '-PSD1Path .\PSWordCloud\PSWordCloud.psd1 -SettingsFile .\Build\pssasettings.psd1'
+
+- task: PublishTestResults@2
+  inputs:
+    testRunner: 'NUnit'
+    testResultsFiles: PssaResults.xml
+    searchFolder: '$(AGENT.WORKFOLDER)'
+  condition: true
+
+- task: PowerShell@2
+  displayName: 'Refactor'
+  inputs:
+    targetType: filePath
+    filePath: '.\Build\refactor.ps1'
+    arguments: '-PSD1Path .\PSWordCloud\PSWordCloud.psd1 -CopyDirectories .\PSWordCloud\Data'
+
+- task: PublishBuildArtifacts@1
+  displayName: 'Publish Artifact: Output'
+  inputs:
+    PathtoPublish: Output
+    ArtifactName: Output
