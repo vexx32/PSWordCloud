@@ -1,6 +1,4 @@
-﻿using namespace System.Drawing
-
-function Get-ImageFormat {
+﻿function Get-ImageFormat {
     [CmdletBinding()]
     [OutputType([Imaging.ImageFormat])]
     param(

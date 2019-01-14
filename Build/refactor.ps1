@@ -4,10 +4,7 @@ param (
     [string]$PSD1Path,
 
     [Parameter()]
-    [string[]]$CopyDirectories,
-
-    [Parameter()]
-    [switch]$OverwritePSM1
+    [string[]]$CopyDirectories
 )
 
 begin {
@@ -47,33 +44,30 @@ process {
         }
     }
 
-    #try {
+    try {
         Write-Verbose "Contactenating public and private functions into PSM1 in output dir"
         $public = Get-ChildItem -Path "$($moduleBase)\Public\*.ps1"
-        $private = Get-ChildItem -Path "$($moduleBase)\Private\*.ps1"
+        $private = Get-ChildItem -Path "$($moduleBase)\Private\*.ps1" -Exclude '*psm1include*'
 
         $psm1Content = @(@($public) + @($private)) | foreach-object {
-            Get-Content $_.FullName
+            (Get-Content $_.FullName) -replace '^using\snamespace.+?$'
         }
         
-        if ($OverwritePSM1) {
-            $psm1Content | Set-Content -Path "$outputDir\$($moduleName).psm1" 
-        }
-        else {
-            $psm1Content | Add-Content -Path "$outputDir\$($moduleName).psm1" 
-        }
-    #}
-    #catch {
-    #    throw "Unable to combine PS1 files into PSM1"
-    #}
+        Get-Content "$moduleBase\Private\psm1include.ps1" | Set-Content -Path "$outputDir\$($moduleName).psm1" 
+        $psm1Content | Add-Content -Path "$outputDir\$($moduleName).psm1" 
 
-    #try {
+    }
+    catch {
+        throw "Unable to combine PS1 files into PSM1"
+    }
+
+    try {
         Write-Verbose "Updating FunctionsToExport property in output PSD1"
         Update-ModuleManifest -Path  "$outputDir\$moduleName.psd1" -FunctionsToExport $public.BaseName
-    #}
-    #catch {
-    #    throw "Unable to update the FunctionsToExport property in output PSD1"
-    #}
+    }
+    catch {
+        throw "Unable to update the FunctionsToExport property in output PSD1"
+    }
 }
 
 end {

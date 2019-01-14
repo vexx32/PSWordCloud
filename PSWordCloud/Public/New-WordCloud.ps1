@@ -1,10 +1,4 @@
-﻿using namespace System.Collections.Generic
-using namespace System.Drawing
-using namespace System.IO
-using namespace System.Management.Automation
-using namespace System.Numerics
-
-class SizeTransformAttribute : ArgumentTransformationAttribute {
+﻿class SizeTransformAttribute : ArgumentTransformationAttribute {
     static [hashtable] $StandardSizes = @{
         '720p'  = [Size]::new(1280, 720)
         '1080p' = [Size]::new(1920, 1080)

@@ -1,6 +1,4 @@
-﻿using namespace System.Management.Automation
-
-function Get-GreatestCommonDivisor {
+﻿function Get-GreatestCommonDivisor {
     [CmdletBinding()]
     param(
         [Parameter()]
