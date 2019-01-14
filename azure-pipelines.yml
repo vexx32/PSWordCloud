@@ -1,36 +1,29 @@
-# Starter pipeline
-# Start with a minimal pipeline that you can customize to build and deploy your code.
-# Add steps that build, run tests, deploy, and more:
-# https://aka.ms/yaml
-
 trigger:
 - master
 
-queue:
-  name: Hosted VS2017
+pool:
+  vmImage: 'Hosted VS2017'
 
 steps:
 - task: PowerShell@2
-  displayName: 'Run PSScriptAnalyzer'
   inputs:
     targetType: filePath
     filePath: '.\Build\runpssa.ps1'
     arguments: '-PSD1Path .\PSWordCloud\PSWordCloud.psd1 -SettingsFile .\Build\pssasettings.psd1'
 
 - task: PublishTestResults@2
-  displayName: 'Publish Test Results'
   inputs:
-    testResultsFormat: NUnit
+    testRunner: 'NUnit'
     testResultsFiles: PssaResults.xml
     searchFolder: '$(AGENT.WORKFOLDER)'
-  condition: always()
+  condition: true
 
 - task: PowerShell@2
-displayName: 'Refactor'
-inputs:
-  targetType: ./
-  filePath: '.\Build\refactor.ps1'
-  arguments: '-PSD1Path .\PSWordCloud\PSWordCloud.psd1 -CopyDirectories .\PSWordCloud\Data'
+  displayName: 'Refactor'
+  inputs:
+    targetType: filePath
+    filePath: '.\Build\refactor.ps1'
+    arguments: '-PSD1Path .\PSWordCloud\PSWordCloud.psd1 -CopyDirectories .\PSWordCloud\Data'
 
 - task: PublishBuildArtifacts@1
   displayName: 'Publish Artifact: Output'
