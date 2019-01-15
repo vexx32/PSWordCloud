@@ -770,28 +770,7 @@ function New-WordCloud {
                     $RadialDistance += $RNG.NextDouble() * ($Bounds.Width + $Bounds.Height) * $DistanceStep / 20
                 } while ($WordIntersects)
 
-                if ($WordIntersects) { continue words }
-
-                <#
-                    $RotateFormat = [StringFormat]::new([StringFormatFlags]::DirectionVertical)
-                    $DrawingSurface.DrawString($Word, $Font, $Brush, $DrawLocation, $RotateFormat)
-
-                }
-                else {
-                    $FormatString -f @(
-                        "'$Word'"
-                        $Color.R
-                        $Color.G
-                        $Color.B
-                        $Color.A
-                        "$($Font.SizeInPoints) pt"
-                        $DrawLocation.ToString()
-                        'Horizontal'
-                    ) | Write-Verbose
-                    $DrawingSurface.DrawString($Word, $Font, $Brush, $DrawLocation)
-                }
-#>
-            }
+            if ($WordIntersects) { continue words }
 
             # All words written that we can
             $DrawingSurface.Flush()
