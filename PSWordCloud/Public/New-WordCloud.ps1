@@ -87,8 +87,12 @@ class ColorTransformAttribute : ArgumentTransformationAttribute {
                     [Color]::FromArgb($Matches['Alpha'], $Matches['Red'], $Matches['Green'], $Matches['Blue'])
                     continue
                 }
+
+                if ($MatchingValues = [KnownColor].GetEnumNames() -like $_) {
+                    ($MatchingValues -as [KnownColor[]]).ForEach{ [Color]::FromKnownColor($_) }
+                }
             }
-            { $- -is [int] } {
+            { $_ -is [int] } {
                 [Color]::FromArgb($_)
                 continue
             }
