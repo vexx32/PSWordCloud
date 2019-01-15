@@ -308,6 +308,11 @@ function New-WordCloud {
         [FontStyle]
         $FontStyle = [FontStyle]::Regular,
 
+        [Parameter()]
+        [Alias('Outline')]
+        [double]
+        $StrokeWidth,
+
         [Parameter(ParameterSetName = 'ColorBackground')]
         [Parameter(ParameterSetName = 'ColorBackground-Mono')]
         [Alias('ImagePixelSize')]
@@ -505,15 +510,12 @@ function New-WordCloud {
             if ($BackgroundImage.FullName) {
                 $WordCloudImage = [Bitmap]::new($BackgroundImage.FullName)
                 $DrawingSurface = [Graphics]::FromImage($WordCloudImage)
-
-                $StrokeBrush = [SolidBrush]::new([Color]::Black)
             }
             else {
                 $WordCloudImage = [Bitmap]::new($ImageSize.Width, $ImageSize.Height)
                 $DrawingSurface = [Graphics]::FromImage($WordCloudImage)
 
                 $DrawingSurface.Clear($BackgroundColor)
-                $Stroke = $null
             }
 
             $MaxSideLength = [Math]::Max($WordCloudImage.Width, $WordCloudImage.Height)
@@ -606,8 +608,11 @@ function New-WordCloud {
             Write-Verbose "$("-" * 21)+$("-" * 25)+$("-" * 12)+$("-" * 28)+$("-" * 11)"
             :words foreach ($Word in $SortedWordList) {
                 if (-not $WordSizeTable[$Word]) { continue }
-                if ($StrokeBrush) {
-                    $Stroke = [Pen]::new($StrokeBrush, $WordHeightTable[$Word].Height / 0.05)
+                if ($StrokeWidth) {
+                    $StrokePen = [Pen]::new(
+                        [SolidBrush]::new([Color]::Black),
+                        $StrokeWidth * $WordHeightTable[$Word].Height / 0.1
+                    )
                 }
 
                 $RadialDistance = 0
@@ -744,8 +749,8 @@ function New-WordCloud {
                                     ) | Write-Verbose
 
                                     $DrawingSurface.FillPath($Brush, $WordPath)
-                                    if ($Stroke) {
-                                        $DrawingSurface.DrawPath($Stroke, $WordPath)
+                                    if ($StrokePen) {
+                                        $DrawingSurface.DrawPath($StrokePen, $WordPath)
                                     }
 
                                     if ($BlankCanvas) {
