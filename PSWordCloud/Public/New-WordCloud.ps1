@@ -309,6 +309,23 @@ function New-WordCloud {
         $FontStyle = [FontStyle]::Regular,
 
         [Parameter()]
+        [Alias('StrokeColour')]
+        [ArgumentCompleter(
+            {
+                param($Command, $Parameter, $WordToComplete, $CommandAst, $FakeBoundParams)
+                if (!$WordToComplete) {
+                    return [ColorTransformAttribute]::ColorNames
+                }
+                else {
+                    return [ColorTransformAttribute]::ColorNames.Where{ $_.StartsWith($WordToComplete) }
+                }
+            }
+        )]
+        [ColorTransformAttribute()]
+        [Color]
+        $StrokeColor = [Color]::Black,
+
+        [Parameter()]
         [Alias('Outline')]
         [double]
         $StrokeWidth,
@@ -521,7 +538,7 @@ function New-WordCloud {
             $MaxSideLength = [Math]::Max($WordCloudImage.Width, $WordCloudImage.Height)
             $FontScale = 1.5 * ($WordCloudImage.Height + $WordCloudImage.Width) / ($AverageFrequency * $SortedWordList.Count)
             $DrawingSurface.SmoothingMode = [Drawing2D.SmoothingMode]::AntiAlias
-            $DrawingSurface.TextRenderingHint = [Text.TextRenderingHint]::AntiAlias
+            $DrawingSurface.TextRenderingHint = [Text.TextRenderingHint]::ClearTypeGridFit
 
             :size do {
                 foreach ($Word in $SortedWordList) {
@@ -610,7 +627,7 @@ function New-WordCloud {
                 if (-not $WordSizeTable[$Word]) { continue }
                 if ($StrokeWidth) {
                     $StrokePen = [Pen]::new(
-                        [SolidBrush]::new([Color]::Black),
+                        [SolidBrush]::new($StrokeColor),
                         $StrokeWidth * $WordHeightTable[$Word].Height / 0.1
                     )
                 }
@@ -774,9 +791,7 @@ function New-WordCloud {
                     # No available free space anywhere in this radial scan, keep scanning
                     $RadialDistance += $RNG.NextDouble() * ($Bounds.Width + $Bounds.Height) * $DistanceStep / 20
                 } while ($WordIntersects)
-
-            if ($WordIntersects) { continue words }
-
+            }
             # All words written that we can
             $DrawingSurface.Flush()
 
