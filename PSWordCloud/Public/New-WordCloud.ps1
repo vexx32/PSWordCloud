@@ -505,12 +505,15 @@ function New-WordCloud {
             if ($BackgroundImage.FullName) {
                 $WordCloudImage = [Bitmap]::new($BackgroundImage.FullName)
                 $DrawingSurface = [Graphics]::FromImage($WordCloudImage)
+
+                $StrokeBrush = [SolidBrush]::new([Color]::Black)
             }
             else {
                 $WordCloudImage = [Bitmap]::new($ImageSize.Width, $ImageSize.Height)
                 $DrawingSurface = [Graphics]::FromImage($WordCloudImage)
 
                 $DrawingSurface.Clear($BackgroundColor)
+                $Stroke = $null
             }
 
             $MaxSideLength = [Math]::Max($WordCloudImage.Width, $WordCloudImage.Height)
@@ -603,6 +606,9 @@ function New-WordCloud {
             Write-Verbose "$("-" * 21)+$("-" * 25)+$("-" * 12)+$("-" * 28)+$("-" * 11)"
             :words foreach ($Word in $SortedWordList) {
                 if (-not $WordSizeTable[$Word]) { continue }
+                if ($StrokeBrush) {
+                    $Stroke = [Pen]::new($StrokeBrush, $WordHeightTable[$Word].Height / 0.05)
+                }
 
                 $RadialDistance = 0
                 $EnableEdgeClipping = $false
@@ -694,6 +700,7 @@ function New-WordCloud {
                                     [PointF]$DrawLocation,
                                     $Format
                                 )
+                                [Graphics]$DrawingSurface = $DrawingSurface
 
                                 $Bounds = $WordPath.GetBounds()
                                 $InflationValue = $WordHeightTable[$Word] * 0.1 * $Padding
@@ -723,15 +730,40 @@ function New-WordCloud {
                                         $ExistingWords.Union($WordPath)
                                     }
 
-                                    break
+
+                                    $FormatString = '{0,-20} | R:{1,3} G:{2,3} B:{3,3} A:{4,3} | {5,10} | {6,26} | {7,-10}'
+                                    $FormatString -f @(
+                                        "'$Word'"
+                                        $Color.R
+                                        $Color.G
+                                        $Color.B
+                                        $Color.A
+                                        "$($Font.SizeInPoints) pt"
+                                        $DrawLocation.ToString()
+                                        if ($Format.FormatFlags -eq 0) {'Horizontal'} else {'Vertical'}
+                                    ) | Write-Verbose
+
+                                    $DrawingSurface.FillPath($Brush, $WordPath)
+                                    if ($Stroke) {
+                                        $DrawingSurface.DrawPath($Stroke, $WordPath)
+                                    }
+
+                                    if ($BlankCanvas) {
+                                        $BlankCanvas = $false
+                                    }
+
+                                    $ColorIndex++
+                                    if ($ColorIndex -ge $ColorList.Count) {
+                                        $ColorIndex = 0
+                                    }
+
+                                    continue words
                                 }
                             }
                             finally {
                                 $WordPath.Dispose()
                             }
                         }
-
-                        if (-not $WordIntersects) { break }
                     }
 
                     # No available free space anywhere in this radial scan, keep scanning
@@ -740,23 +772,7 @@ function New-WordCloud {
 
                 if ($WordIntersects) { continue words }
 
-                $ColorIndex++
-                if ($ColorIndex -ge $ColorList.Count) {
-                    $ColorIndex = 0
-                }
-
-                $FormatString = '{0,-20} | R:{1,3} G:{2,3} B:{3,3} A:{4,3} | {5,10} | {6,26} | {7,-10}'
-                if ($WriteVertical) {
-                    $FormatString -f @(
-                        "'$Word'"
-                        $Color.R
-                        $Color.G
-                        $Color.B
-                        $Color.A
-                        "$($Font.SizeInPoints) pt"
-                        $DrawLocation.ToString()
-                        'Vertical'
-                    ) | Write-Verbose
+                <#
                     $RotateFormat = [StringFormat]::new([StringFormatFlags]::DirectionVertical)
                     $DrawingSurface.DrawString($Word, $Font, $Brush, $DrawLocation, $RotateFormat)
 
@@ -774,10 +790,7 @@ function New-WordCloud {
                     ) | Write-Verbose
                     $DrawingSurface.DrawString($Word, $Font, $Brush, $DrawLocation)
                 }
-
-                if ($BlankCanvas) {
-                    $BlankCanvas = $false
-                }
+#>
             }
 
             # All words written that we can
