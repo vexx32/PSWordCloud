@@ -388,7 +388,17 @@ function New-WordCloud {
         [Parameter()]
         [Alias('Seed')]
         [int]
-        $RandomSeed
+        $RandomSeed,
+
+        [Parameter()]
+        [Alias('DisableClipping', 'NoClip')]
+        [switch]
+        $AllowOverflow,
+
+        [Parameter()]
+        [Alias('Spacing')]
+        [double]
+        $Padding = 1
     )
     begin {
         Write-Debug "Color set: $($ColorSet -join ', ')"
@@ -498,23 +508,49 @@ function New-WordCloud {
                 $DrawingSurface.Clear($BackgroundColor)
             }
 
+            $MaxSideLength = [Math]::Max($WordCloudImage.Width, $WordCloudImage.Height)
             $FontScale = 1.5 * ($WordCloudImage.Height + $WordCloudImage.Width) / ($AverageFrequency * $SortedWordList.Count)
             $DrawingSurface.SmoothingMode = [Drawing2D.SmoothingMode]::AntiAlias
             $DrawingSurface.TextRenderingHint = [Text.TextRenderingHint]::AntiAlias
 
-            foreach ($Word in $SortedWordList) {
-                $WordHeightTable[$Word] = [Math]::Round($WordHeightTable[$Word] * $FontScale)
-                if ($WordHeightTable[$Word] -lt 8) { continue }
+            :size do {
+                foreach ($Word in $SortedWordList) {
+                    $WordHeightTable[$Word] = [Math]::Round($WordHeightTable[$Word] * $FontScale)
+                    if ($WordHeightTable[$Word] -lt 8) { continue }
 
-                $Font = [Font]::new(
-                    $FontFamily,
-                    $WordHeightTable[$Word],
-                    $FontStyle,
-                    [GraphicsUnit]::Pixel
-                )
+                    $Font = [Font]::new(
+                        $FontFamily,
+                        $WordHeightTable[$Word],
+                        $FontStyle,
+                        [GraphicsUnit]::Pixel
+                    )
 
-                $WordSizeTable[$Word] = $DrawingSurface.MeasureString($Word, $Font)
-            }
+                    [SizeF] $WordSize = $DrawingSurface.MeasureString($Word, $Font)
+                    switch ($true) {
+                        $AllowOverflow {
+                            $WordSizeTable[$Word] = $WordSize
+                            break
+                        }
+                        ($DisableWordRotation -and $WordSize.Width -lt $WordCloudImage.Width) {
+                            $WordSizeTable[$Word] = $WordSize
+                            break
+                        }
+                        ([Math]::Max($WordSize.Width, $WordSize.Height) -lt $MaxSideLength) {
+                            $WordSizeTable[$Word] = $WordSize
+                            break
+                        }
+                        default {
+                            # Reset table and recalculate sizes (should only ever happen for the first few words at most)
+                            $WordSizeTable.Clear()
+                            $FontScale *= 0.9
+                            continue size
+                        }
+                    }
+                }
+
+                # If we reach here, no words are larger than the image
+                break
+            } while ($true)
         }
         catch {
             $PSCmdlet.ThrowTerminatingError($_)
@@ -526,7 +562,6 @@ function New-WordCloud {
             }
         }
 
-        $MaxSideLength = [Math]::Max($WordCloudImage.Width, $WordCloudImage.Height)
         $GCD = Get-GreatestCommonDivisor -Numerator $MaxSideLength -Denominator ([Math]::Min($WordCloudImage.Width, $WordCloudImage.Height))
         $AspectRatio = $WordCloudImage.Width / $WordCloudImage.Height
         $CentrePoint = [PointF]::new($WordCloudImage.Width / 2, $WordCloudImage.Height / 2)
@@ -549,6 +584,7 @@ function New-WordCloud {
             $ForbiddenArea = [Region]::new()
             $ForbiddenArea.MakeInfinite()
             $ForbiddenArea.Exclude($WordCloudImage.GetBounds([ref][GraphicsUnit]::Pixel))
+            $BlankCanvas = $true
 
             $RNG = if ($PSBoundParameters.ContainsKey('RandomSeed')) {
                 [Random]::new($RandomSeed)
@@ -562,7 +598,9 @@ function New-WordCloud {
             Write-Verbose "$("-" * 21)+$("-" * 25)+$("-" * 12)+$("-" * 28)+$("-" * 11)"
             :words foreach ($Word in $SortedWordList) {
                 if (-not $WordSizeTable[$Word]) { continue }
+
                 $RadialDistance = 0
+                $EnableEdgeClipping = $false
                 $Color = $ColorList[$ColorIndex]
                 $Brush = [SolidBrush]::new($Color)
 
@@ -574,8 +612,14 @@ function New-WordCloud {
                 )
 
                 do {
-                    if ( $RadialDistance -gt ($MaxSideLength) ) {
-                        continue words
+                    if ( $RadialDistance -gt ($MaxSideLength / 2) ) {
+                        if ($AllowOverflow -and $RadialDistance -lt $MaxSideLength / 1.5) {
+                            # Allow partial overflows
+                            $EnableEdgeClipping = $true
+                        }
+                        else {
+                            continue words
+                        }
                     }
 
                     $AngleIncrement = 360 / ( ($RadialDistance + 1) * $RadialGranularity / 10 )
@@ -595,52 +639,47 @@ function New-WordCloud {
                         $( if ($Start -lt $End) {$Angle -le $End} else {$End -le $Angle} );
                         $Angle += $AngleIncrement
                     ) {
-                        $WordIntersects = $false
-                        $WriteVertical = $false
-                        $Radians = Convert-ToRadians -Degrees $Angle
-                        $Complex = [Complex]::FromPolarCoordinates($RadialDistance, $Radians)
-
-                        $OffsetX = $WordSizeTable[$Word].Width * 0.5
-                        $OffsetY = $WordSizeTable[$Word].Height * 0.5
-                        if ($WordHeightTable[$Word] -ne $HighestFrequency * $FontScale -and $AspectRatio -gt 1) {
-                            $OffsetX = $OffsetX * $RNG.NextDouble() + 0.25
-                            $OffsetY = $OffsetY * $RNG.NextDouble() + 0.25
-                        }
-
-                        $DrawLocation = [PointF]::new(
-                            $Complex.Real * $AspectRatio + $CentrePoint.X - $OffsetX,
-                            $Complex.Imaginary + $CentrePoint.Y - $OffsetY
-                        )
-
-                        if (-not $DrawingSurface.IsVisible($DrawLocation)) {
-                            continue angles
-                        }
-
                         if ($DisableWordRotation) {
                             $FormatList = [StringFormat]::new()
                         }
                         else {
-                            $FormatList = switch ($RNG.NextDouble()) {
-                                { $_ -lt 0.33 } {
-                                    [StringFormat]::new()
-                                    break
-                                }
-                                { $_ -lt 0.66 } {
-                                    [StringFormat]::new([StringFormatFlags]::DirectionVertical)
-                                    break
-                                }
-                                default {
-                                    [StringFormat]::new(), [StringFormat]::new([StringFormatFlags]::DirectionVertical) |
-                                        Sort-Object { $RNG.Next() }
-                                    break
-                                }
-                            }
+                            $FormatList = @(
+                                [StringFormat]::new(),
+                                [StringFormat]::new([StringFormatFlags]::DirectionVertical)
+                            ) | Sort-Object { $RNG.Next() }
                         }
 
                         foreach ($Format in @($FormatList)) {
+                            $WordIntersects = $false
+                            $WriteVertical = $Format.FormatFlags -eq [StringFormatFlags]::DirectionVertical
+                            $Radians = Convert-ToRadians -Degrees $Angle
+                            $Complex = [Complex]::FromPolarCoordinates($RadialDistance, $Radians)
+
+                            $OffsetX = $WordSizeTable[$Word].Width * 0.5
+                            $OffsetY = $WordSizeTable[$Word].Height * 0.5
+                            if ($WordHeightTable[$Word] -ne $HighestFrequency * $FontScale -and $AspectRatio -gt 1) {
+                                $OffsetX = $OffsetX * $RNG.NextDouble() + 0.25
+                                $OffsetY = $OffsetY * $RNG.NextDouble() + 0.25
+                            }
+
+                            $DrawLocation = if ($WriteVertical) {
+                                [PointF]::new(
+                                    $Complex.Real * $AspectRatio + $CentrePoint.X - $OffsetY,
+                                    $Complex.Imaginary + $CentrePoint.Y - $OffsetX
+                                )
+                            }
+                            else {
+                                [PointF]::new(
+                                    $Complex.Real * $AspectRatio + $CentrePoint.X - $OffsetX,
+                                    $Complex.Imaginary + $CentrePoint.Y - $OffsetY
+                                )
+                            }
+
+                            if (-not $DrawingSurface.IsVisible($DrawLocation) -and -not $AllowEdgeClipping) {
+                                continue angles
+                            }
+
                             try {
-                                $WordIntersects = $false
-                                $WriteVertical = $Format.FormatFlags -eq [StringFormatFlags]::DirectionVertical
                                 $WordPath = [Drawing2d.GraphicsPath]::new()
                                 $WordPath.AddString(
                                     $Word,
@@ -650,13 +689,25 @@ function New-WordCloud {
                                     [PointF]$DrawLocation,
                                     $Format
                                 )
-                                #$WordPath.Widen([Pen]::new($Brush))
 
                                 $Bounds = $WordPath.GetBounds()
-                                $InflationValue = $WordHeightTable[$Word] * 0.1
+                                $InflationValue = $WordHeightTable[$Word] * 0.1 * $Padding
                                 $Bounds.Inflate($InflationValue, $InflationValue)
 
-                                $WordIntersects = $ForbiddenArea.IsVisible($Bounds) -or $ExistingWords.IsVisible($Bounds)
+                                [bool] $WordIntersects = switch ($true) {
+                                    $EnableEdgeClipping {
+                                        $ExistingWords.IsVisible($Bounds)
+                                        break
+                                    }
+                                    ($BlankCanvas) {
+                                        $ForbiddenArea.IsVisible($Bounds)
+                                        break
+                                    }
+                                    default {
+                                        $ForbiddenArea.IsVisible($Bounds) -or $ExistingWords.IsVisible($Bounds)
+                                        break
+                                    }
+                                }
 
                                 if (-not $WordIntersects) {
                                     # Available location found; break loop and draw
@@ -711,6 +762,10 @@ function New-WordCloud {
                         'Horizontal'
                     ) | Write-Verbose
                     $DrawingSurface.DrawString($Word, $Font, $Brush, $DrawLocation)
+                }
+
+                if ($BlankCanvas) {
+                    $BlankCanvas = $false
                 }
             }
 
