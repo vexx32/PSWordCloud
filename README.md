@@ -8,6 +8,22 @@ Create pretty word clouds with PowerShell!
 Install-Module PSWordCloud
 ```
 
+### Linux & macOS
+
+To get it working on Linux or macOS, you must install the `mono-libgdiplus` package on your machine for this to work.
+
+For macOS, you can use Homebrew:
+
+```sh
+brew install mono-libgdiplus
+```
+
+For linux, use your package manager of choice to install it. For example, via Apt:
+
+```sh
+apt install libgdiplus
+```
+
 ## Usage
 
 ```powershell
