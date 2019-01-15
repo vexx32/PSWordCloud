@@ -367,17 +367,6 @@ function New-WordCloud {
         [string]
         $OutputFormat = "Png",
 
-        [Parameter()]
-        [Alias('MaxWords')]
-        [ValidateRange(10, 500)]
-        [int]
-        $MaxUniqueWords = 100,
-
-        [Parameter()]
-        [Alias('DisableRotation', 'NoRotation')]
-        [switch]
-        $DisableWordRotation,
-
         [Parameter(Mandatory, ParameterSetName = 'FileBackground')]
         [Parameter(Mandatory, ParameterSetName = 'FileBackground-Mono')]
         [Alias('BaseImage')]
@@ -386,9 +375,20 @@ function New-WordCloud {
         $BackgroundImage,
 
         [Parameter()]
+        [Alias('MaxWords')]
+        [ValidateRange(10, 500)]
+        [int]
+        $MaxUniqueWords = 100,
+
+        [Parameter()]
         [Alias('Seed')]
         [int]
         $RandomSeed,
+
+        [Parameter()]
+        [Alias('Spacing')]
+        [double]
+        $Padding = 1,
 
         [Parameter()]
         [Alias('DisableClipping', 'NoClip')]
@@ -396,9 +396,14 @@ function New-WordCloud {
         $AllowOverflow,
 
         [Parameter()]
-        [Alias('Spacing')]
-        [double]
-        $Padding = 1
+        [Alias('DisableRotation', 'NoRotation')]
+        [switch]
+        $DisableWordRotation,
+
+        [Parameter()]
+        [Alias('Boxy')]
+        [switch]
+        $BoxCollisions
     )
     begin {
         Write-Debug "Color set: $($ColorSet -join ', ')"
@@ -711,7 +716,13 @@ function New-WordCloud {
 
                                 if (-not $WordIntersects) {
                                     # Available location found; break loop and draw
-                                    $ExistingWords.Union($WordPath)
+                                    if ($BoxCollisions) {
+                                        $ExistingWords.Union($Bounds)
+                                    }
+                                    else {
+                                        $ExistingWords.Union($WordPath)
+                                    }
+
                                     break
                                 }
                             }
@@ -727,7 +738,7 @@ function New-WordCloud {
                     $RadialDistance += $RNG.NextDouble() * ($Bounds.Width + $Bounds.Height) * $DistanceStep / 20
                 } while ($WordIntersects)
 
-                if ($WordIntersects) { continue }
+                if ($WordIntersects) { continue words }
 
                 $ColorIndex++
                 if ($ColorIndex -ge $ColorList.Count) {
