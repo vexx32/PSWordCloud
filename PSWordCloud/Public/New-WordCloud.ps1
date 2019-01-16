@@ -515,8 +515,12 @@ function New-WordCloud {
         $WordHeightTable | Out-String | Write-Debug
 
         $SortedWordList = $WordHeightTable.GetEnumerator().Name |
-            Sort-Object -Descending { $WordHeightTable[$_] } |
-            Select-Object -First $MaxUniqueWords
+            Sort-Object -Descending { $WordHeightTable[$_] }
+
+        if ($MaxUniqueWords) {
+            $SortedWordList = $SortedWordList |
+                Select-Object -First $MaxUniqueWords
+        }
 
         $HighestFrequency, $AverageFrequency = $SortedWordList |
             ForEach-Object { $WordHeightTable[$_] } |
@@ -536,11 +540,18 @@ function New-WordCloud {
             }
 
             $DrawingSurface.PageScale = 1.0
-            $DrawingSurface.GraphicsUnit = [GraphicsUnit]::Pixel
+            $DrawingSurface.PageUnit = [GraphicsUnit]::Pixel
             $DrawingSurface.SmoothingMode = [Drawing2D.SmoothingMode]::AntiAlias
             $DrawingSurface.TextRenderingHint = [Text.TextRenderingHint]::ClearTypeGridFit
 
             $MaxSideLength = [Math]::Max($WordCloudImage.Width, $WordCloudImage.Height)
+
+            Write-Verbose "Graphics Surface Properties:"
+            $DrawingSurface | Format-List | Out-String | Write-Verbose
+            Write-Verbose "Bitmap Properties:"
+            $WordCloudImage | Format-List | Out-String | Write-Verbose
+            Write-Verbose "Longest side of image: $MaxSideLength"
+
             $FontScale = 1.5 * ($WordCloudImage.Height + $WordCloudImage.Width) / ($AverageFrequency * $SortedWordList.Count)
 
             :size do {
@@ -579,6 +590,8 @@ function New-WordCloud {
                 }
 
                 # If we reach here, no words are larger than the image
+                Write-Verbose "Largest font size: $($WordHeightTable[$SortedWordList[0]])"
+                Write-Verbose "Smallest font size: $($WordHeightTable[$Word])"
                 break
             } while ($true)
         }
@@ -599,6 +612,7 @@ function New-WordCloud {
         [PSCustomObject]@{
             ExportFormat     = $ExportFormat
             UniqueWords      = $WordHeightTable.GetEnumerator().Name.Count
+            DisplayedWords   = $MaxUniqueWords
             HighestFrequency = $HighestFrequency
             AverageFrequency = $AverageFrequency
             MaxFontSize      = $HighestFrequency * $FontScale
@@ -611,9 +625,10 @@ function New-WordCloud {
         try {
             $ExistingWords = [Region]::new()
             $ExistingWords.MakeEmpty()
+
             $ForbiddenArea = [Region]::new()
             $ForbiddenArea.MakeInfinite()
-            $ForbiddenArea.Exclude($WordCloudImage.GetBounds([ref][GraphicsUnit]::Pixel))
+            $ForbiddenArea.Exclude($DrawingSurface.VisibleClipBounds)
             $BlankCanvas = $true
 
             $RNG = if ($PSBoundParameters.ContainsKey('RandomSeed')) {
