@@ -398,7 +398,7 @@ function New-WordCloud {
 
         [Parameter()]
         [Alias('MaxWords')]
-        [ValidateRange(10, 500)]
+        [ValidateRange(0, 1000)]
         [int]
         $MaxUniqueWords = 100,
 
