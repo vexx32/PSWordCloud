@@ -525,8 +525,8 @@ function New-WordCloud {
 
         try {
             if ($BackgroundImage.FullName) {
-                $WordCloudImage = [Bitmap]::new($BackgroundImage.FullName)
-                $DrawingSurface = [Graphics]::FromImage($WordCloudImage)
+                [Image] $WordCloudImage = [Bitmap]::new($BackgroundImage.FullName)
+                [Graphics] $DrawingSurface = [Graphics]::FromImage($WordCloudImage)
             }
             else {
                 $WordCloudImage = [Bitmap]::new($ImageSize.Width, $ImageSize.Height)
@@ -535,10 +535,13 @@ function New-WordCloud {
                 $DrawingSurface.Clear($BackgroundColor)
             }
 
-            $MaxSideLength = [Math]::Max($WordCloudImage.Width, $WordCloudImage.Height)
-            $FontScale = 1.5 * ($WordCloudImage.Height + $WordCloudImage.Width) / ($AverageFrequency * $SortedWordList.Count)
+            $DrawingSurface.PageScale = 1.0
+            $DrawingSurface.GraphicsUnit = [GraphicsUnit]::Pixel
             $DrawingSurface.SmoothingMode = [Drawing2D.SmoothingMode]::AntiAlias
             $DrawingSurface.TextRenderingHint = [Text.TextRenderingHint]::ClearTypeGridFit
+
+            $MaxSideLength = [Math]::Max($WordCloudImage.Width, $WordCloudImage.Height)
+            $FontScale = 1.5 * ($WordCloudImage.Height + $WordCloudImage.Width) / ($AverageFrequency * $SortedWordList.Count)
 
             :size do {
                 foreach ($Word in $SortedWordList) {
