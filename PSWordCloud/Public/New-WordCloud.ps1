@@ -589,6 +589,8 @@ function New-WordCloud {
                     }
                 }
 
+                $SortedWordList = $SortedWordList | Where-Object {$_ -in $WordSizeTable.GetEnumerator().Name}
+
                 # If we reach here, no words are larger than the image
                 Write-Verbose "Largest font size: $($WordHeightTable[$SortedWordList[0]])"
                 Write-Verbose "Smallest font size: $($WordHeightTable[$Word])"
@@ -638,29 +640,35 @@ function New-WordCloud {
                 [Random]::new()
             }
 
-            '{0,-20} | {1,23} | {2,10} | {3,26} | {4,-10}' -f 'Word', 'Color', 'FontSize', 'Location', 'Direction' |
-                Write-Verbose
-            Write-Verbose "$("-" * 21)+$("-" * 25)+$("-" * 12)+$("-" * 28)+$("-" * 11)"
+            $ProgressID = $RNG.Next()
+            $WordCount = 0
+
             :words foreach ($Word in $SortedWordList) {
-                if (-not $WordSizeTable[$Word]) { continue }
-                if ($StrokeWidth) {
-                    $StrokePen = [Pen]::new(
-                        [SolidBrush]::new($StrokeColor),
-                        $StrokeWidth * $WordHeightTable[$Word].Height / 0.1
-                    )
-                }
-
-                $RadialDistance = 0
-                $EnableEdgeClipping = $false
-                $Color = $ColorList[$ColorIndex]
-                $Brush = [SolidBrush]::new($Color)
-
+                $WordCount++
                 $Font = [Font]::new(
                     $FontFamily,
                     $WordHeightTable[$Word],
                     $FontStyle,
                     [GraphicsUnit]::Pixel
                 )
+
+                $ProgressParams = @{
+                    Activity         = "Generating word cloud"
+                    CurrentOperation = "Drawing '{0}' at {1} pt ({2} of {3})" -f @(
+                        $Word
+                        $Font.SizeInPoints
+                        $WordCount
+                        $SortedWordList.Count
+                    )
+                    PercentComplete  = ($WordCount / $WordSizeTable.GetEnumerator().Name.Count) * 100
+                    Id               = $ProgressID
+                }
+                Write-Progress @ProgressParams
+
+                $RadialDistance = 0
+                $EnableEdgeClipping = $false
+                $Color = $ColorList[$ColorIndex]
+                $Brush = [SolidBrush]::new($Color)
 
                 do {
                     if ( $RadialDistance -gt ($MaxSideLength / 2) ) {
@@ -737,7 +745,7 @@ function New-WordCloud {
                                     $FontFamily,
                                     [int]$FontStyle,
                                     $WordHeightTable[$Word],
-                                    [PointF]$DrawLocation,
+                                    $DrawLocation,
                                     $Format
                                 )
                                 [Graphics]$DrawingSurface = $DrawingSurface
@@ -761,44 +769,41 @@ function New-WordCloud {
                                     }
                                 }
 
-                                if (-not $WordIntersects) {
-                                    # Available location found; break loop and draw
-                                    if ($BoxCollisions) {
-                                        $ExistingWords.Union($Bounds)
-                                    }
-                                    else {
-                                        $ExistingWords.Union($WordPath)
-                                    }
-
-
-                                    $FormatString = '{0,-20} | R:{1,3} G:{2,3} B:{3,3} A:{4,3} | {5,10} | {6,26} | {7,-10}'
-                                    $FormatString -f @(
-                                        "'$Word'"
-                                        $Color.R
-                                        $Color.G
-                                        $Color.B
-                                        $Color.A
-                                        "$($Font.SizeInPoints) pt"
-                                        $DrawLocation.ToString()
-                                        if ($Format.FormatFlags -eq 0) {'Horizontal'} else {'Vertical'}
-                                    ) | Write-Verbose
-
-                                    $DrawingSurface.FillPath($Brush, $WordPath)
-                                    if ($StrokePen) {
-                                        $DrawingSurface.DrawPath($StrokePen, $WordPath)
-                                    }
-
-                                    if ($BlankCanvas) {
-                                        $BlankCanvas = $false
-                                    }
-
-                                    $ColorIndex++
-                                    if ($ColorIndex -ge $ColorList.Count) {
-                                        $ColorIndex = 0
-                                    }
-
-                                    continue words
+                                $ProgressParams = @{
+                                    Activity         = "Testing draw location"
+                                    CurrentOperation = "Checking for sufficient space to draw at {0}" -f @(
+                                        $DrawLocation
+                                    )
+                                    ParentId         = $ProgressID
+                                    Id               = $ProgressID + 1
                                 }
+                                Write-Progress @ProgressParams
+
+                                if ($WordIntersects) { continue angles }
+
+                                # Available location found; draw word and loop back to words
+                                if ($BoxCollisions) {
+                                    $ExistingWords.Union($Bounds)
+                                }
+                                else {
+                                    $ExistingWords.Union($WordPath)
+                                }
+
+                                $DrawingSurface.FillPath($Brush, $WordPath)
+                                if ($StrokePen) {
+                                    $DrawingSurface.DrawPath($StrokePen, $WordPath)
+                                }
+
+                                if ($BlankCanvas) {
+                                    $BlankCanvas = $false
+                                }
+
+                                $ColorIndex++
+                                if ($ColorIndex -ge $ColorList.Count) {
+                                    $ColorIndex = 0
+                                }
+
+                                continue words
                             }
                             finally {
                                 $WordPath.Dispose()
