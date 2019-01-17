@@ -774,8 +774,9 @@ function New-WordCloud {
 
                                 $ProgressParams = @{
                                     Activity         = "Testing draw location"
-                                    CurrentOperation = "Checking for sufficient space to draw at {0}" -f @(
+                                    CurrentOperation = "Checking for sufficient space to draw at {0} {1}" -f @(
                                         $DrawLocation
+                                        @('Vertically', 'Horizontally')[$Format -ne [StringFormatFlags]::DirectionVertical]
                                     )
                                     ParentId         = $ProgressID
                                     Id               = $ProgressID + 1
