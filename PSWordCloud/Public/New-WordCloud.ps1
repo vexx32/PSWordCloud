@@ -440,6 +440,7 @@ function New-WordCloud {
         $SplitChars = " `n.,`"?!{}[]:()`“`”™*#%^&+=" -as [char[]]
         $ColorIndex = 0
         $RadialDistance = 0
+        $GraphicsUnit = [GraphicsUnit]::Display
 
         $WordList = [List[string]]::new()
         $WordHeightTable = @{}
@@ -548,7 +549,7 @@ function New-WordCloud {
             }
 
             $DrawingSurface.PageScale = 1.0
-            $DrawingSurface.PageUnit = [GraphicsUnit]::Pixel
+            $DrawingSurface.PageUnit = $GraphicsUnit
             $DrawingSurface.SmoothingMode = [Drawing2D.SmoothingMode]::AntiAlias
             $DrawingSurface.TextRenderingHint = [Text.TextRenderingHint]::ClearTypeGridFit
 
@@ -571,7 +572,7 @@ function New-WordCloud {
                         $FontFamily,
                         $WordHeightTable[$Word],
                         $FontStyle,
-                        [GraphicsUnit]::Pixel
+                        $GraphicsUnit
                     )
 
                     [SizeF] $WordSize = $DrawingSurface.MeasureString($Word, $Font)
