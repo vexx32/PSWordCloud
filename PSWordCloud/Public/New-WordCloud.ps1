@@ -413,6 +413,11 @@ function New-WordCloud {
         $Padding = 1,
 
         [Parameter()]
+        [Alias('Scale', 'FontScale')]
+        [double]
+        $WordScale = 1.5,
+
+        [Parameter()]
         [Alias('DisableClipping', 'NoClip')]
         [switch]
         $AllowOverflow,
@@ -529,13 +534,16 @@ function New-WordCloud {
 
         try {
             if ($BackgroundImage.FullName) {
-                [Image] $WordCloudImage = [Bitmap]::new($BackgroundImage.FullName)
+                [Bitmap] $WordCloudImage = [Bitmap]::new($BackgroundImage.FullName)
+                $WordCloudImage.SetResolution(96, 96)
+
                 [Graphics] $DrawingSurface = [Graphics]::FromImage($WordCloudImage)
             }
             else {
-                $WordCloudImage = [Bitmap]::new($ImageSize.Width, $ImageSize.Height)
-                $DrawingSurface = [Graphics]::FromImage($WordCloudImage)
+                [Bitmap] $WordCloudImage = [Bitmap]::new($ImageSize.Width, $ImageSize.Height)
+                $WordCloudImage.SetResolution(96, 96)
 
+                [Graphics] $DrawingSurface = [Graphics]::FromImage($WordCloudImage)
                 $DrawingSurface.Clear($BackgroundColor)
             }
 
@@ -552,7 +560,7 @@ function New-WordCloud {
             $WordCloudImage | Format-List | Out-String | Write-Verbose
             Write-Verbose "Longest side of image: $MaxSideLength"
 
-            $FontScale = 1.5 * ($WordCloudImage.Height + $WordCloudImage.Width) / ($AverageFrequency * $SortedWordList.Count)
+            $FontScale = $WordScale * ($WordCloudImage.Height + $WordCloudImage.Width) / ($AverageFrequency * $SortedWordList.Count)
 
             :size do {
                 foreach ($Word in $SortedWordList) {
@@ -645,18 +653,12 @@ function New-WordCloud {
 
             :words foreach ($Word in $SortedWordList) {
                 $WordCount++
-                $Font = [Font]::new(
-                    $FontFamily,
-                    $WordHeightTable[$Word],
-                    $FontStyle,
-                    [GraphicsUnit]::Pixel
-                )
 
                 $ProgressParams = @{
                     Activity         = "Generating word cloud"
-                    CurrentOperation = "Drawing '{0}' at {1} pt ({2} of {3})" -f @(
+                    CurrentOperation = "Drawing '{0}' at {1} em ({2} of {3})" -f @(
                         $Word
-                        $Font.SizeInPoints
+                        $WordHeightTable[$Word]
                         $WordCount
                         $SortedWordList.Count
                     )
@@ -748,7 +750,6 @@ function New-WordCloud {
                                     $DrawLocation,
                                     $Format
                                 )
-                                [Graphics]$DrawingSurface = $DrawingSurface
 
                                 $Bounds = $WordPath.GetBounds()
                                 $InflationValue = $WordHeightTable[$Word] * 0.1 * $Padding
@@ -756,7 +757,7 @@ function New-WordCloud {
 
                                 [bool] $WordIntersects = switch ($true) {
                                     $EnableEdgeClipping {
-                                        $ExistingWords.IsVisible($Bounds)
+                                        $ExistingWords.IsVisible($Bounds, $DrawingSurface)
                                         break
                                     }
                                     ($BlankCanvas) {
@@ -764,7 +765,8 @@ function New-WordCloud {
                                         break
                                     }
                                     default {
-                                        $ForbiddenArea.IsVisible($Bounds) -or $ExistingWords.IsVisible($Bounds)
+                                        $ForbiddenArea.IsVisible($Bounds, $DrawingSurface) -or
+                                        $ExistingWords.IsVisible($Bounds, $DrawingSurface)
                                         break
                                     }
                                 }
