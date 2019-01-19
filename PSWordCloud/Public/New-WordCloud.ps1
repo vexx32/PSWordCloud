@@ -154,6 +154,7 @@ function New-WordCloud {
     Define a set of colors to use when rendering the word cloud. Any array of values in any mix of the following formats
     is acceptable:
 
+    - Strings denoting a color name, or a wildcarded color name that matches one or more colors, e.g., *blue*
     - Valid [System.Drawing.Color] objects
     - Valid [System.Drawing.KnownColor] values in enum or string format
     - Strings of the format r255g255b255 or r255g255b255a255 where the integers are the R, G, B, and optionally Alpha
@@ -166,10 +167,16 @@ function New-WordCloud {
     this many colors will be used to render the word cloud.
 
     .PARAMETER FontFamily
-    Specify the font family as a string or [FontFamily] value. System.Drawing supports primarily TrueType fonts.
+    Specify the font family as a string or [FontFamily] value.
 
     .PARAMETER FontStyle
     Specify the font style to use for the word cloud.
+
+    .PARAMETER StrokeColor
+    Specify the color of outline to use when rendering words.
+
+    .PARAMETER StrokeWidth
+    Specify the width of the outline to use use when rendering words. Off by default.
 
     .PARAMETER ImageSize
     Specify the image size to use in pixels. The image dimensions can be any value between 500 and 20,000px. Any of the
@@ -216,15 +223,34 @@ function New-WordCloud {
     .PARAMETER OutputFormat
     Specify the output image file format to use.
 
-    .PARAMETER MaxWords
+    .PARAMETER BackgroundImage
+    Specify a base image to superimpose the word cloud on. The image will not be resized.
+
+    .PARAMETER MaxUniqueWords
     Specify the maximum number of words to include in the word cloud. 100 is default. If there are fewer unique words
     than the maximum amount, all unique words will be rendered.
 
-    .PARAMETER BackgroundImage
-    Specify the background image to be used as a base for the word cloud image. The original image size will be retained.
+    .PARAMETER RandomSeed
+    Specify an integer seed value to generate randomness from. Identical seed and input values should render comparable
+    word clouds.
+
+    .PARAMETER Padding
+    Specify the bounded spacing between words. This is calculated as additional distance from the prior drawn paths and
+    each new word placement attempt. Higher values will tend to take longer to render, but tend to look neater. 1 is the
+    default. Specify 0 for no minimum spacing and negative values to allow words to overlap.
+
+    .PARAMETER WordScale
+    Adjust the word scaling. 1 is the default.
+
+    .PARAMETER AllowOverflow
+    Toggles whether words are permitted to be drawn partially crossing the boundary of the iamge.
 
     .PARAMETER DisableWordRotation
-    Disables rotated words in the final image.
+    Disables drawing words vertically.
+
+    .PARAMETER BoxCollisions
+    Reverts collision detection to the slightly faster but more boxy detection methods based purely on path bounds
+    rather than the path shape itself.
 
     .EXAMPLE
     Get-Content .\Words.txt | New-WordCloud -Path .\WordCloud.png
@@ -247,7 +273,7 @@ function New-WordCloud {
         [Parameter(Mandatory, Position = 0, ValueFromPipeline, ParameterSetName = 'FileBackground-Mono')]
         [Alias('InputString', 'Text', 'String', 'Words', 'Document', 'Page')]
         [AllowEmptyString()]
-        [object[]]
+        [PSObject[]]
         $InputObject,
 
         [Parameter(Mandatory, Position = 1, ParameterSetName = 'ColorBackground')]
@@ -415,7 +441,7 @@ function New-WordCloud {
         [Parameter()]
         [Alias('Scale', 'FontScale')]
         [double]
-        $WordScale = 1.5,
+        $WordScale = 1,
 
         [Parameter()]
         [Alias('DisableClipping', 'NoClip')]
@@ -561,7 +587,7 @@ function New-WordCloud {
             $WordCloudImage | Format-List | Out-String | Write-Verbose
             Write-Verbose "Longest side of image: $MaxSideLength"
 
-            $FontScale = $WordScale * ($WordCloudImage.Height + $WordCloudImage.Width) / ($AverageFrequency * $SortedWordList.Count)
+            $FontScale = $WordScale * 1.5 * ($WordCloudImage.Height + $WordCloudImage.Width) / ($AverageFrequency * $SortedWordList.Count)
 
             :size do {
                 foreach ($Word in $SortedWordList) {
