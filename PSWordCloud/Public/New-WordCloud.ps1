@@ -273,7 +273,7 @@ function New-WordCloud {
         [Parameter(Mandatory, Position = 0, ValueFromPipeline, ParameterSetName = 'FileBackground-Mono')]
         [Alias('InputString', 'Text', 'String', 'Words', 'Document', 'Page')]
         [AllowEmptyString()]
-        [PSObject[]]
+        [object[]]
         $InputObject,
 
         [Parameter(Mandatory, Position = 1, ParameterSetName = 'ColorBackground')]
@@ -311,6 +311,11 @@ function New-WordCloud {
         [Alias('MaxColours')]
         [int]
         $MaxColors = [int]::MaxValue,
+
+        [Parameter()]
+        [Alias('Title')]
+        [string]
+        $FocusWord,
 
         [Parameter()]
         [Alias('FontFace')]
@@ -411,9 +416,9 @@ function New-WordCloud {
 
         [Parameter()]
         [Alias('ImageFormat', 'Format')]
-        [ValidateSet("Bmp", "Emf", "Exif", "Gif", "Jpeg", "Png", "Tiff", "Wmf")]
+        [ValidateSet('Bmp', 'Emf', 'Exif', 'Gif', 'Jpeg', 'Png', 'Tiff', 'Wmf')]
         [string]
-        $OutputFormat = "Png",
+        $OutputFormat = 'Png',
 
         [Parameter(Mandatory, ParameterSetName = 'FileBackground')]
         [Parameter(Mandatory, ParameterSetName = 'FileBackground-Mono')]
@@ -472,6 +477,15 @@ function New-WordCloud {
         $WordHeightTable = @{}
         $WordSizeTable = @{}
 
+        $RNG = if ($PSBoundParameters.ContainsKey('RandomSeed')) {
+            [Random]::new($RandomSeed)
+        }
+        else {
+            [Random]::new()
+        }
+
+        $ProgressID = $RNG.Next()
+
         $ExportFormat = $OutputFormat | Get-ImageFormat
 
         if ($PSCmdlet.ParameterSetName -eq 'Monochrome') {
@@ -517,14 +531,27 @@ function New-WordCloud {
             $Random = (-$Value..$Value | Get-Random) / (1 - $_.GetSaturation())
             $Value + $Random
         }
+
+        $LineCount = 0
     }
     process {
-        $Lines = ($InputObject | Out-String) -split '\r?\n'
+        $Lines = foreach ($Item in $InputObject) {
+            $LineCount++
+            ($InputObject | Out-String) -split '\r?\n'
+        }
+
         $WordList.AddRange(
             $Lines.Split($SplitChars, [StringSplitOptions]::RemoveEmptyEntries).Where{
                 $_ -notmatch "^($ExcludedWords)s?$|^[^a-z]+$|[^a-z0-9'_-]" -and $_.Length -gt 1
             } -replace "^('|_)|('|_)$" -as [string[]]
         )
+
+        $ProgressParams = @{
+            Activity = "Processed Lines: $LineCount"
+            Id       = $ProgressID
+            Status   = "Splitting text into words"
+        }
+        Write-Progress @ProgressParams
     }
     end {
         # Count occurrence of each word
@@ -542,6 +569,11 @@ function New-WordCloud {
                 $WordHeightTable[$_] ++
                 continue
             }
+        }
+
+        if ($PSBoundParameters.ContainsKey('FocusWord')) {
+            $WordHeightTable[$FocusWord] = ($WordHeightTable.GetEnumerator().Value | Measure-Object -Maximum).Maximum
+            $WordHeightTable[$FocusWord] *= 1.25
         }
 
         $WordHeightTable | Out-String | Write-Debug
@@ -660,22 +692,17 @@ function New-WordCloud {
         } | Format-List | Out-String | Write-Verbose
 
         try {
-            $ExistingWords = [Region]::new()
-            $ExistingWords.MakeEmpty()
-
-            $ForbiddenArea = [Region]::new()
-            $ForbiddenArea.MakeInfinite()
-            $ForbiddenArea.Exclude($DrawingSurface.VisibleClipBounds)
             $BlankCanvas = $true
 
-            $RNG = if ($PSBoundParameters.ContainsKey('RandomSeed')) {
-                [Random]::new($RandomSeed)
-            }
-            else {
-                [Random]::new()
+            [Region]$ForbiddenArea = [Region]::new()
+            $ForbiddenArea.MakeInfinite()
+            $UsableSpace = $DrawingSurface.VisibleClipBounds
+            if ($AllowOverflow) {
+                $UsableSpace.Inflate($UsableSpace.Width / 3, $UsableSpace.Height / 3)
             }
 
-            $ProgressID = $RNG.Next()
+            $MaxRadialDistance = [Math]::Max($UsableSpace.Width, $UsableSpace.Height) / 2
+            $ForbiddenArea.Exclude($UsableSpace)
             $WordCount = 0
 
             :words foreach ($Word in $SortedWordList) {
@@ -695,19 +722,17 @@ function New-WordCloud {
                 Write-Progress @ProgressParams
 
                 $RadialDistance = 0
-                $EnableEdgeClipping = $false
                 $Color = $ColorList[$ColorIndex]
                 $Brush = [SolidBrush]::new($Color)
 
+                if ($PSBoundParameters.ContainsKey('StrokeWidth')) {
+                    $PenWidth = $WordHeightTable[$Word] * ($StrokeWidth / 100)
+                    $StrokePen = [Pen]::new([SolidBrush]::new($StrokeColor), $PenWidth)
+                }
+
                 do {
-                    if ( $RadialDistance -gt ($MaxSideLength / 2) ) {
-                        if ($AllowOverflow -and $RadialDistance -lt $MaxSideLength / 1.5) {
-                            # Allow partial overflows
-                            $EnableEdgeClipping = $true
-                        }
-                        else {
-                            continue words
-                        }
+                    if ($RadialDistance -gt $MaxRadialDistance) {
+                        continue words
                     }
 
                     $AngleIncrement = 360 / ( ($RadialDistance + 1) * $RadialGranularity / 10 )
@@ -763,7 +788,7 @@ function New-WordCloud {
                                 )
                             }
 
-                            if (-not $DrawingSurface.IsVisible($DrawLocation) -and -not $AllowEdgeClipping) {
+                            if (-not $UsableSpace.Contains($DrawLocation)) {
                                 continue angles
                             }
 
@@ -779,30 +804,16 @@ function New-WordCloud {
                                 )
 
                                 $Bounds = $WordPath.GetBounds()
-                                $InflationValue = $WordHeightTable[$Word] * 0.1 * $Padding
+                                $InflationValue = ( $WordHeightTable[$Word] / 10 ) * $Padding + $PenWidth
                                 $Bounds.Inflate($InflationValue, $InflationValue)
 
-                                [bool] $WordIntersects = switch ($true) {
-                                    $EnableEdgeClipping {
-                                        $ExistingWords.IsVisible($Bounds, $DrawingSurface)
-                                        break
-                                    }
-                                    ($BlankCanvas) {
-                                        $ForbiddenArea.IsVisible($Bounds)
-                                        break
-                                    }
-                                    default {
-                                        $ForbiddenArea.IsVisible($Bounds, $DrawingSurface) -or
-                                        $ExistingWords.IsVisible($Bounds, $DrawingSurface)
-                                        break
-                                    }
-                                }
+                                [bool] $WordIntersects = -not $BlankCanvas -and $ForbiddenArea.IsVisible($Bounds, $DrawingSurface)
 
                                 $ProgressParams = @{
                                     Activity         = "Testing draw location"
                                     CurrentOperation = "Checking for sufficient space to draw at {0} {1}" -f @(
                                         $DrawLocation
-                                        @('Vertically', 'Horizontally')[$Format.FormatFlags -ne [StringFormatFlags]::DirectionVertical]
+                                        @('Horizontally', 'Vertically')[$WriteVertical]
                                     )
                                     ParentId         = $ProgressID
                                     Id               = $ProgressID + 1
@@ -813,10 +824,10 @@ function New-WordCloud {
 
                                 # Available location found; draw word and loop back to words
                                 if ($BoxCollisions) {
-                                    $ExistingWords.Union($Bounds)
+                                    $ForbiddenArea.Union($Bounds)
                                 }
                                 else {
-                                    $ExistingWords.Union($WordPath)
+                                    $ForbiddenArea.Union($WordPath)
                                 }
 
                                 $DrawingSurface.FillPath($Brush, $WordPath)
