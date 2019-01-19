@@ -273,7 +273,7 @@ function New-WordCloud {
                     return [ColorTransformAttribute]::ColorNames
                 }
                 else {
-                    return [ColorTransformAttribute]::ColorNames.Where{ $_.StartsWith($WordToComplete) }
+                    return [ColorTransformAttribute]::ColorNames.Where{ $_ -match "^$WordToComplete" }
                 }
             }
         )]
@@ -317,7 +317,7 @@ function New-WordCloud {
                     return [ColorTransformAttribute]::ColorNames
                 }
                 else {
-                    return [ColorTransformAttribute]::ColorNames.Where{ $_.StartsWith($WordToComplete) }
+                    return [ColorTransformAttribute]::ColorNames.Where{ $_ -match "^$WordToComplete" }
                 }
             }
         )]
@@ -369,7 +369,7 @@ function New-WordCloud {
                     return [ColorTransformAttribute]::ColorNames
                 }
                 else {
-                    return [ColorTransformAttribute]::ColorNames.Where{ $_.StartsWith($WordToComplete) }
+                    return [ColorTransformAttribute]::ColorNames.Where{ $_ -match "^$WordToComplete" }
                 }
             }
         )]
@@ -440,7 +440,7 @@ function New-WordCloud {
         $SplitChars = " `n.,`"?!{}[]:()`“`”™*#%^&+=" -as [char[]]
         $ColorIndex = 0
         $RadialDistance = 0
-        $GraphicsUnit = [GraphicsUnit]::Display
+        $GraphicsUnit = [GraphicsUnit]::Pixel
 
         $WordList = [List[string]]::new()
         $WordHeightTable = @{}
@@ -776,7 +776,7 @@ function New-WordCloud {
                                     Activity         = "Testing draw location"
                                     CurrentOperation = "Checking for sufficient space to draw at {0} {1}" -f @(
                                         $DrawLocation
-                                        @('Vertically', 'Horizontally')[$Format -ne [StringFormatFlags]::DirectionVertical]
+                                        @('Vertically', 'Horizontally')[$Format.FormatFlags -ne [StringFormatFlags]::DirectionVertical]
                                     )
                                     ParentId         = $ProgressID
                                     Id               = $ProgressID + 1
