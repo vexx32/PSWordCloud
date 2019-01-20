@@ -858,7 +858,7 @@ function New-WordCloud {
                     }
 
                     # No available free space anywhere in this radial scan, keep scanning
-                    $RadialDistance += $RNG.NextDouble() * ($Bounds.Width + $Bounds.Height) * $DistanceStep / 20
+                    $RadialDistance += $RNG.NextDouble() * ($Bounds.Width + $Bounds.Height) * $DistanceStep / [Math]::Max(1, 21 - $Padding)
                 } while ($WordIntersects)
             }
             # All words written that we can
