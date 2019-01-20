@@ -572,7 +572,11 @@ function New-WordCloud {
         }
 
         if ($PSBoundParameters.ContainsKey('FocusWord')) {
-            $WordHeightTable[$FocusWord] = ($WordHeightTable.GetEnumerator().Value | Measure-Object -Maximum).Maximum
+            $WordHeightTable[$FocusWord] = (
+                $WordHeightTable.GetEnumerator() |
+                    ForEach-Object Value |
+                    Measure-Object -Maximum
+            ).Maximum
             $WordHeightTable[$FocusWord] *= 1.25
         }
 
