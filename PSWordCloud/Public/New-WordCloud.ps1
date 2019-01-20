@@ -708,6 +708,7 @@ function New-WordCloud {
             $MaxRadialDistance = [Math]::Max($UsableSpace.Width, $UsableSpace.Height) / 2
             $ForbiddenArea.Exclude($UsableSpace)
             $WordCount = 0
+            $WordPath = [Drawing2d.GraphicsPath]::new()
 
             :words foreach ($Word in $SortedWordList) {
                 $WordCount++
@@ -797,7 +798,7 @@ function New-WordCloud {
                             }
 
                             try {
-                                $WordPath = [Drawing2d.GraphicsPath]::new()
+                                $WordPath.Reset()
                                 $WordPath.FillMode = [Drawing2D.FillMode]::Winding
                                 $WordPath.AddString(
                                     $Word,
