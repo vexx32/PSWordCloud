@@ -798,6 +798,7 @@ function New-WordCloud {
 
                             try {
                                 $WordPath = [Drawing2d.GraphicsPath]::new()
+                                $WordPath.FillMode = [Drawing2D.FillMode]::Winding
                                 $WordPath.AddString(
                                     $Word,
                                     $FontFamily,
