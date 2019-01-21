@@ -868,6 +868,10 @@ function New-WordCloud {
             $ForbiddenArea.Exclude($UsableSpace)
             $WordCount = 0
             $WordPath = [GraphicsPath]::new([FillMode]::Winding)
+            [runspacepool]$Runspacepool = 1
+            $RunspacePool.SetMaxRunspaces(10)
+            $RunspacePool.Open()
+            $RSJobs.Clear()
 
             :words foreach ($Word in $SortedWordList) {
                 $WordCount++
@@ -889,6 +893,8 @@ function New-WordCloud {
                 $Color = $ColorList[$ColorIndex]
                 $Brush = [SolidBrush]::new($Color)
 
+                $InflationValue = ( $ScaledWordHeightTable[$Word] / 10 ) * $Padding + $PenWidth
+
                 if ($PSBoundParameters.ContainsKey('StrokeWidth')) {
                     $PenWidth = $ScaledWordHeightTable[$Word] * ($StrokeWidth / 100)
                     $StrokePen = [Pen]::new([SolidBrush]::new($StrokeColor), $PenWidth)
@@ -900,61 +906,110 @@ function New-WordCloud {
                     }
 
                     $AngleIncrement = 360 / ( ($RadialDistance + 1) * $RadialGranularity / 10 )
-                    switch ([int]$RNG.Next() -band 7) {
-                        0 { $Start = 0; $End = 360 }
-                        1 { $Start = -90; $End = 270 }
-                        2 { $Start = -180; $End = 180 }
-                        3 { $Start = -270; $End = 90  }
-                        4 { $Start = 360; $End = 0; $AngleIncrement *= -1 }
-                        5 { $Start = 270; $End = -90; $AngleIncrement *= -1 }
-                        6 { $Start = 180; $End = -180; $AngleIncrement *= -1 }
-                        7 { $Start = 90; $End = -270; $AngleIncrement *= -1 }
+                    $Start, $End = switch ([int]$RNG.Next() -band 7) {
+                        0 { 0, 360 }
+                        1 { -90, 270 }
+                        2 { -180, 180 }
+                        3 { -270, 90  }
+                        4 { 360, 0; $AngleIncrement *= -1 }
+                        5 { 270, -90; $AngleIncrement *= -1 }
+                        6 { 180, -180; $AngleIncrement *= -1 }
+                        7 { 90 - 270; $AngleIncrement *= -1 }
                     }
+
+                    $Angle = $Start
+                    $RadialAngles = do {
+                        ConvertTo-Radians -Degrees $Angle
+
+                        $Condition = if ($Start -lt $End ) {$Angle -le $End} else {$Angle -gt $End}
+                        $Angle += $AngleIncrement
+                    } while ($Condition)
+
+                    $RadialScanScript = {
+                        param(
+                            $OccupiedSpace,
+                            $UsableSpace,
+                            $Centre,
+                            $WordSize,
+                            $Inflation,
+                            $RadialAngles,
+                            $RadialDistance,
+                            $DisableWordRotation,
+                            $BlankCanvas,
+                            $RNG
+                        )
+
+                        foreach ($Angle in $RadialAngles) {
+                            if (-not $UsableSpace.Contains($DrawLocation)) {
+                                continue
+                            }
+
+                            $Complex = [Complex]::FromPolarCoordinates($Angle, $RadialDistance)
+                            $OffsetX = $WordSize.Width * 0.5 * ($RNG.NextDouble() + 0.25)
+                            $OffsetY = $WordSize.Height * 0.5 * ($RNG.NextDouble() + 0.25)
+                            if ($DisableWordRotation) {
+                                $FormatList = [StringFormat]::new()
+                            }
+                            else {
+                                $FormatList = @(
+                                    [StringFormat]::new(),
+                                    [StringFormat]::new([StringFormatFlags]::DirectionVertical)
+                                ) | Sort-Object { $RNG.Next() }
+                            }
+
+                            foreach ($Rotation in $FormatList) {
+                                $Point = if ($Rotation.FormatFlags -eq [StringFormatFlags]::DirectionVertical) {
+                                    [PointF]::new(
+                                        $Complex.Real + $Centre.X - $OffsetY,
+                                        $Complex.Imaginary + $Centre.Y - $OffsetX
+                                    )
+                                }
+                                else {
+                                    [PointF]::new(
+                                        $Complex.Real + $Centre.X - $OffsetX,
+                                        $Complex.Imaginary + $Centre.Y - $OffsetY
+                                    )
+                                }
+
+                                $Rectangle = [RectangleF]::new($Point, $WordSize)
+
+                                if ($Inflation -ne 0) {
+                                    $Rectangle.Inflate($Inflation, $Inflation)
+                                }
+
+                                if ($BlankCanvas -or -not $OccupiedSpace.IsVisible($Rectangle)) {
+                                    return [PSCustomObject]@{
+                                        Point    = $Point
+                                        Rotation = $Rotation
+                                    }
+                                }
+                            }
+                        }
+                    }
+
+                    [powershell]$PowerShell = [powershell]::Create().AddScript($RadialScanScript).AddParameters(
+                        @{
+                            OccupiedSpace       = $ForbiddenArea
+                            UsableSpace         = $UsableSpace
+                            Centre              = $CentrePoint
+                            WordSize            = $WordSizeTable[$Word]
+                            Inflation           = $InflationValue
+                            RadialAngles        = $RadialAngles
+                            RadialDistance      = $RadialDistance
+                            DisableWordRotation = $DisableWordRotation
+                            BlankCanvas         = $BlankCanvas
+                            RNG                 = $RNG
+                        }
+                    )
 
                     :angles for (
                         $Angle = $Start;
                         $( if ($Start -lt $End) {$Angle -le $End} else {$End -le $Angle} );
                         $Angle += $AngleIncrement
                     ) {
-                        if ($DisableWordRotation) {
-                            $FormatList = [StringFormat]::new()
-                        }
-                        else {
-                            $FormatList = @(
-                                [StringFormat]::new(),
-                                [StringFormat]::new([StringFormatFlags]::DirectionVertical)
-                            ) | Sort-Object { $RNG.Next() }
-                        }
 
                         foreach ($Format in @($FormatList)) {
-                            $WordIntersects = $false
-                            $WriteVertical = $Format.FormatFlags -eq [StringFormatFlags]::DirectionVertical
-                            $Radians = Convert-ToRadians -Degrees $Angle
-                            $Complex = [Complex]::FromPolarCoordinates($RadialDistance, $Radians)
 
-                            $OffsetX = $WordSizeTable[$Word].Width * 0.5
-                            $OffsetY = $WordSizeTable[$Word].Height * 0.5
-                            if ($WordHeightTable[$Word] -ne $HighestFrequency) {
-                                $OffsetX = $OffsetX * ($RNG.NextDouble() + 0.25)
-                                $OffsetY = $OffsetY * ($RNG.NextDouble() + 0.25)
-                            }
-
-                            $DrawLocation = if ($WriteVertical) {
-                                [PointF]::new(
-                                    $Complex.Real * $AspectRatio + $CentrePoint.X - $OffsetY,
-                                    $Complex.Imaginary + $CentrePoint.Y - $OffsetX
-                                )
-                            }
-                            else {
-                                [PointF]::new(
-                                    $Complex.Real * $AspectRatio + $CentrePoint.X - $OffsetX,
-                                    $Complex.Imaginary + $CentrePoint.Y - $OffsetY
-                                )
-                            }
-
-                            if (-not $UsableSpace.Contains($DrawLocation)) {
-                                continue angles
-                            }
 
                             $WordPath.Reset()
                             $WordPath.FillMode = [FillMode]::Winding
@@ -968,7 +1023,7 @@ function New-WordCloud {
                             )
 
                             $Bounds = $WordPath.GetBounds()
-                            $InflationValue = ( $ScaledWordHeightTable[$Word] / 10 ) * $Padding + $PenWidth
+
                             $Bounds.Inflate($InflationValue, $InflationValue)
 
                             [bool] $WordIntersects = -not $BlankCanvas -and $ForbiddenArea.IsVisible($Bounds, $DrawingSurface)
