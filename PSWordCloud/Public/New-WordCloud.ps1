@@ -563,28 +563,112 @@ function New-WordCloud {
             $Value + $Random
         }
 
+        $RunspacePool = [RunspaceFactory]::CreateRunspacePool(1, 15)
+        [List[PSCustomObject]] $RSJobs = [List[PSCustomObject]]::new()
+
+        $InputProcessingScript = {
+            param($InputObject, $SplitChars, $ExcludedWords)
+
+            foreach ($Item in $InputObject) {
+                if ($Item -isnot [string]) {
+                    $Item = $Item | Out-String
+                }
+
+                $Result = $Item -split '\r?\n'
+                $Result.Split($SplitChars, [StringSplitOptions]::RemoveEmptyEntries).Where{
+                    $_ -notmatch "^($ExcludedWords)s?$|^[^a-z]+$|[^a-z0-9'_-]" -and $_.Length -gt 1
+                } -replace "^('|_)|('|_)$" -as [string[]]
+            }
+        }
+
+        $RunspacePool.Open()
+        $JobsStarted = 0
+        $JobsReceived = 0
         $LineCount = 0
+
+        [List[object]] $InputStorage = [List[object]]::new()
     }
     process {
-        $Lines = foreach ($Item in $InputObject) {
-            $LineCount++
-            ($InputObject | Out-String) -split '\r?\n'
+        $InputStorage.AddRange($InputObject)
+
+        if ($InputStorage.Count -ge 2500) {
+            $LineCount += $InputStorage.Count
+            $PowerShell = [PowerShell]::Create().AddScript(
+                $InputProcessingScript
+            ).AddArgument($InputStorage).AddArgument($SplitChars).AddArgument($StopWordsPattern)
+            $PowerShell.RunspacePool = $RunspacePool > $null
+
+            $ProgressParams = @{
+                Activity         = "Processing Input Items: $LineCount"
+                Status           = "Jobs: <Run> $JobsStarted <Completed> $JobsReceived"
+                Id               = $ProgressID
+                CurrentOperation = "Splitting text into words"
+            }
+            Write-Progress @ProgressParams
+
+            $RSJobs.Add(
+                [PSCustomObject]@{
+                    Instance = $PowerShell
+                    Result   = $PowerShell.BeginInvoke()
+                }
+            )
+            $JobsStarted ++
+            $InputStorage.Clear()
         }
 
-        $WordList.AddRange(
-            $Lines.Split($SplitChars, [StringSplitOptions]::RemoveEmptyEntries).Where{
-                $_ -notmatch "^($ExcludedWords)s?$|^[^a-z]+$|[^a-z0-9'_-]" -and $_.Length -gt 1
-            } -replace "^('|_)|('|_)$" -as [string[]]
-        )
-
-        $ProgressParams = @{
-            Activity = "Processed Lines: $LineCount"
-            Id       = $ProgressID
-            Status   = "Splitting text into words"
+        if ($JobsStarted % 10 -eq 0) {
+            foreach ($Runspace in $RSJobs.Where{$_.Result.IsCompleted}) {
+                [string[]] $Output = $Runspace.Instance.EndInvoke($Runspace.Result)
+                $WordList.AddRange($Output)
+                $RSJobs.Remove($Runspace) > $true
+                $JobsReceived ++
+            }
         }
-        Write-Progress @ProgressParams
     }
     end {
+        if ($InputStorage) {
+            $LineCount += $InputStorage.Count
+            $PowerShell = [PowerShell]::Create().AddScript(
+                $InputProcessingScript
+            ).AddArgument($InputStorage).AddArgument($SplitChars).AddArgument($StopWordsPattern)
+            $PowerShell.RunspacePool = $RunspacePool > $null
+
+            $ProgressParams = @{
+                Activity         = "Processing Input Items: $LineCount"
+                Status           = "Jobs: <Run> $JobsStarted <Completed> $JobsReceived"
+                Id               = $ProgressID
+                CurrentOperation = "Splitting text into words"
+            }
+            Write-Progress @ProgressParams
+
+            $RSJobs.Add(
+                [PSCustomObject]@{
+                    Instance = $PowerShell
+                    Result   = $PowerShell.BeginInvoke()
+                }
+            )
+            $JobsStarted ++
+            $InputStorage.Clear()
+        }
+
+        do {
+            $Completed, $Pending = $RSJobs.Where( {$_.Result.IsCompleted}, 'Split')
+            foreach ($Runspace in $Completed) {
+                [string[]] $Output = $Runspace.Instance.EndInvoke($Runspace.Result)
+                $WordList.AddRange($Output)
+                $RSJobs.Remove($Runspace) > $null
+                $JobsReceived ++
+
+                $ProgressParams = @{
+                    Activity         = "Processed Input Items: $LineCount"
+                    Status           = "Jobs Run: $JobsStarted Completed: $JobsReceived"
+                    Id               = $ProgressID
+                    CurrentOperation = "Collating processed words from jobs"
+                }
+                Write-Progress @ProgressParams
+            }
+        } while ($Pending.Count -gt 0)
+
         # Count occurrence of each word
         switch ($WordList) {
             { $WordHeightTable[($_ -replace 's$')] } {
