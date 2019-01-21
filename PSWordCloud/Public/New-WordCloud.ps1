@@ -623,6 +623,7 @@ function New-WordCloud {
                 $WordList.AddRange($Result)
                 $RSJobs.Remove($Runspace) > $null
                 $JobsReceived ++
+                $Runspace.Dispose()
             }
         }
     }
@@ -668,10 +669,14 @@ function New-WordCloud {
                     CurrentOperation = "Collating processed words from jobs"
                 }
                 Write-Progress @ProgressParams
+
+                $Runspace.Dispose()
             }
 
             Start-Sleep -Milliseconds 10
         } until ($RSJobs.Count -eq 0)
+
+        $RunspacePool.Close()
 
         # Count occurrence of each word
         switch ($WordList.ToArray()) {
