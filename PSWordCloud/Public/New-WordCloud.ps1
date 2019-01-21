@@ -499,12 +499,12 @@ function New-WordCloud {
                 }
             }
         ).ForEach{[Regex]::Escape($_)} -join '|'
-        $SplitChars = " `n.,`"?!{}[]:()`“`”™*#%^&+=" -as [char[]]
+        $SplitChars = " .,`"?!{}[]:()`“`”™*#%^&+=" -as [char[]]
         $ColorIndex = 0
         $RadialDistance = 0
         $GraphicsUnit = [GraphicsUnit]::Pixel
 
-        $WordList = [List[string]]::new()
+        $WordList = [List[string]]::new(128)
         $WordHeightTable = @{}
         $WordSizeTable = @{}
 
@@ -567,17 +567,16 @@ function New-WordCloud {
         [List[PSCustomObject]] $RSJobs = [List[PSCustomObject]]::new()
 
         $InputProcessingScript = {
-            param($InputObject, $SplitChars, $ExcludedWords)
+            param($Strings, $SplitChars, $ExcludedWords)
 
-            foreach ($Item in $InputObject) {
+            foreach ($Item in $Strings) {
                 if ($Item -isnot [string]) {
-                    $Item = $Item | Out-String
+                    [string] $Item = $Item | Out-String
                 }
 
-                $Result = $Item -split '\r?\n'
-                $Result.Split($SplitChars, [StringSplitOptions]::RemoveEmptyEntries).Where{
+                @($Item -split "\r?\n").Split($SplitChars, [StringSplitOptions]::RemoveEmptyEntries).Where{
                     $_ -notmatch "^($ExcludedWords)s?$|^[^a-z]+$|[^a-z0-9'_-]" -and $_.Length -gt 1
-                } -replace "^('|_)|('|_)$" -as [string[]]
+                } -replace "^('|_)|('|_)$"
             }
         }
 
@@ -585,6 +584,7 @@ function New-WordCloud {
         $JobsStarted = 0
         $JobsReceived = 0
         $LineCount = 0
+        $WordCount = 0
 
         [List[object]] $InputStorage = [List[object]]::new()
     }
@@ -592,17 +592,18 @@ function New-WordCloud {
         $InputStorage.AddRange($InputObject)
 
         if ($InputStorage.Count -ge 2500) {
+            $WordCount = $WordList.Count
             $LineCount += $InputStorage.Count
             $PowerShell = [PowerShell]::Create().AddScript(
                 $InputProcessingScript
-            ).AddArgument($InputStorage).AddArgument($SplitChars).AddArgument($StopWordsPattern)
-            $PowerShell.RunspacePool = $RunspacePool > $null
+            ).AddArgument($InputStorage.ToArray()).AddArgument($SplitChars).AddArgument($StopWordsPattern)
+            $PowerShell.RunspacePool = $RunspacePool
 
             $ProgressParams = @{
                 Activity         = "Processing Input Items: $LineCount"
                 Status           = "Jobs: <Run> $JobsStarted <Completed> $JobsReceived"
                 Id               = $ProgressID
-                CurrentOperation = "Splitting text into words"
+                CurrentOperation = "Splitting text into words. Word count: $WordCount"
             }
             Write-Progress @ProgressParams
 
@@ -616,28 +617,29 @@ function New-WordCloud {
             $InputStorage.Clear()
         }
 
-        if ($JobsStarted % 10 -eq 0) {
+        if ($JobsStarted % 10 -eq 1) {
             foreach ($Runspace in $RSJobs.Where{$_.Result.IsCompleted}) {
-                [string[]] $Output = $Runspace.Instance.EndInvoke($Runspace.Result)
-                $WordList.AddRange($Output)
-                $RSJobs.Remove($Runspace) > $true
+                $Result = [string[]] $Runspace.Instance.EndInvoke($Runspace.Result)
+                $WordList.AddRange($Result)
+                $RSJobs.Remove($Runspace) > $null
                 $JobsReceived ++
             }
         }
     }
     end {
-        if ($InputStorage) {
+        if ($InputStorage.Count -gt 0) {
+            $WordCount = $WordList.Count
             $LineCount += $InputStorage.Count
             $PowerShell = [PowerShell]::Create().AddScript(
                 $InputProcessingScript
-            ).AddArgument($InputStorage).AddArgument($SplitChars).AddArgument($StopWordsPattern)
-            $PowerShell.RunspacePool = $RunspacePool > $null
+            ).AddArgument($InputStorage.ToArray()).AddArgument($SplitChars).AddArgument($StopWordsPattern)
+            $PowerShell.RunspacePool = $RunspacePool
 
             $ProgressParams = @{
                 Activity         = "Processing Input Items: $LineCount"
                 Status           = "Jobs: <Run> $JobsStarted <Completed> $JobsReceived"
                 Id               = $ProgressID
-                CurrentOperation = "Splitting text into words"
+                CurrentOperation = "Splitting text into words. Word count: $WordCount"
             }
             Write-Progress @ProgressParams
 
@@ -652,10 +654,10 @@ function New-WordCloud {
         }
 
         do {
-            $Completed, $Pending = $RSJobs.Where( {$_.Result.IsCompleted}, 'Split')
+            $Completed = $RSJobs.Where{$_.Result.IsCompleted}
             foreach ($Runspace in $Completed) {
-                [string[]] $Output = $Runspace.Instance.EndInvoke($Runspace.Result)
-                $WordList.AddRange($Output)
+                [string[]] $Result = $Runspace.Instance.EndInvoke($Runspace.Result)
+                $WordList.AddRange($Result)
                 $RSJobs.Remove($Runspace) > $null
                 $JobsReceived ++
 
@@ -667,10 +669,12 @@ function New-WordCloud {
                 }
                 Write-Progress @ProgressParams
             }
-        } while ($Pending.Count -gt 0)
+
+            Start-Sleep -Milliseconds 10
+        } until ($RSJobs.Count -eq 0)
 
         # Count occurrence of each word
-        switch ($WordList) {
+        switch ($WordList.ToArray()) {
             { $WordHeightTable[($_ -replace 's$')] } {
                 $WordHeightTable[($_ -replace 's$')] ++
                 continue
@@ -697,7 +701,7 @@ function New-WordCloud {
 
         $WordHeightTable | Out-String | Write-Debug
 
-        $SortedWordList = $WordHeightTable.GetEnumerator().ForEach{$_.Name} |
+        $SortedWordList = $WordHeightTable.GetEnumerator().Name |
             Sort-Object -Descending { $WordHeightTable[$_] }
 
         if ($MaxUniqueWords) {
@@ -805,14 +809,14 @@ function New-WordCloud {
                 }
 
                 # If we reach here, no words are larger than the image
-                $SortedWordList = $SortedWordList.Where{$_ -in $WordSizeTable.GetEnumerator().ForEach{$_.Name}}
+                $SortedWordList = $SortedWordList.Where{$WordSizeTable.ContainsKey($_)}
                 $MaxFontSize = $ScaledWordHeightTable[$SortedWordList[0]]
                 $MinFontSize = $ScaledWordHeightTable[$Word]
                 break
             } while ($true)
         }
         catch {
-            $PSCmdlet.ThrowTerminatingError($_)
+            $PSCmdlet.WriteError($_)
             if ($DrawingSurface) {
                 $DrawingSurface.Dispose()
             }
