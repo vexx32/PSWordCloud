@@ -245,8 +245,8 @@ function New-WordCloud {
 
     .PARAMETER Padding
     Specify the bounded spacing between words. This is calculated as additional distance from the prior drawn paths and
-    each new word placement attempt. Higher values will tend to take longer to render, but tend to look neater. 1 is the
-    default. Specify 0 for no minimum spacing and negative values to allow words to overlap.
+    each new word placement attempt. Higher values will tend to take longer to render, but tend to look neater. 3.5 is
+    the default. Specify 0 for no minimum spacing and negative values to allow words to overlap.
 
     .PARAMETER WordScale
     Adjust the word scaling. 1 is the default.
@@ -459,7 +459,7 @@ function New-WordCloud {
         [Parameter()]
         [Alias('Spacing')]
         [double]
-        $Padding = 1,
+        $Padding = 3.5,
 
         [Parameter()]
         [Alias('Scale', 'FontScale')]
