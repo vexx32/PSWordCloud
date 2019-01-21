@@ -1,4 +1,4 @@
-﻿function Convert-ToRadians {
+﻿function ConvertTo-Radians {
     <#
     .SYNOPSIS
     Converts a value from degrees to radians.
