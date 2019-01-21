@@ -1,7 +1,9 @@
 ﻿using namespace System.Collections.Generic
 using namespace System.Drawing
+using namespace System.Drawing.Drawing2D
 using namespace System.IO
 using namespace System.Management.Automation
+using namespace System.Management.Automation.Runspaces
 using namespace System.Numerics
 
 class SizeTransformAttribute : ArgumentTransformationAttribute {
@@ -166,6 +168,13 @@ function New-WordCloud {
     Limit the maximum number of colors from either the standard or custom set that will be used. A random selection of
     this many colors will be used to render the word cloud.
 
+    .PARAMETER FocusWord
+    Specifies a title or centred focus word to insert into the word cloud. This word will be rendered in the middle of
+    the cloud, slightly larger than the largest word in the cloud.
+
+    .PARAMETER ExcludeWord
+    Specifies one or more words to exclude from the word cloud.
+
     .PARAMETER FontFamily
     Specify the font family as a string or [FontFamily] value.
 
@@ -252,6 +261,10 @@ function New-WordCloud {
     Reverts collision detection to the slightly faster but more boxy detection methods based purely on path bounds
     rather than the path shape itself.
 
+    .PARAMETER AllowStopWords
+    Removes the standard ignored words from the ignore list. The standard ignore list ignores single-letter words and
+    some of the most common shorter English words.
+
     .EXAMPLE
     Get-Content .\Words.txt | New-WordCloud -Path .\WordCloud.png
 
@@ -316,6 +329,11 @@ function New-WordCloud {
         [Alias('Title')]
         [string]
         $FocusWord,
+
+        [Parameter()]
+        [Alias('IgnoreWord')]
+        [string[]]
+        $ExcludeWord,
 
         [Parameter()]
         [Alias('FontFace')]
@@ -461,13 +479,26 @@ function New-WordCloud {
         [Parameter()]
         [Alias('Boxy')]
         [switch]
-        $BoxCollisions
+        $BoxCollisions,
+
+        [Parameter()]
+        [switch]
+        $AllowStopWords
     )
     begin {
         Write-Debug "Color set: $($ColorSet -join ', ')"
         Write-Debug "Background color: $BackgroundColor"
 
-        $ExcludedWords = (Get-Content "$script:ModuleRoot/Data/StopWords.txt") -join '|'
+        $StopWordsPattern = @(
+            switch ($true) {
+                (-not $AllowStopWords) {
+                    (Get-Content "$script:ModuleRoot/Data/StopWords.txt")
+                }
+                ([bool] $ExcludeWord) {
+                    $ExcludeWord
+                }
+            }
+        ).ForEach{[Regex]::Escape($_)} -join '|'
         $SplitChars = " `n.,`"?!{}[]:()`“`”™*#%^&+=" -as [char[]]
         $ColorIndex = 0
         $RadialDistance = 0
@@ -572,17 +603,17 @@ function New-WordCloud {
         }
 
         if ($PSBoundParameters.ContainsKey('FocusWord')) {
-            $WordHeightTable[$FocusWord] = (
-                $WordHeightTable.GetEnumerator() |
-                    ForEach-Object Value |
-                    Measure-Object -Maximum
-            ).Maximum
+            $WordHeightTable[$FocusWord] = $WordHeightTable.GetEnumerator() |
+                ForEach-Object Value |
+                Measure-Object -Maximum |
+                ForEach-Object Maximum
+
             $WordHeightTable[$FocusWord] *= 1.25
         }
 
         $WordHeightTable | Out-String | Write-Debug
 
-        $SortedWordList = $WordHeightTable.GetEnumerator().Name |
+        $SortedWordList = $WordHeightTable.GetEnumerator().ForEach{$_.Name} |
             Sort-Object -Descending { $WordHeightTable[$_] }
 
         if ($MaxUniqueWords) {
@@ -590,10 +621,10 @@ function New-WordCloud {
                 Select-Object -First $MaxUniqueWords
         }
 
-        $HighestFrequency, $AverageFrequency = $SortedWordList |
+        $LowestFrequency, $HighestFrequency, $AverageFrequency = $SortedWordList |
             ForEach-Object { $WordHeightTable[$_] } |
-            Measure-Object -Average -Maximum |
-            ForEach-Object {$_.Maximum, $_.Average}
+            Measure-Object -Average -Maximum -Minimum |
+            ForEach-Object {$_.Minimum, $_.Maximum, $_.Average}
 
         try {
             if ($BackgroundImage.FullName) {
@@ -612,59 +643,87 @@ function New-WordCloud {
 
             $DrawingSurface.PageScale = 1.0
             $DrawingSurface.PageUnit = $GraphicsUnit
-            $DrawingSurface.SmoothingMode = [Drawing2D.SmoothingMode]::AntiAlias
+            $DrawingSurface.SmoothingMode = [SmoothingMode]::AntiAlias
             $DrawingSurface.TextRenderingHint = [Text.TextRenderingHint]::ClearTypeGridFit
 
             $MaxSideLength = [Math]::Max($WordCloudImage.Width, $WordCloudImage.Height)
 
             Write-Verbose "Graphics Surface Properties:"
-            $DrawingSurface | Format-List | Out-String | Write-Verbose
-            Write-Verbose "Bitmap Properties:"
-            $WordCloudImage | Format-List | Out-String | Write-Verbose
-            Write-Verbose "Longest side of image: $MaxSideLength"
+            $Properties = @(
+                'RenderingOrigin'
+                'CompositingQuality'
+                'TextRenderingHint'
+                'SmoothingMode'
+                'PixelOffsetMode'
+                'DpiX'
+                'DpiY'
+                'PageScale'
+                'VisibleClipBounds'
+            )
+            $DrawingSurface |
+                Select-Object -Property $Properties |
+                Out-String |
+                Write-Verbose
 
-            $FontScale = $WordScale * 1.5 * ($WordCloudImage.Height + $WordCloudImage.Width) / ($AverageFrequency * $SortedWordList.Count)
+            Write-Verbose "Bitmap Properties:"
+            $Properties = @(
+                'Size'
+                'PixelFormat'
+                'RawFormat'
+                'HorizontalResolution'
+                'VerticalResolution'
+            )
+            $WordCloudImage |
+                Select-Object -Property $Properties |
+                Out-String |
+                Write-Verbose
+
+            $FontScale = $WordScale * 1.6 * ($WordCloudImage.Height + $WordCloudImage.Width) /
+            ($AverageFrequency * $SortedWordList.Count)
 
             :size do {
+                $ScaledWordHeightTable = @{}
                 foreach ($Word in $SortedWordList) {
-                    $WordHeightTable[$Word] = [Math]::Round($WordHeightTable[$Word] * $FontScale)
-                    if ($WordHeightTable[$Word] -lt 8) { continue }
+                    $ScaledWordHeightTable[$Word] = [Math]::Round(
+                        $WordHeightTable[$Word] * $FontScale * (
+                            2 * $RNG.NextDouble() /
+                            (1 + $HighestFrequency - $LowestFrequency) + 0.9
+                        )
+                    )
+
+                    if ($ScaledWordHeightTable[$Word] -lt 8) { continue }
 
                     $Font = [Font]::new(
                         $FontFamily,
-                        $WordHeightTable[$Word],
+                        $ScaledWordHeightTable[$Word],
                         $FontStyle,
                         $GraphicsUnit
                     )
 
-                    [SizeF] $WordSize = $DrawingSurface.MeasureString($Word, $Font)
-                    switch ($true) {
-                        $AllowOverflow {
-                            $WordSizeTable[$Word] = $WordSize
-                            break
-                        }
-                        ($DisableWordRotation -and $WordSize.Width -lt $WordCloudImage.Width) {
-                            $WordSizeTable[$Word] = $WordSize
-                            break
-                        }
-                        ([Math]::Max($WordSize.Width, $WordSize.Height) -lt $MaxSideLength) {
-                            $WordSizeTable[$Word] = $WordSize
-                            break
-                        }
-                        default {
-                            # Reset table and recalculate sizes (should only ever happen for the first few words at most)
-                            $WordSizeTable.Clear()
-                            $FontScale *= 0.9
-                            continue size
-                        }
+                    $WordSize = $DrawingSurface.MeasureString($Word, $Font)
+                    if ($Padding) {
+                        $WordSize += [SizeF]::new($Padding, $Padding)
+                    }
+                    $WordFits = (
+                        ($AllowOverflow -and [Math]::Max($WordSize.Width, $WordSize.Height)) -or
+                        ($DisableWordRotation -and $WordSize.Width -lt $WordCloudImage.Width) -or
+                        [Math]::Max($WordSize.Width, $WordSize.Height) -lt $MaxSideLength
+                    )
+                    if ($WordFits) {
+                        $WordSizeTable[$Word] = $WordSize
+                    }
+                    else {
+                        # Reset table and recalculate sizes (should only ever happen for the first few words at most)
+                        $WordSizeTable.Clear()
+                        $FontScale *= 0.98
+                        continue size
                     }
                 }
 
-                $SortedWordList = $SortedWordList | Where-Object {$_ -in $WordSizeTable.GetEnumerator().Name}
-
                 # If we reach here, no words are larger than the image
-                Write-Verbose "Largest font size: $($WordHeightTable[$SortedWordList[0]])"
-                Write-Verbose "Smallest font size: $($WordHeightTable[$Word])"
+                $SortedWordList = $SortedWordList.Where{$_ -in $WordSizeTable.GetEnumerator().ForEach{$_.Name}}
+                $MaxFontSize = $ScaledWordHeightTable[$SortedWordList[0]]
+                $MinFontSize = $ScaledWordHeightTable[$Word]
                 break
             } while ($true)
         }
@@ -684,16 +743,23 @@ function New-WordCloud {
 
         [PSCustomObject]@{
             ExportFormat     = $ExportFormat
-            UniqueWords      = $WordHeightTable.GetEnumerator().Name.Count
-            DisplayedWords   = $MaxUniqueWords
+            TotalWords       = $WordList.Count
+            UniqueWords      = $WordHeightTable.GetEnumerator().ForEach{$_}.Count
+            DisplayedWords   = if ($MaxUniqueWords) {
+                [Math]::Min($SortedWordList.Count, $MaxUniqueWords)
+            }
+            else {
+                $SortedWordList
+            }
             HighestFrequency = $HighestFrequency
-            AverageFrequency = $AverageFrequency
-            MaxFontSize      = $HighestFrequency * $FontScale
+            AverageFrequency = '{0:N2}' -f $AverageFrequency
+            MaxFontSize      = $MaxFontSize
+            MinFontSize      = $MinFontSize
             ImageSize        = $WordCloudImage.Size
             ImageCentre      = $CentrePoint
             AspectRatio      = "$($WordCloudImage.Width / $GCD) : $($WordCloudImage.Height / $GCD)"
             FontFamily       = $FontFamily.Name
-        } | Format-List | Out-String | Write-Verbose
+        } | Out-String | Write-Verbose
 
         try {
             $BlankCanvas = $true
@@ -708,7 +774,7 @@ function New-WordCloud {
             $MaxRadialDistance = [Math]::Max($UsableSpace.Width, $UsableSpace.Height) / 2
             $ForbiddenArea.Exclude($UsableSpace)
             $WordCount = 0
-            $WordPath = [Drawing2d.GraphicsPath]::new()
+            $WordPath = [GraphicsPath]::new([FillMode]::Winding)
 
             :words foreach ($Word in $SortedWordList) {
                 $WordCount++
@@ -717,11 +783,11 @@ function New-WordCloud {
                     Activity         = "Generating word cloud"
                     CurrentOperation = "Drawing '{0}' at {1} em ({2} of {3})" -f @(
                         $Word
-                        $WordHeightTable[$Word]
+                        $ScaledWordHeightTable[$Word]
                         $WordCount
                         $SortedWordList.Count
                     )
-                    PercentComplete  = ($WordCount / $WordSizeTable.GetEnumerator().Name.Count) * 100
+                    PercentComplete  = ($WordCount / $SortedWordList.Count) * 100
                     Id               = $ProgressID
                 }
                 Write-Progress @ProgressParams
@@ -731,7 +797,7 @@ function New-WordCloud {
                 $Brush = [SolidBrush]::new($Color)
 
                 if ($PSBoundParameters.ContainsKey('StrokeWidth')) {
-                    $PenWidth = $WordHeightTable[$Word] * ($StrokeWidth / 100)
+                    $PenWidth = $ScaledWordHeightTable[$Word] * ($StrokeWidth / 100)
                     $StrokePen = [Pen]::new([SolidBrush]::new($StrokeColor), $PenWidth)
                 }
 
@@ -775,9 +841,9 @@ function New-WordCloud {
 
                             $OffsetX = $WordSizeTable[$Word].Width * 0.5
                             $OffsetY = $WordSizeTable[$Word].Height * 0.5
-                            if ($WordHeightTable[$Word] -ne $HighestFrequency * $FontScale -and $AspectRatio -gt 1) {
-                                $OffsetX = $OffsetX * $RNG.NextDouble() + 0.25
-                                $OffsetY = $OffsetY * $RNG.NextDouble() + 0.25
+                            if ($WordHeightTable[$Word] -ne $HighestFrequency) {
+                                $OffsetX = $OffsetX * ($RNG.NextDouble() + 0.25)
+                                $OffsetY = $OffsetY * ($RNG.NextDouble() + 0.25)
                             }
 
                             $DrawLocation = if ($WriteVertical) {
@@ -797,73 +863,69 @@ function New-WordCloud {
                                 continue angles
                             }
 
-                            try {
-                                $WordPath.Reset()
-                                $WordPath.FillMode = [Drawing2D.FillMode]::Winding
-                                $WordPath.AddString(
-                                    $Word,
-                                    $FontFamily,
-                                    [int]$FontStyle,
-                                    $WordHeightTable[$Word],
-                                    $DrawLocation,
-                                    $Format
+                            $WordPath.Reset()
+                            $WordPath.FillMode = [FillMode]::Winding
+                            $WordPath.AddString(
+                                $Word,
+                                $FontFamily,
+                                [int]$FontStyle,
+                                $ScaledWordHeightTable[$Word],
+                                $DrawLocation,
+                                $Format
+                            )
+
+                            $Bounds = $WordPath.GetBounds()
+                            $InflationValue = ( $ScaledWordHeightTable[$Word] / 10 ) * $Padding + $PenWidth
+                            $Bounds.Inflate($InflationValue, $InflationValue)
+
+                            [bool] $WordIntersects = -not $BlankCanvas -and $ForbiddenArea.IsVisible($Bounds, $DrawingSurface)
+
+                            $ProgressParams = @{
+                                Activity         = "Testing draw location"
+                                CurrentOperation = "Checking for sufficient space to draw at {0} {1}" -f @(
+                                    $DrawLocation
+                                    @('Horizontally', 'Vertically')[$WriteVertical]
                                 )
-
-                                $Bounds = $WordPath.GetBounds()
-                                $InflationValue = ( $WordHeightTable[$Word] / 10 ) * $Padding + $PenWidth
-                                $Bounds.Inflate($InflationValue, $InflationValue)
-
-                                [bool] $WordIntersects = -not $BlankCanvas -and $ForbiddenArea.IsVisible($Bounds, $DrawingSurface)
-
-                                $ProgressParams = @{
-                                    Activity         = "Testing draw location"
-                                    CurrentOperation = "Checking for sufficient space to draw at {0} {1}" -f @(
-                                        $DrawLocation
-                                        @('Horizontally', 'Vertically')[$WriteVertical]
-                                    )
-                                    ParentId         = $ProgressID
-                                    Id               = $ProgressID + 1
-                                }
-                                Write-Progress @ProgressParams
-
-                                if ($WordIntersects) { continue angles }
-
-                                # Available location found; draw word and loop back to words
-                                if ($BoxCollisions) {
-                                    $ForbiddenArea.Union($Bounds)
-                                }
-                                else {
-                                    $ForbiddenArea.Union($WordPath)
-                                }
-
-                                $DrawingSurface.FillPath($Brush, $WordPath)
-                                if ($StrokePen) {
-                                    $DrawingSurface.DrawPath($StrokePen, $WordPath)
-                                }
-
-                                if ($BlankCanvas) {
-                                    $BlankCanvas = $false
-                                }
-
-                                $ColorIndex++
-                                if ($ColorIndex -ge $ColorList.Count) {
-                                    $ColorIndex = 0
-                                }
-
-                                continue words
+                                ParentId         = $ProgressID
+                                Id               = $ProgressID + 1
                             }
-                            finally {
-                                $WordPath.Dispose()
+                            Write-Progress @ProgressParams
+
+                            if ($WordIntersects) { continue angles }
+
+                            # Available location found; draw word and loop back to words
+                            if ($BoxCollisions) {
+                                $ForbiddenArea.Union($Bounds)
                             }
+                            else {
+                                $ForbiddenArea.Union($WordPath)
+                            }
+
+                            $DrawingSurface.FillPath($Brush, $WordPath)
+                            if ($StrokePen) {
+                                $DrawingSurface.DrawPath($StrokePen, $WordPath)
+                            }
+
+                            if ($BlankCanvas) {
+                                $BlankCanvas = $false
+                            }
+
+                            $ColorIndex++
+                            if ($ColorIndex -ge $ColorList.Count) {
+                                $ColorIndex = 0
+                            }
+
+                            continue words
                         }
                     }
 
                     # No available free space anywhere in this radial scan, keep scanning
-                    $RadialDistance += $RNG.NextDouble() * ($Bounds.Width + $Bounds.Height) * $DistanceStep / [Math]::Max(1, 21 - $Padding)
+                    $RadialDistance += $RNG.NextDouble() * ($Bounds.Width + $Bounds.Height) * $DistanceStep / [Math]::Max(1, 21 - $Padding * 2)
                 } while ($WordIntersects)
             }
-            # All words written that we can
-            $DrawingSurface.Flush()
+
+            # All words written that we can, wait for any remaining draw operations to finish before saving.
+            $DrawingSurface.Flush([FlushIntention]::Sync)
 
             foreach ($FilePath in $PathList) {
                 if ($PSCmdlet.ShouldProcess($FilePath, 'Save word cloud to file')) {
@@ -872,11 +934,12 @@ function New-WordCloud {
             }
         }
         catch {
-            $PSCmdlet.ThrowTerminatingError($_)
+            $PSCmdlet.WriteError($_)
         }
         finally {
             $DrawingSurface.Dispose()
             $WordCloudImage.Dispose()
+            $WordPath.Dispose()
         }
     }
 }
