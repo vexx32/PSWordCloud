@@ -24,23 +24,13 @@ namespace PSWordCloud
         [Parameter(Mandatory = true, Position = 1, ParameterSetName = "FileBackground")]
         [Parameter(Mandatory = true, Position = 1, ParameterSetName = "FileBackground-Mono")]
         [Alias("OutFile", "ExportPath", "ImagePath")]
-        public string Path { get; set; }
-
-        [Parameter(ParameterSetName = "ColorBackground")]
-        [Parameter(ParameterSetName = "ColorBackground-Mono")]
-        [Parameter(ParameterSetName = "FileBackground")]
-        [Parameter(ParameterSetName = "FileBackground-Mono")]
-        [Alias("ColourSet")]
-        [ArgumentCompleter(ColorCompleter)]
-        [ColorTransformAttribute()]
-        [Color[]]
-        public object[] ColorSet = [ColorTransformAttribute]::ColorNames
+        public string[] Path { get; set; }
 
         #endregion Parameters
 
         protected override void BeginProcessing()
         {
-            List<string> targetPaths = new List<string>();
+            var targetPaths = new List<string>();
 
             foreach (string path in Path)
             {
@@ -51,7 +41,7 @@ namespace PSWordCloud
                 }
             }
 
-            _paths = targetPaths.ToString();
+            _paths = targetPaths.ToArray();
         }
 
         protected override void ProcessRecord()
