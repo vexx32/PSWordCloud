@@ -589,94 +589,117 @@ function New-WordCloud {
         [List[object]] $InputStorage = [List[object]]::new()
     }
     process {
-        $InputStorage.AddRange($InputObject)
+        try {
+            $LineCount += @($InputObject).Count
 
-        if ($InputStorage.Count -ge 2500) {
-            $WordCount = $WordList.Count
-            $LineCount += $InputStorage.Count
-            $PowerShell = [PowerShell]::Create().AddScript(
-                $InputProcessingScript
-            ).AddArgument($InputStorage.ToArray()).AddArgument($SplitChars).AddArgument($StopWordsPattern)
-            $PowerShell.RunspacePool = $RunspacePool
-
-            $ProgressParams = @{
-                Activity         = "Processing Input Items: $LineCount"
-                Status           = "Jobs: <Run> $JobsStarted <Completed> $JobsReceived"
-                Id               = $ProgressID
-                CurrentOperation = "Splitting text into words. Word count: $WordCount"
+            if ($MyInvocation.ExpectingInput) {
+                $InputStorage.AddRange($InputObject)
             }
-            Write-Progress @ProgressParams
-
-            $RSJobs.Add(
-                [PSCustomObject]@{
-                    Instance = $PowerShell
-                    Result   = $PowerShell.BeginInvoke()
-                }
-            )
-            $JobsStarted ++
-            $InputStorage.Clear()
-        }
-
-        if ($JobsStarted % 10 -eq 1) {
-            foreach ($Runspace in $RSJobs.Where{$_.Result.IsCompleted}) {
-                $Result = [string[]] $Runspace.Instance.EndInvoke($Runspace.Result)
-                $WordList.AddRange($Result)
-                $RSJobs.Remove($Runspace) > $null
-                $JobsReceived ++
-                $Runspace.Dispose()
+            else {
+                $InputStorage = [List[object]] $InputObject
             }
-        }
-    }
-    end {
-        if ($InputStorage.Count -gt 0) {
-            $WordCount = $WordList.Count
-            $LineCount += $InputStorage.Count
-            $PowerShell = [PowerShell]::Create().AddScript(
-                $InputProcessingScript
-            ).AddArgument($InputStorage.ToArray()).AddArgument($SplitChars).AddArgument($StopWordsPattern)
-            $PowerShell.RunspacePool = $RunspacePool
 
-            $ProgressParams = @{
-                Activity         = "Processing Input Items: $LineCount"
-                Status           = "Jobs: <Run> $JobsStarted <Completed> $JobsReceived"
-                Id               = $ProgressID
-                CurrentOperation = "Splitting text into words. Word count: $WordCount"
-            }
-            Write-Progress @ProgressParams
-
-            $RSJobs.Add(
-                [PSCustomObject]@{
-                    Instance = $PowerShell
-                    Result   = $PowerShell.BeginInvoke()
-                }
-            )
-            $JobsStarted ++
-            $InputStorage.Clear()
-        }
-
-        do {
-            $Completed = $RSJobs.Where{$_.Result.IsCompleted}
-            foreach ($Runspace in $Completed) {
-                [string[]] $Result = $Runspace.Instance.EndInvoke($Runspace.Result)
-                $WordList.AddRange($Result)
-                $RSJobs.Remove($Runspace) > $null
-                $JobsReceived ++
+            if ($InputStorage.Count -ge 2000) {
+                $WordCount = $WordList.Count
+                $PowerShell = [PowerShell]::Create().AddScript($InputProcessingScript).AddParameters(
+                    @{
+                        Strings       = $InputStorage.ToArray()
+                        SplitChars    = $SplitChars
+                        ExcludedWords = $StopWordsPattern
+                    }
+                )
+                $PowerShell.RunspacePool = $RunspacePool
 
                 $ProgressParams = @{
-                    Activity         = "Processed Input Items: $LineCount"
-                    Status           = "Jobs Run: $JobsStarted Completed: $JobsReceived"
+                    Activity         = "Processing Input Items: $LineCount"
+                    Status           = "Jobs: <Run> $JobsStarted <Completed> $JobsReceived"
                     Id               = $ProgressID
-                    CurrentOperation = "Collating processed words from jobs"
+                    CurrentOperation = "Splitting text into words. Word count: $WordCount"
                 }
                 Write-Progress @ProgressParams
 
-                $Runspace.Dispose()
+                $RSJobs.Add(
+                    [PSCustomObject]@{
+                        Instance = $PowerShell
+                        Result   = $PowerShell.BeginInvoke()
+                    }
+                )
+                $JobsStarted ++
+                $InputStorage.Clear()
             }
 
-            Start-Sleep -Milliseconds 10
-        } until ($RSJobs.Count -eq 0)
+            if ($JobsStarted % 15 -eq 1) {
+                foreach ($Runspace in $RSJobs.Where{$_.Result.IsCompleted}) {
+                    [string[]] $Result = $Runspace.Instance.EndInvoke($Runspace.Result).ForEach{$_}
+                    $WordList.AddRange($Result)
+                    $RSJobs.Remove($Runspace) > $null
+                    $JobsReceived ++
+                }
+            }
+        }
+        catch {
+            $RunspacePool.Close()
+            $RunspacePool.Dispose()
+            $PSCmdlet.ThrowTerminatingError($_)
+        }
+    }
+    end {
+        try {
+            if ($InputStorage.Count -gt 0) {
+                $WordCount = $WordList.Count
+                $LineCount += $InputStorage.Count
+                $PowerShell = [PowerShell]::Create().AddScript($InputProcessingScript).AddParameters(
+                    @{
+                        Strings       = $InputStorage.ToArray()
+                        SplitChars    = $SplitChars
+                        ExcludedWords = $StopWordsPattern
+                    }
+                )
+                $PowerShell.RunspacePool = $RunspacePool
 
-        $RunspacePool.Close()
+                $ProgressParams = @{
+                    Activity         = "Processing Input Items: $LineCount"
+                    Status           = "Jobs: <Run> $JobsStarted <Completed> $JobsReceived"
+                    Id               = $ProgressID
+                    CurrentOperation = "Splitting text into words. Word count: $WordCount"
+                }
+                Write-Progress @ProgressParams
+
+                $RSJobs.Add(
+                    [PSCustomObject]@{
+                        Instance = $PowerShell
+                        Result   = $PowerShell.BeginInvoke()
+                    }
+                )
+                $JobsStarted ++
+                $InputStorage.Clear()
+            }
+
+            do {
+                $Completed = $RSJobs.Where{$_.Result.IsCompleted}
+                foreach ($Runspace in $Completed) {
+                    [string[]] $Result = $Runspace.Instance.EndInvoke($Runspace.Result).ForEach{$_}
+                    $WordList.AddRange($Result)
+                    $RSJobs.Remove($Runspace) > $null
+                    $JobsReceived ++
+
+                    $ProgressParams = @{
+                        Activity         = "Processed Input Items: $LineCount"
+                        Status           = "Jobs Run: $JobsStarted Completed: $JobsReceived"
+                        Id               = $ProgressID
+                        CurrentOperation = "Collating processed words from jobs"
+                    }
+                    Write-Progress @ProgressParams
+                }
+
+                Start-Sleep -Milliseconds 10
+            } until ($RSJobs.Count -eq 0)
+        }
+        catch {
+            $RunspacePool.Close()
+            $RunspacePool.Dispose()
+            $PSCmdlet.ThrowTerminatingError($_)
+        }
 
         # Count occurrence of each word
         switch ($WordList.ToArray()) {
@@ -861,46 +884,116 @@ function New-WordCloud {
             $ForbiddenArea.MakeInfinite()
             $UsableSpace = $DrawingSurface.VisibleClipBounds
             if ($AllowOverflow) {
-                $UsableSpace.Inflate($UsableSpace.Width / 3, $UsableSpace.Height / 3)
+                $UsableSpace.Inflate($UsableSpace.Width / 3, $UsableSpace.Width / 3)
             }
 
             $MaxRadialDistance = [Math]::Max($UsableSpace.Width, $UsableSpace.Height) / 2
             $ForbiddenArea.Exclude($UsableSpace)
             $WordCount = 0
-            $WordPath = [GraphicsPath]::new([FillMode]::Winding)
-            [runspacepool]$Runspacepool = 1
-            $RunspacePool.SetMaxRunspaces(10)
-            $RunspacePool.Open()
-            $RSJobs.Clear()
+            $WordPath = [GraphicsPath]::new()
+
+            $RSJobs = [List[PSCustomObject]]::new()
+
+            $RadialScanScript = {
+                [CmdletBinding()]
+                param(
+                    $OccupiedSpace,
+                    $Centre,
+                    $WordSize,
+                    $RadialAngles,
+                    $RadialDistance,
+                    $AspectRatio,
+                    $DisableWordRotation,
+                    $RandomSeed
+                )
+
+                $RNG = if ($null -ne $RandomSeed) {
+                    [Random]::new($RandomSeed)
+                }
+                else {
+                    [Random]::new()
+                }
+
+                # All type names in here use their full names; `using` declarations don't carry into new runspaces
+
+                :angle foreach ($Angle in $RadialAngles) {
+                    $Complex = [System.Numerics.Complex]::FromPolarCoordinates($RadialDistance, $Angle)
+                    $OffsetX = $WordSize.Width * 0.5 * ($RNG.NextDouble() + 0.25)
+                    $OffsetY = $WordSize.Height * 0.5 * ($RNG.NextDouble() + 0.25)
+
+                    if ($DisableWordRotation) {
+                        $FormatList = [System.Drawing.StringFormat]::new()
+                    }
+                    else {
+                        $FormatList = @(
+                            [System.Drawing.StringFormat]::new(),
+                            [System.Drawing.StringFormat]::new([System.Drawing.StringFormatFlags]::DirectionVertical)
+                        ) | Sort-Object { $RNG.Next() }
+                    }
+
+                    foreach ($Rotation in $FormatList) {
+                        if ($Rotation.FormatFlags -eq [System.Drawing.StringFormatFlags]::DirectionVertical) {
+                            $Point = [System.Drawing.PointF]::new(
+                                $Complex.Real * $AspectRatio + $Centre.X - $OffsetY,
+                                $Complex.Imaginary + $Centre.Y - $OffsetX
+                            )
+
+                            $RectangleSize = [System.Drawing.SizeF]::new($WordSize.Height, $WordSize.Width)
+                            $Rectangle = [System.Drawing.RectangleF]::new($Point, $RectangleSize)
+                        }
+                        else {
+                            $Point = [System.Drawing.PointF]::new(
+                                $Complex.Real * $AspectRatio + $Centre.X - $OffsetX,
+                                $Complex.Imaginary + $Centre.Y - $OffsetY
+                            )
+
+                            $Rectangle = [System.Drawing.RectangleF]::new($Point, $WordSize)
+                        }
+
+
+                        if (-not $OccupiedSpace.IsVisible($Rectangle)) {
+                            [PSCustomObject]@{
+                                Point    = $Point
+                                Rotation = $Rotation
+                            }
+
+                            break angle
+                        }
+                    }
+                }
+            }
 
             :words foreach ($Word in $SortedWordList) {
-                $WordCount++
-
-                $ProgressParams = @{
-                    Activity         = "Generating word cloud"
-                    CurrentOperation = "Drawing '{0}' at {1} em ({2} of {3})" -f @(
-                        $Word
-                        $ScaledWordHeightTable[$Word]
-                        $WordCount
-                        $SortedWordList.Count
-                    )
-                    PercentComplete  = ($WordCount / $SortedWordList.Count) * 100
-                    Id               = $ProgressID
-                }
-                Write-Progress @ProgressParams
+                $WordCount ++
+                $PlaceFound = $null
+                $JobsStarted = 0
+                $JobsReceived = 0
 
                 $RadialDistance = 0
-                $Color = $ColorList[$ColorIndex]
-                $Brush = [SolidBrush]::new($Color)
-
                 $InflationValue = ( $ScaledWordHeightTable[$Word] / 10 ) * $Padding + $PenWidth
 
-                if ($PSBoundParameters.ContainsKey('StrokeWidth')) {
-                    $PenWidth = $ScaledWordHeightTable[$Word] * ($StrokeWidth / 100)
-                    $StrokePen = [Pen]::new([SolidBrush]::new($StrokeColor), $PenWidth)
-                }
+                :radialSearch do {
+                    if (-not $BlankCanvas) {
+                        $RadialDistance += (
+                            $RNG.NextDouble() *
+                            $ScaledWordHeightTable[$Word] *
+                            $DistanceStep /
+                            [Math]::Max(1, 21 - $Padding * 2)
+                        )
+                    }
 
-                do {
+                    $ProgressParams = @{
+                        Activity         = "Generating word cloud"
+                        Status           = "Searching for available space to draw '{0}' at {1} em" -f @(
+                            $Word
+                            $ScaledWordHeightTable[$Word]
+                        )
+                        CurrentOperation = "Paths: <Exhausted: {0}> <Searching: {1}>" -f $JobsReceived, $JobsStarted
+                        PercentComplete  = ($WordCount / $SortedWordList.Count) * 100
+                        Id               = $ProgressID
+                    }
+                    Write-Progress @ProgressParams
+
                     if ($RadialDistance -gt $MaxRadialDistance) {
                         continue words
                     }
@@ -918,158 +1011,104 @@ function New-WordCloud {
                     }
 
                     $Angle = $Start
-                    $RadialAngles = do {
-                        ConvertTo-Radians -Degrees $Angle
 
-                        $Condition = if ($Start -lt $End ) {$Angle -le $End} else {$Angle -gt $End}
-                        $Angle += $AngleIncrement
-                    } while ($Condition)
-
-                    $RadialScanScript = {
-                        param(
-                            $OccupiedSpace,
-                            $UsableSpace,
-                            $Centre,
-                            $WordSize,
-                            $Inflation,
-                            $RadialAngles,
-                            $RadialDistance,
-                            $DisableWordRotation,
-                            $BlankCanvas,
-                            $RNG
-                        )
-
-                        foreach ($Angle in $RadialAngles) {
-                            if (-not $UsableSpace.Contains($DrawLocation)) {
-                                continue
-                            }
-
-                            $Complex = [Complex]::FromPolarCoordinates($Angle, $RadialDistance)
-                            $OffsetX = $WordSize.Width * 0.5 * ($RNG.NextDouble() + 0.25)
-                            $OffsetY = $WordSize.Height * 0.5 * ($RNG.NextDouble() + 0.25)
-                            if ($DisableWordRotation) {
-                                $FormatList = [StringFormat]::new()
-                            }
-                            else {
-                                $FormatList = @(
-                                    [StringFormat]::new(),
-                                    [StringFormat]::new([StringFormatFlags]::DirectionVertical)
-                                ) | Sort-Object { $RNG.Next() }
-                            }
-
-                            foreach ($Rotation in $FormatList) {
-                                $Point = if ($Rotation.FormatFlags -eq [StringFormatFlags]::DirectionVertical) {
-                                    [PointF]::new(
-                                        $Complex.Real + $Centre.X - $OffsetY,
-                                        $Complex.Imaginary + $Centre.Y - $OffsetX
-                                    )
-                                }
-                                else {
-                                    [PointF]::new(
-                                        $Complex.Real + $Centre.X - $OffsetX,
-                                        $Complex.Imaginary + $Centre.Y - $OffsetY
-                                    )
-                                }
-
-                                $Rectangle = [RectangleF]::new($Point, $WordSize)
-
-                                if ($Inflation -ne 0) {
-                                    $Rectangle.Inflate($Inflation, $Inflation)
-                                }
-
-                                if ($BlankCanvas -or -not $OccupiedSpace.IsVisible($Rectangle)) {
-                                    return [PSCustomObject]@{
-                                        Point    = $Point
-                                        Rotation = $Rotation
-                                    }
-                                }
-                            }
-                        }
-                    }
-
-                    [powershell]$PowerShell = [powershell]::Create().AddScript($RadialScanScript).AddParameters(
+                    $PowerShell = [powershell]::Create().AddScript($RadialScanScript).AddParameters(
                         @{
-                            OccupiedSpace       = $ForbiddenArea
-                            UsableSpace         = $UsableSpace
+                            OccupiedSpace       = $ForbiddenArea.Clone()
                             Centre              = $CentrePoint
-                            WordSize            = $WordSizeTable[$Word]
-                            Inflation           = $InflationValue
-                            RadialAngles        = $RadialAngles
+                            WordSize            = $WordSizeTable[$Word] + [SizeF]::new($InflationValue, $InflationValue)
+                            RadialAngles        = do {
+                                ConvertTo-Radians -Degrees $Angle
+
+                                $Condition = if ($Start -lt $End ) {$Angle -le $End} else {$Angle -gt $End}
+                                $Angle += $AngleIncrement
+                            } while ($Condition)
                             RadialDistance      = $RadialDistance
+                            AspectRatio         = $AspectRatio
                             DisableWordRotation = $DisableWordRotation
-                            BlankCanvas         = $BlankCanvas
-                            RNG                 = $RNG
+                            RandomSeed          = $RandomSeed
                         }
                     )
+                    $PowerShell.RunspacePool = $RunspacePool
 
-                    :angles for (
-                        $Angle = $Start;
-                        $( if ($Start -lt $End) {$Angle -le $End} else {$End -le $Angle} );
-                        $Angle += $AngleIncrement
-                    ) {
-
-                        foreach ($Format in @($FormatList)) {
-
-
-                            $WordPath.Reset()
-                            $WordPath.FillMode = [FillMode]::Winding
-                            $WordPath.AddString(
-                                $Word,
-                                $FontFamily,
-                                [int]$FontStyle,
-                                $ScaledWordHeightTable[$Word],
-                                $DrawLocation,
-                                $Format
-                            )
-
-                            $Bounds = $WordPath.GetBounds()
-
-                            $Bounds.Inflate($InflationValue, $InflationValue)
-
-                            [bool] $WordIntersects = -not $BlankCanvas -and $ForbiddenArea.IsVisible($Bounds, $DrawingSurface)
-
-                            $ProgressParams = @{
-                                Activity         = "Testing draw location"
-                                CurrentOperation = "Checking for sufficient space to draw at {0} {1}" -f @(
-                                    $DrawLocation
-                                    @('Horizontally', 'Vertically')[$WriteVertical]
-                                )
-                                ParentId         = $ProgressID
-                                Id               = $ProgressID + 1
-                            }
-                            Write-Progress @ProgressParams
-
-                            if ($WordIntersects) { continue angles }
-
-                            # Available location found; draw word and loop back to words
-                            if ($BoxCollisions) {
-                                $ForbiddenArea.Union($Bounds)
-                            }
-                            else {
-                                $ForbiddenArea.Union($WordPath)
-                            }
-
-                            $DrawingSurface.FillPath($Brush, $WordPath)
-                            if ($StrokePen) {
-                                $DrawingSurface.DrawPath($StrokePen, $WordPath)
-                            }
-
-                            if ($BlankCanvas) {
-                                $BlankCanvas = $false
-                            }
-
-                            $ColorIndex++
-                            if ($ColorIndex -ge $ColorList.Count) {
-                                $ColorIndex = 0
-                            }
-
-                            continue words
+                    $RSJobs.Add(
+                        [PSCustomObject]@{
+                            Instance = $PowerShell
+                            Result   = $PowerShell.BeginInvoke()
                         }
+                    )
+                    $JobsStarted ++
+
+                    if ($BlankCanvas) {
+                        Start-Sleep -Milliseconds 10
                     }
 
-                    # No available free space anywhere in this radial scan, keep scanning
-                    $RadialDistance += $RNG.NextDouble() * ($Bounds.Width + $Bounds.Height) * $DistanceStep / [Math]::Max(1, 21 - $Padding * 2)
-                } while ($WordIntersects)
+                    if ($BlankCanvas -or ($JobsStarted % 5 -eq 1) -or $RSJobs.Result.IsCompleted -contains $true) {
+                        $FinishedJobList = $RSJobs | Where-Object { $_.Result.IsCompleted }
+
+                        if (@($FinishedJobList).Count -gt 0) {
+                            # We only care about the first available space
+                            [PSObject]$Result = $FinishedJobList[0].Instance.EndInvoke($FinishedJobList[0].Result)
+
+                            if ($Result.Count -gt 0) {
+                                # There should only be one returned item in the collection
+                                $PlaceFound = $Result[0]
+                            }
+
+                            # We really don't need any further results once we find one
+                            $JobsReceived += $RSJobs.Count
+                        }
+                    }
+                } until ($PlaceFound)
+
+                $BlankCanvas = $false
+
+                Write-Verbose "Location found for $Word"
+                $WordPath.Reset()
+                $WordPath.FillMode = [FillMode]::Winding
+                $WordPath.AddString(
+                    [string]$Word,
+                    [FontFamily]$FontFamily,
+                    [int]$FontStyle,
+                    [float]$ScaledWordHeightTable[$Word],
+                    [PointF]$PlaceFound.Point,
+                    [StringFormat]$PlaceFound.Rotation
+                )
+
+                # Available location found; draw word and loop back to words
+                if ($BoxCollisions) {
+                    $Bounds = $WordPath.GetBounds()
+                    $Bounds.Inflate($InflationValue, $InflationValue)
+                    $ForbiddenArea.Union($Bounds)
+                }
+                else {
+                    $ForbiddenArea.Union($WordPath)
+                }
+
+                $Color = $ColorList[$ColorIndex]
+                $Brush = [SolidBrush]::new($Color)
+                if ($StrokeWidth -gt 0) {
+                    $PenWidth = $ScaledWordHeightTable[$Word] * ($StrokeWidth / 100)
+                    $StrokePen = [Pen]::new([SolidBrush]::new($StrokeColor), $PenWidth)
+                }
+
+                $DrawingSurface.FillPath($Brush, $WordPath)
+                if ($StrokePen) {
+                    $DrawingSurface.DrawPath($StrokePen, $WordPath)
+                }
+
+                if ($BlankCanvas) {
+                    $BlankCanvas = $false
+                }
+
+                $ColorIndex++
+                if ($ColorIndex -ge $ColorList.Count) {
+                    $ColorIndex = 0
+                }
+
+                # Make sure we reset our searcher pool for the next word
+                foreach ($Job in $RSJobs) { $Job.Instance.EndInvoke($Job.Result) > $null }
+                $RSJobs.Clear()
             }
 
             # All words written that we can, wait for any remaining draw operations to finish before saving.
@@ -1085,6 +1124,7 @@ function New-WordCloud {
             $PSCmdlet.WriteError($_)
         }
         finally {
+            $RunspacePool.Dispose()
             $DrawingSurface.Dispose()
             $WordCloudImage.Dispose()
             $WordPath.Dispose()
