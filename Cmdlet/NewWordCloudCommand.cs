@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Management.Automation;
+using System.Threading.Tasks;
 using SkiaSharp;
 
 namespace PSWordCloud
@@ -28,6 +29,9 @@ namespace PSWordCloud
 
         #endregion Parameters
 
+        private List<string> _inputCache = new List<string>(256);
+        private List<Task<string[]>> _taskCache = new List<Task<string[]>>();
+
         protected override void BeginProcessing()
         {
             var targetPaths = new List<string>();
@@ -46,8 +50,20 @@ namespace PSWordCloud
 
         protected override void ProcessRecord()
         {
+            if (MyInvocation.ExpectingInput)
+            {
+                var inputObject = new[] { InputObject.BaseObject as string };
+            }
+            else
+            {
+                var inputObject = InputObject.BaseObject as string[];
+                if (inputObject == null)
+                {
+                    inputObject = new[] { InputObject.BaseObject as string };
+                }
+            }
 
-            WriteObject(_paths, true);
+
         }
 
         protected override void EndProcessing()
