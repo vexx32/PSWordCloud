@@ -31,9 +31,14 @@ namespace PSWordCloud
         [Alias("OutFile", "ExportPath", "ImagePath")]
         public string[] Path { get; set; }
 
-        [Parameter()]
+        [Parameter]
         [Alias("Title")]
         public string FocusWord { get; set; }
+
+        [Parameter]
+        [Alias("MaxWords")]
+        [ValidateRange(0, 1000)]
+        public ushort MaxRenderedWords { get; set; } = 100;
 
         #endregion Parameters
 
@@ -137,14 +142,20 @@ namespace PSWordCloud
             }
 
             // All words counted and in the dictionary.
-            var maxWordEmSize = wordEmSizeDictionary.Values.Max();
+            var wordSizeValues = wordEmSizeDictionary.Values;
+            var maxWordEmSize = wordSizeValues.Max();
+            var minWordSize = wordSizeValues.Min();
             if (FocusWord != null)
             {
                 wordEmSizeDictionary[FocusWord] = maxWordEmSize = maxWordEmSize * FOCUS_WORD_SCALE;
             }
+            float averageWordSize = wordSizeValues.Average();
 
             string[] sortedWordList = wordEmSizeDictionary.Keys
-                .OrderByDescending(str => str, StringComparer.OrdinalIgnoreCase).ToArray();
+                .OrderByDescending(size => wordEmSizeDictionary[size])
+                .Take(MaxRenderedWords == 0 ? ushort.MaxValue : MaxRenderedWords)
+                .ToArray();
+
         }
 
         private async Task<string[]> ProcessLineAsync(string line)
