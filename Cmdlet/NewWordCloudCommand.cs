@@ -11,23 +11,29 @@ namespace PSWordCloud
     [Cmdlet(VerbsCommon.New, "WordCloud", SupportsShouldProcess = true, DefaultParameterSetName = "ColorBackground")]
     public class NewWordCloudCommand : PSCmdlet
     {
+        private const float FOCUS_WORD_SCALE = 1.3f;
+
         #region Parameters
 
-        [Parameter(Mandatory = true, Position = 0, ValueFromPipeline = true, ParameterSetName = "ColorBackground")]
-        [Parameter(Mandatory = true, Position = 0, ValueFromPipeline = true, ParameterSetName = "ColorBackground-Mono")]
-        [Parameter(Mandatory = true, Position = 0, ValueFromPipeline = true, ParameterSetName = "FileBackground")]
-        [Parameter(Mandatory = true, Position = 0, ValueFromPipeline = true, ParameterSetName = "FileBackground-Mono")]
+        [Parameter(Mandatory = true, ValueFromPipeline = true, ParameterSetName = "ColorBackground")]
+        [Parameter(Mandatory = true, ValueFromPipeline = true, ParameterSetName = "ColorBackground-Mono")]
+        [Parameter(Mandatory = true, ValueFromPipeline = true, ParameterSetName = "FileBackground")]
+        [Parameter(Mandatory = true, ValueFromPipeline = true, ParameterSetName = "FileBackground-Mono")]
         [Alias("InputString", "Text", "String", "Words", "Document", "Page")]
         [AllowEmptyString()]
         public PSObject InputObject { get; set; }
 
-        private string[] _paths;
-        [Parameter(Mandatory = true, Position = 1, ParameterSetName = "ColorBackground")]
-        [Parameter(Mandatory = true, Position = 1, ParameterSetName = "ColorBackground-Mono")]
-        [Parameter(Mandatory = true, Position = 1, ParameterSetName = "FileBackground")]
-        [Parameter(Mandatory = true, Position = 1, ParameterSetName = "FileBackground-Mono")]
+        private string[] _resolvedPaths;
+        [Parameter(Mandatory = true, Position = 0, ParameterSetName = "ColorBackground")]
+        [Parameter(Mandatory = true, Position = 0, ParameterSetName = "ColorBackground-Mono")]
+        [Parameter(Mandatory = true, Position = 0, ParameterSetName = "FileBackground")]
+        [Parameter(Mandatory = true, Position = 0, ParameterSetName = "FileBackground-Mono")]
         [Alias("OutFile", "ExportPath", "ImagePath")]
         public string[] Path { get; set; }
+
+        [Parameter()]
+        [Alias("Title")]
+        public string FocusWord { get; set; }
 
         #endregion Parameters
 
@@ -55,8 +61,6 @@ namespace PSWordCloud
 
         private List<Task<string[]>> _wordProcessingTasks;
 
-        private Dictionary<string, float> _wordEmSizeTable = new Dictionary<string, float>(StringComparer.OrdinalIgnoreCase);
-
         protected override void BeginProcessing()
         {
             var targetPaths = new List<string>();
@@ -70,7 +74,7 @@ namespace PSWordCloud
                 }
             }
 
-            _paths = targetPaths.ToArray();
+            _resolvedPaths = targetPaths.ToArray();
         }
 
         protected override void ProcessRecord()
@@ -102,6 +106,7 @@ namespace PSWordCloud
 
         protected override void EndProcessing()
         {
+            Dictionary<string, float> wordEmSizeDictionary = new Dictionary<string, float>(StringComparer.OrdinalIgnoreCase);
             var lineStrings = Task.WhenAll<string[]>(_wordProcessingTasks);
             var countJobs = new List<Task>();
             lineStrings.Wait();
@@ -111,29 +116,35 @@ namespace PSWordCloud
                 {
                     var trimmedWord = word.TrimEnd('s');
                     var pluralWord = String.Format("{0}s", word);
-                    if (_wordEmSizeTable.ContainsKey(trimmedWord))
+                    if (wordEmSizeDictionary.ContainsKey(trimmedWord))
                     {
-                        _wordEmSizeTable[trimmedWord]++;
+                        wordEmSizeDictionary[trimmedWord]++;
                     }
-                    else if (_wordEmSizeTable.ContainsKey(pluralWord))
+                    else if (wordEmSizeDictionary.ContainsKey(pluralWord))
                     {
-                        _wordEmSizeTable[word] = _wordEmSizeTable[pluralWord] + 1;
-                        _wordEmSizeTable.Remove(pluralWord);
+                        wordEmSizeDictionary[word] = wordEmSizeDictionary[pluralWord] + 1;
+                        wordEmSizeDictionary.Remove(pluralWord);
                     }
-                    else if (_wordEmSizeTable.ContainsKey(word))
+                    else if (wordEmSizeDictionary.ContainsKey(word))
                     {
-                        _wordEmSizeTable[word]++;
+                        wordEmSizeDictionary[word]++;
                     }
                     else
                     {
-                        _wordEmSizeTable.Add(word, 1);
+                        wordEmSizeDictionary.Add(word, 1);
                     }
                 }
             }
 
             // All words counted and in the dictionary.
-            var maxWordEmSize = _wordEmSizeTable.Values.Max();
+            var maxWordEmSize = wordEmSizeDictionary.Values.Max();
+            if (FocusWord != null)
+            {
+                wordEmSizeDictionary[FocusWord] = maxWordEmSize = maxWordEmSize * FOCUS_WORD_SCALE;
+            }
 
+            string[] sortedWordList = wordEmSizeDictionary.Keys
+                .OrderByDescending(str => str, StringComparer.OrdinalIgnoreCase).ToArray();
         }
 
         private async Task<string[]> ProcessLineAsync(string line)
