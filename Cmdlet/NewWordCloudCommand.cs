@@ -1,6 +1,5 @@
 ﻿using System;
 using System.Collections.Generic;
-using System.Collections.ObjectModel;
 using System.Linq;
 using System.Management.Automation;
 using System.Threading.Tasks;
@@ -31,9 +30,19 @@ namespace PSWordCloud
         [Alias("OutFile", "ExportPath", "ImagePath")]
         public string[] Path { get; set; }
 
-        [Parameter()]
+        [Parameter]
+        [ArgumentCompleter(typeof(ImageSizeCompleter))]
+        [SKSizeITransform]
+        public SKSizeI ImageSize { get; set; } = new SKSizeI(4096, 2304);
+
+        [Parameter]
         [Alias("Title")]
         public string FocusWord { get; set; }
+
+        [Parameter]
+        [Alias("MaxWords")]
+        [ValidateRange(0, 1000)]
+        public ushort MaxRenderedWords { get; set; } = 100;
 
         #endregion Parameters
 
@@ -137,14 +146,35 @@ namespace PSWordCloud
             }
 
             // All words counted and in the dictionary.
-            var maxWordEmSize = wordEmSizeDictionary.Values.Max();
+            var wordSizeValues = wordEmSizeDictionary.Values;
+            var maxWordEmSize = wordSizeValues.Max();
+            var minWordSize = wordSizeValues.Min();
             if (FocusWord != null)
             {
                 wordEmSizeDictionary[FocusWord] = maxWordEmSize = maxWordEmSize * FOCUS_WORD_SCALE;
             }
+            float averageWordSize = wordSizeValues.Average();
 
             string[] sortedWordList = wordEmSizeDictionary.Keys
-                .OrderByDescending(str => str, StringComparer.OrdinalIgnoreCase).ToArray();
+                .OrderByDescending(size => wordEmSizeDictionary[size])
+                .Take(MaxRenderedWords == 0 ? ushort.MaxValue : MaxRenderedWords)
+                .ToArray();
+
+            try
+            {
+                var imageInfo = new SKImageInfo(ImageSize.Width, ImageSize.Height);
+                SKSurface drawSurface = SKSurface.Create(
+                    new SKImageInfo(0, 0, SKColorType.Rgba8888, SKAlphaType.Premul));
+
+            }
+            catch (Exception e)
+            {
+                WriteError(new ErrorRecord(e, "PSWordCloudError", ErrorCategory.InvalidResult, null));
+            }
+            finally
+            {
+
+            }
         }
 
         private async Task<string[]> ProcessLineAsync(string line)
