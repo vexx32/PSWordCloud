@@ -1,6 +1,5 @@
 ﻿using System;
 using System.Collections.Generic;
-using System.Collections.ObjectModel;
 using System.Linq;
 using System.Management.Automation;
 using System.Threading.Tasks;
@@ -30,6 +29,11 @@ namespace PSWordCloud
         [Parameter(Mandatory = true, Position = 0, ParameterSetName = "FileBackground-Mono")]
         [Alias("OutFile", "ExportPath", "ImagePath")]
         public string[] Path { get; set; }
+
+        [Parameter]
+        [ArgumentCompleter(typeof(ImageSizeCompleter))]
+        [SKSizeTransform]
+        public SKSize ImageSize { get; set; } = new SKSize(4096, 2304);
 
         [Parameter]
         [Alias("Title")]
@@ -156,6 +160,20 @@ namespace PSWordCloud
                 .Take(MaxRenderedWords == 0 ? ushort.MaxValue : MaxRenderedWords)
                 .ToArray();
 
+            try
+            {
+                SKSurface drawSurface = SKSurface.Create(
+                    new SKImageInfo(0, 0, SKColorType.Rgba8888, SKAlphaType.Premul));
+
+            }
+            catch (Exception e)
+            {
+                WriteError(new ErrorRecord(e, "PSWordCloudError", ErrorCategory.InvalidResult, null));
+            }
+            finally
+            {
+
+            }
         }
 
         private async Task<string[]> ProcessLineAsync(string line)
