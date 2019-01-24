@@ -20,7 +20,7 @@ namespace PSWordCloud
             IDictionary fakeboundParameters)
         {
 
-            var matchingResults = SKSizeTransform.StandardImageSizes.Where(
+            var matchingResults = SKSizeITransform.StandardImageSizes.Where(
                 keyPair => keyPair.Key.StartsWith(wordToComplete, StringComparison.OrdinalIgnoreCase));
 
             foreach (KeyValuePair<string, (string Tooltip, SKSize)> result in matchingResults)
@@ -34,7 +34,7 @@ namespace PSWordCloud
         }
     }
 
-    public class SKSizeTransform : ArgumentTransformationAttribute
+    public class SKSizeITransform : ArgumentTransformationAttribute
     {
         public static Dictionary<string, (string Tooltip, SKSize Size)> StandardImageSizes =
         new Dictionary<string, (string, SKSize)>() {
@@ -50,7 +50,7 @@ namespace PSWordCloud
             };
         public override object Transform(EngineIntrinsics engineIntrinsics, object inputData)
         {
-            float sideLength = 0;
+            dynamic sideLength = 0;
             switch (inputData)
             {
                 case short sh:
@@ -72,21 +72,14 @@ namespace PSWordCloud
                     sideLength = ul;
                     break;
                 case decimal d:
-                    sideLength = (float)d;
+                    sideLength = d;
                     break;
                 case float f:
                     sideLength = f;
                     break;
                 case double d:
-                    if (d <= float.MaxValue)
-                    {
-                        sideLength = (float)d;
-                        break;
-                    }
-                    else
-                    {
-                        throw new ArgumentTransformationMetadataException("Value too large for image size");
-                    }
+                    sideLength = d;
+                    break;
                 case string s:
                     if (StandardImageSizes.ContainsKey(s))
                     {
@@ -99,10 +92,10 @@ namespace PSWordCloud
                         {
                             try
                             {
-                                var width = float.Parse(matchWH.Groups["Width"].Value);
-                                var height = float.Parse(matchWH.Groups["Height"].Value);
+                                var width = int.Parse(matchWH.Groups["Width"].Value);
+                                var height = int.Parse(matchWH.Groups["Height"].Value);
 
-                                return new SKSize(width, height);
+                                return new SKSizeI(width, height);
                             }
                             catch (Exception e)
                             {
@@ -114,7 +107,7 @@ namespace PSWordCloud
                         var matchSide = Regex.Match(s, @"^(?<SideLength>[\d\.,]+)(px)?$");
                         if (matchSide.Success)
                         {
-                            sideLength = float.Parse(matchSide.Groups["SideLength"].Value);
+                            sideLength = int.Parse(matchSide.Groups["SideLength"].Value);
                         }
                     }
 
@@ -123,9 +116,9 @@ namespace PSWordCloud
                     throw new ArgumentTransformationMetadataException();
             }
 
-            if (sideLength > 0)
+            if (sideLength > 0 && sideLength <= int.MaxValue)
             {
-                return new SKSize(sideLength, sideLength);
+                return new SKSizeI((int)sideLength, (int)sideLength);
             }
 
             throw new ArgumentTransformationMetadataException();

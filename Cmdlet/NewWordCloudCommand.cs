@@ -32,8 +32,8 @@ namespace PSWordCloud
 
         [Parameter]
         [ArgumentCompleter(typeof(ImageSizeCompleter))]
-        [SKSizeTransform]
-        public SKSize ImageSize { get; set; } = new SKSize(4096, 2304);
+        [SKSizeITransform]
+        public SKSizeI ImageSize { get; set; } = new SKSizeI(4096, 2304);
 
         [Parameter]
         [Alias("Title")]
@@ -162,6 +162,7 @@ namespace PSWordCloud
 
             try
             {
+                var imageInfo = new SKImageInfo(ImageSize.Width, ImageSize.Height);
                 SKSurface drawSurface = SKSurface.Create(
                     new SKImageInfo(0, 0, SKColorType.Rgba8888, SKAlphaType.Premul));
 
