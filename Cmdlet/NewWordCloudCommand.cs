@@ -8,10 +8,11 @@ using SkiaSharp;
 
 namespace PSWordCloud
 {
-    [Cmdlet(VerbsCommon.New, "WordCloud", SupportsShouldProcess = true, DefaultParameterSetName = "ColorBackground")]
+    [Cmdlet(VerbsCommon.New, "WordCloud", DefaultParameterSetName = "ColorBackground")]
     public class NewWordCloudCommand : PSCmdlet
     {
         private const float FOCUS_WORD_SCALE = 1.3f;
+        private const float BLEED_AREA_SCALE = 1.15f;
 
         #region Parameters
 
@@ -167,14 +168,22 @@ namespace PSWordCloud
 
             try
             {
-                SKSurface surface = SKSurface.Create(
-                    new SKImageInfo(ImageSize.Width, ImageSize.Height, SKColorType.Rgba8888, SKAlphaType.Premul));
+                SKRect bounds = new SKRect(0, 0, ImageSize.Width, ImageSize.Height);
+                if (AllowBleed.IsPresent)
+                {
+                    bounds.Inflate(bounds.Width * BLEED_AREA_SCALE, bounds.Width * BLEED_AREA_SCALE);
+                }
 
-                SKCanvas canvas = surface.Canvas;
-                SKRect bounds = SKRectI.Create(0, 0,
-                    (int)canvas.LocalClipBounds.Width, (int)canvas.LocalClipBounds.Height);
+                // Basic SVG canvas creation
+                SKFileWStream streamWriter = new SKFileWStream(_resolvedPaths[0]);
+                SKXmlStreamWriter xmlWriter = new SKXmlStreamWriter(streamWriter);
+                SKCanvas canvas = SKSvgCanvas.Create(bounds, xmlWriter);
+
                 SKRegion occupiedRegion = new SKRegion();
+                occupiedRegion.SetRect(bounds.ToSKRectI());
 
+
+                // TODO: Ensure saved file is copied to all _resolvedPaths
             }
             catch (Exception e)
             {
