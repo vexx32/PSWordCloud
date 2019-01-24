@@ -2,15 +2,17 @@
 using System.Collections.Generic;
 using System.Linq;
 using System.Management.Automation;
+using System.Numerics;
 using System.Threading.Tasks;
 using SkiaSharp;
 
 namespace PSWordCloud
 {
-    [Cmdlet(VerbsCommon.New, "WordCloud", SupportsShouldProcess = true, DefaultParameterSetName = "ColorBackground")]
+    [Cmdlet(VerbsCommon.New, "WordCloud", DefaultParameterSetName = "ColorBackground")]
     public class NewWordCloudCommand : PSCmdlet
     {
         private const float FOCUS_WORD_SCALE = 1.3f;
+        private const float BLEED_AREA_SCALE = 1.15f;
 
         #region Parameters
 
@@ -34,6 +36,10 @@ namespace PSWordCloud
         [ArgumentCompleter(typeof(ImageSizeCompleter))]
         [SKSizeITransform]
         public SKSizeI ImageSize { get; set; } = new SKSizeI(4096, 2304);
+
+        [Parameter]
+        [Alias("AllowOverflow")]
+        public SwitchParameter AllowBleed;
 
         [Parameter]
         [Alias("Title")]
@@ -162,10 +168,22 @@ namespace PSWordCloud
 
             try
             {
-                var imageInfo = new SKImageInfo(ImageSize.Width, ImageSize.Height);
-                SKSurface drawSurface = SKSurface.Create(
-                    new SKImageInfo(0, 0, SKColorType.Rgba8888, SKAlphaType.Premul));
+                SKRect bounds = new SKRect(0, 0, ImageSize.Width, ImageSize.Height);
+                if (AllowBleed.IsPresent)
+                {
+                    bounds.Inflate(bounds.Width * BLEED_AREA_SCALE, bounds.Width * BLEED_AREA_SCALE);
+                }
 
+                // Basic SVG canvas creation
+                SKFileWStream streamWriter = new SKFileWStream(_resolvedPaths[0]);
+                SKXmlStreamWriter xmlWriter = new SKXmlStreamWriter(streamWriter);
+                SKCanvas canvas = SKSvgCanvas.Create(bounds, xmlWriter);
+
+                SKRegion occupiedRegion = new SKRegion();
+                occupiedRegion.SetRect(bounds.ToSKRectI());
+
+
+                // TODO: Ensure saved file is copied to all _resolvedPaths
             }
             catch (Exception e)
             {
