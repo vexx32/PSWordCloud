@@ -38,17 +38,22 @@ namespace PSWordCloud
         public SKSizeI ImageSize { get; set; } = new SKSizeI(4096, 2304);
 
         [Parameter]
-        [Alias("AllowOverflow")]
-        public SwitchParameter AllowBleed;
-
-        [Parameter]
         [Alias("Title")]
         public string FocusWord { get; set; }
+
+        [Parameter]
+        [Alias("ScaleFactor")]
+        [ValidateRange(0.01, 5)]
+        public float WordScale { get; set; } = 1f;
 
         [Parameter]
         [Alias("MaxWords")]
         [ValidateRange(0, 1000)]
         public ushort MaxRenderedWords { get; set; } = 100;
+
+        [Parameter]
+        [Alias("AllowOverflow")]
+        public SwitchParameter AllowBleed { get; set; }
 
         #endregion Parameters
 
@@ -153,13 +158,13 @@ namespace PSWordCloud
 
             // All words counted and in the dictionary.
             var wordSizeValues = wordEmSizeDictionary.Values;
-            var maxWordEmSize = wordSizeValues.Max();
-            var minWordSize = wordSizeValues.Min();
+            var highestWordFreq = wordSizeValues.Max();
+            var lowestWordFreq = wordSizeValues.Min();
             if (FocusWord != null)
             {
-                wordEmSizeDictionary[FocusWord] = maxWordEmSize = maxWordEmSize * FOCUS_WORD_SCALE;
+                wordEmSizeDictionary[FocusWord] = highestWordFreq = highestWordFreq * FOCUS_WORD_SCALE;
             }
-            float averageWordSize = wordSizeValues.Average();
+            float averageWordFrequency = wordSizeValues.Average();
 
             string[] sortedWordList = wordEmSizeDictionary.Keys
                 .OrderByDescending(size => wordEmSizeDictionary[size])
@@ -174,14 +179,22 @@ namespace PSWordCloud
                     bounds.Inflate(bounds.Width * BLEED_AREA_SCALE, bounds.Width * BLEED_AREA_SCALE);
                 }
 
-                // Basic SVG canvas creation
-                SKFileWStream streamWriter = new SKFileWStream(_resolvedPaths[0]);
-                SKXmlStreamWriter xmlWriter = new SKXmlStreamWriter(streamWriter);
-                SKCanvas canvas = SKSvgCanvas.Create(bounds, xmlWriter);
+                float fontScale = WordScale * 1.6f *
+                        (bounds.Height + bounds.Width) / (averageWordFrequency * sortedWordList.Length);
+
 
                 SKRegion occupiedRegion = new SKRegion();
                 occupiedRegion.SetRect(bounds.ToSKRectI());
 
+                foreach (string word in sortedWordList)
+                {
+
+                }
+
+                // Basic SVG canvas creation
+                SKFileWStream streamWriter = new SKFileWStream(_resolvedPaths[0]);
+                SKXmlStreamWriter xmlWriter = new SKXmlStreamWriter(streamWriter);
+                SKCanvas canvas = SKSvgCanvas.Create(bounds, xmlWriter);
 
                 // TODO: Ensure saved file is copied to all _resolvedPaths
             }
