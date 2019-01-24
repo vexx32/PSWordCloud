@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using System.Linq;
 using System.Management.Automation;
+using System.Numerics;
 using System.Threading.Tasks;
 using SkiaSharp;
 
@@ -34,6 +35,10 @@ namespace PSWordCloud
         [ArgumentCompleter(typeof(ImageSizeCompleter))]
         [SKSizeITransform]
         public SKSizeI ImageSize { get; set; } = new SKSizeI(4096, 2304);
+
+        [Parameter]
+        [Alias("AllowOverflow")]
+        public SwitchParameter AllowBleed;
 
         [Parameter]
         [Alias("Title")]
@@ -162,9 +167,13 @@ namespace PSWordCloud
 
             try
             {
-                var imageInfo = new SKImageInfo(ImageSize.Width, ImageSize.Height);
-                SKSurface drawSurface = SKSurface.Create(
-                    new SKImageInfo(0, 0, SKColorType.Rgba8888, SKAlphaType.Premul));
+                SKSurface surface = SKSurface.Create(
+                    new SKImageInfo(ImageSize.Width, ImageSize.Height, SKColorType.Rgba8888, SKAlphaType.Premul));
+
+                SKCanvas canvas = surface.Canvas;
+                SKRect bounds = SKRectI.Create(0, 0,
+                    (int)canvas.LocalClipBounds.Width, (int)canvas.LocalClipBounds.Height);
+                SKRegion occupiedRegion = new SKRegion();
 
             }
             catch (Exception e)
