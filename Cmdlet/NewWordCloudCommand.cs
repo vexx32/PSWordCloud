@@ -45,12 +45,12 @@ namespace PSWordCloud
 
         [Parameter]
         [ArgumentCompleter(typeof(ImageSizeCompleter))]
-        [SKSizeITransform]
+        [ToSKSizeITransform]
         public SKSizeI ImageSize { get; set; } = new SKSizeI(4096, 2304);
 
         [Parameter]
         [ArgumentCompleter(typeof(FontFamilyCompleter))]
-        [FontFamilyTransform]
+        [ToSKTypefaceTransform]
         public SKTypeface FontFamily { get; set; } = SKTypeface.FromFamilyName(
             "Consolas",
             SKFontStyleWeight.Normal,
@@ -67,6 +67,10 @@ namespace PSWordCloud
         public float WordScale { get; set; } = 1f;
 
         [Parameter]
+        [Alias("Spacing")]
+        public float Padding { get; set; } = 3.5f;
+
+        [Parameter]
         [Alias("MaxWords")]
         [ValidateRange(0, 1000)]
         public ushort MaxRenderedWords { get; set; } = 100;
@@ -74,6 +78,10 @@ namespace PSWordCloud
         [Parameter]
         [Alias("SeedValue")]
         public int RandomSeed { get; set; }
+
+        [Parameter]
+        [Alias()]
+        public SwitchParameter DisableRotation { get; set; }
 
         [Parameter]
         [Alias("AllowOverflow")]
@@ -107,6 +115,7 @@ namespace PSWordCloud
         protected override void BeginProcessing()
         {
             _random = MyInvocation.BoundParameters.ContainsKey("RandomSeed") ? new Random(RandomSeed) : new Random();
+
             var targetPaths = new List<string>();
 
             foreach (string path in Path)
@@ -116,6 +125,15 @@ namespace PSWordCloud
                 {
                     targetPaths.AddRange(resolvedPaths);
                 }
+            }
+
+            if (targetPaths.Count == 0)
+            {
+                ThrowTerminatingError(new ErrorRecord(
+                    new ArgumentException("Unable to resolve any recognisable paths", "Path"),
+                    "PSWordCloud.BadPath",
+                    ErrorCategory.InvalidArgument,
+                    Path));
             }
 
             _resolvedPaths = targetPaths.ToArray();
@@ -200,39 +218,65 @@ namespace PSWordCloud
 
             try
             {
-                SKRectI bounds = new SKRectI(0, 0, ImageSize.Width, ImageSize.Height);
+                SKRectI drawableBounds = new SKRectI(0, 0, ImageSize.Width, ImageSize.Height);
                 if (AllowBleed.IsPresent)
                 {
-                    bounds.Inflate((int)(bounds.Width * BLEED_AREA_SCALE), (int)(bounds.Height * BLEED_AREA_SCALE));
+                    drawableBounds.Inflate(
+                        (int)(drawableBounds.Width * BLEED_AREA_SCALE),
+                        (int)(drawableBounds.Height * BLEED_AREA_SCALE));
                 }
 
                 float fontScale = WordScale * 1.6f *
-                        (bounds.Height + bounds.Width) / (averageWordFrequency * sortedWordList.Length);
+                        (drawableBounds.Height + drawableBounds.Width) / (averageWordFrequency * sortedWordList.Length);
 
 
                 SKRegion occupiedRegion = new SKRegion();
-                SKRectI barrierExtent = SKRectI.Inflate(bounds, bounds.Width * 2, bounds.Height * 2);
+                SKRectI barrierExtent = SKRectI.Inflate(
+                    drawableBounds,
+                    drawableBounds.Width * 2,
+                    drawableBounds.Height * 2);
                 occupiedRegion.SetRect(barrierExtent);
-                occupiedRegion.Op(bounds, SKRegionOperation.Difference);
+                occupiedRegion.Op(drawableBounds, SKRegionOperation.Difference);
 
-                Dictionary<string, float> finalWordSizes = new Dictionary<string, float>(
+                Dictionary<string, float> finalWordEmSizes = new Dictionary<string, float>(
                     sortedWordList.Length, StringComparer.OrdinalIgnoreCase);
 
-                foreach (string word in sortedWordList)
+                SKPaint painter = new SKPaint();
+                painter.Typeface = FontFamily;
+                bool retry = false;
+                do
                 {
-                    var finalWordSize = (float)Math.Round(
-                        2 * wordScaleDictionary[word] * fontScale * _random.NextDouble() /
-                        (1f + highestWordFreq - lowestWordFreq) + 0.9);
+                    foreach (string word in sortedWordList)
+                    {
+                        var finalWordEmSize = (float)Math.Round(
+                            2 * wordScaleDictionary[word] * fontScale * _random.NextDouble() /
+                            (1f + highestWordFreq - lowestWordFreq) + 0.9);
 
-                    if (finalWordSize < 5) continue;
+                        if (finalWordEmSize < 5) continue;
 
+                        painter.TextSize = finalWordEmSize;
+                        var adjustedTextWidth = painter.MeasureText(word) * Padding;
 
+                        if (DisableRotation.IsPresent && adjustedTextWidth > drawableBounds.Width)
+                        {
+                            retry = true;
+                            fontScale *= 0.98f;
+                            break;
+                        }
+                        else if (adjustedTextWidth > Math.Max(drawableBounds.Width, drawableBounds.Height))
+                        {
+                            retry = true;
+                            fontScale *= 0.98f;
+                            break;
+                        }
+                    }
                 }
+                while (retry);
 
                 // Basic SVG canvas creation
                 SKFileWStream streamWriter = new SKFileWStream(_resolvedPaths[0]);
                 SKXmlStreamWriter xmlWriter = new SKXmlStreamWriter(streamWriter);
-                SKCanvas canvas = SKSvgCanvas.Create(bounds, xmlWriter);
+                SKCanvas canvas = SKSvgCanvas.Create(drawableBounds, xmlWriter);
 
                 // TODO: Ensure saved file is copied to all _resolvedPaths
             }
