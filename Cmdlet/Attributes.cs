@@ -126,7 +126,7 @@ namespace PSWordCloud
             CommandAst commandAst,
             IDictionary fakeBoundParameters)
         {
-            var fonts = WordCloudUtils.FontManager.GetFontFamilies().;
+            var fonts = WordCloudUtils.FontManager.GetFontFamilies();
             if (string.IsNullOrEmpty(wordToComplete))
             {
                 foreach (string font in _fontList)
@@ -154,8 +154,7 @@ namespace PSWordCloud
                 case SKTypeface t:
                     return t;
                 case string s:
-                    return SKTypeface.FromFamilyName(
-                        s, SKFontStyleWeight.Normal, SKFontStyleWidth.Normal, SKFontStyleSlant.Upright);
+                    return WordCloudUtils.FontManager.MatchFamily(s, SKFontStyle.Normal);
             }
 
             throw new ArgumentTransformationMetadataException();
