@@ -11,8 +11,19 @@ namespace PSWordCloud
     [Cmdlet(VerbsCommon.New, "WordCloud", DefaultParameterSetName = "ColorBackground")]
     public class NewWordCloudCommand : PSCmdlet
     {
+
+        #region Constants
+
         private const float FOCUS_WORD_SCALE = 1.3f;
         private const float BLEED_AREA_SCALE = 1.15f;
+
+        #endregion Constants
+
+        #region static members
+
+        // TBD
+
+        #endregion static members
 
         #region Parameters
 
@@ -38,6 +49,15 @@ namespace PSWordCloud
         public SKSizeI ImageSize { get; set; } = new SKSizeI(4096, 2304);
 
         [Parameter]
+        [ArgumentCompleter(typeof(FontFamilyCompleter))]
+        [FontFamilyTransform]
+        public SKTypeface FontFamily { get; set; } = SKTypeface.FromFamilyName(
+            "Consolas",
+            SKFontStyleWeight.Normal,
+            SKFontStyleWidth.Normal,
+            SKFontStyleSlant.Upright);
+
+        [Parameter]
         [Alias("Title")]
         public string FocusWord { get; set; }
 
@@ -52,13 +72,15 @@ namespace PSWordCloud
         public ushort MaxRenderedWords { get; set; } = 100;
 
         [Parameter]
+        [Alias("SeedValue")]
+        public int RandomSeed { get; set; }
+
+        [Parameter]
         [Alias("AllowOverflow")]
         public SwitchParameter AllowBleed { get; set; }
 
         #endregion Parameters
 
-        private List<string> _inputCache = new List<string>(256);
-        private List<Task<string[]>> _taskCache = new List<Task<string[]>>();
         private static readonly string[] _stopWords = new[] {
             "a","about","above","after","again","against","all","am","an","and","any","are","aren't","as","at","be",
             "because","been","before","being","below","between","both","but","by","can't","cannot","could","couldn't",
@@ -80,9 +102,11 @@ namespace PSWordCloud
         };
 
         private List<Task<string[]>> _wordProcessingTasks;
+        private Random _random;
 
         protected override void BeginProcessing()
         {
+            _random = MyInvocation.BoundParameters.ContainsKey("RandomSeed") ? new Random(RandomSeed) : new Random();
             var targetPaths = new List<string>();
 
             foreach (string path in Path)
@@ -126,57 +150,60 @@ namespace PSWordCloud
 
         protected override void EndProcessing()
         {
-            Dictionary<string, float> wordEmSizeDictionary = new Dictionary<string, float>(StringComparer.OrdinalIgnoreCase);
+            Dictionary<string, float> wordScaleDictionary = new Dictionary<string, float>(
+                StringComparer.OrdinalIgnoreCase);
+
             var lineStrings = Task.WhenAll<string[]>(_wordProcessingTasks);
-            var countJobs = new List<Task>();
             lineStrings.Wait();
+
             foreach (var lineWords in lineStrings.Result)
             {
                 foreach (string word in lineWords)
                 {
                     var trimmedWord = word.TrimEnd('s');
                     var pluralWord = String.Format("{0}s", word);
-                    if (wordEmSizeDictionary.ContainsKey(trimmedWord))
+                    if (wordScaleDictionary.ContainsKey(trimmedWord))
                     {
-                        wordEmSizeDictionary[trimmedWord]++;
+                        wordScaleDictionary[trimmedWord]++;
                     }
-                    else if (wordEmSizeDictionary.ContainsKey(pluralWord))
+                    else if (wordScaleDictionary.ContainsKey(pluralWord))
                     {
-                        wordEmSizeDictionary[word] = wordEmSizeDictionary[pluralWord] + 1;
-                        wordEmSizeDictionary.Remove(pluralWord);
+                        wordScaleDictionary[word] = wordScaleDictionary[pluralWord] + 1;
+                        wordScaleDictionary.Remove(pluralWord);
                     }
-                    else if (wordEmSizeDictionary.ContainsKey(word))
+                    else if (wordScaleDictionary.ContainsKey(word))
                     {
-                        wordEmSizeDictionary[word]++;
+                        wordScaleDictionary[word]++;
                     }
                     else
                     {
-                        wordEmSizeDictionary.Add(word, 1);
+                        wordScaleDictionary.Add(word, 1);
                     }
                 }
             }
 
             // All words counted and in the dictionary.
-            var wordSizeValues = wordEmSizeDictionary.Values;
+            var wordSizeValues = wordScaleDictionary.Values;
             var highestWordFreq = wordSizeValues.Max();
             var lowestWordFreq = wordSizeValues.Min();
             if (FocusWord != null)
             {
-                wordEmSizeDictionary[FocusWord] = highestWordFreq = highestWordFreq * FOCUS_WORD_SCALE;
+                wordScaleDictionary[FocusWord] = highestWordFreq = highestWordFreq * FOCUS_WORD_SCALE;
             }
+
             float averageWordFrequency = wordSizeValues.Average();
 
-            string[] sortedWordList = wordEmSizeDictionary.Keys
-                .OrderByDescending(size => wordEmSizeDictionary[size])
+            string[] sortedWordList = wordScaleDictionary.Keys
+                .OrderByDescending(size => wordScaleDictionary[size])
                 .Take(MaxRenderedWords == 0 ? ushort.MaxValue : MaxRenderedWords)
                 .ToArray();
 
             try
             {
-                SKRect bounds = new SKRect(0, 0, ImageSize.Width, ImageSize.Height);
+                SKRectI bounds = new SKRectI(0, 0, ImageSize.Width, ImageSize.Height);
                 if (AllowBleed.IsPresent)
                 {
-                    bounds.Inflate(bounds.Width * BLEED_AREA_SCALE, bounds.Width * BLEED_AREA_SCALE);
+                    bounds.Inflate((int)(bounds.Width * BLEED_AREA_SCALE), (int)(bounds.Height * BLEED_AREA_SCALE));
                 }
 
                 float fontScale = WordScale * 1.6f *
@@ -184,10 +211,21 @@ namespace PSWordCloud
 
 
                 SKRegion occupiedRegion = new SKRegion();
-                occupiedRegion.SetRect(bounds.ToSKRectI());
+                SKRectI barrierExtent = SKRectI.Inflate(bounds, bounds.Width * 2, bounds.Height * 2);
+                occupiedRegion.SetRect(barrierExtent);
+                occupiedRegion.Op(bounds, SKRegionOperation.Difference);
+
+                Dictionary<string, float> finalWordSizes = new Dictionary<string, float>(
+                    sortedWordList.Length, StringComparer.OrdinalIgnoreCase);
 
                 foreach (string word in sortedWordList)
                 {
+                    var finalWordSize = (float)Math.Round(
+                        2 * wordScaleDictionary[word] * fontScale * _random.NextDouble() /
+                        (1f + highestWordFreq - lowestWordFreq) + 0.9);
+
+                    if (finalWordSize < 5) continue;
+
 
                 }
 
