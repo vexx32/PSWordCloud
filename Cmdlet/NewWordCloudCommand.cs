@@ -241,37 +241,46 @@ namespace PSWordCloud
                 Dictionary<string, float> finalWordEmSizes = new Dictionary<string, float>(
                     sortedWordList.Length, StringComparer.OrdinalIgnoreCase);
 
-                SKPaint painter = new SKPaint();
-                painter.Typeface = FontFamily;
-                bool retry = false;
-                do
+                using (SKPaint painter = new SKPaint())
                 {
-                    foreach (string word in sortedWordList)
+                    painter.Typeface = FontFamily;
+                    bool retry = false;
+                    do
                     {
-                        var finalWordEmSize = (float)Math.Round(
-                            2 * wordScaleDictionary[word] * fontScale * _random.NextDouble() /
-                            (1f + highestWordFreq - lowestWordFreq) + 0.9);
-
-                        if (finalWordEmSize < 5) continue;
-
-                        painter.TextSize = finalWordEmSize;
-                        var adjustedTextWidth = painter.MeasureText(word) * Padding;
-
-                        if (DisableRotation.IsPresent && adjustedTextWidth > drawableBounds.Width)
+                        foreach (string word in sortedWordList)
                         {
-                            retry = true;
-                            fontScale *= 0.98f;
-                            break;
-                        }
-                        else if (adjustedTextWidth > Math.Max(drawableBounds.Width, drawableBounds.Height))
-                        {
-                            retry = true;
-                            fontScale *= 0.98f;
-                            break;
+                            var adjustedWordSize = (float)Math.Round(
+                                2 * wordScaleDictionary[word] * fontScale * _random.NextDouble() /
+                                (1f + highestWordFreq - lowestWordFreq) + 0.9);
+
+                            if (adjustedWordSize < 5) continue;
+
+                            painter.TextSize = adjustedWordSize;
+                            var adjustedTextWidth = painter.MeasureText(word) * Padding;
+
+                            if (DisableRotation.IsPresent && adjustedTextWidth > drawableBounds.Width)
+                            {
+                                retry = true;
+                                fontScale *= 0.98f;
+                                finalWordEmSizes.Clear();
+                                break;
+                            }
+                            else if (adjustedTextWidth > Math.Max(drawableBounds.Width, drawableBounds.Height))
+                            {
+                                retry = true;
+                                fontScale *= 0.98f;
+                                finalWordEmSizes.Clear();
+                                break;
+                            }
+
+                            finalWordEmSizes[word] = adjustedWordSize;
                         }
                     }
+                    while (retry);
                 }
-                while (retry);
+
+                var aspectRatio = drawableBounds.Width / drawableBounds.Height;
+                SKPoint centrePoint = new SKPoint(drawableBounds.MidX, drawableBounds.MidY);
 
                 // Basic SVG canvas creation
                 SKFileWStream streamWriter = new SKFileWStream(_resolvedPaths[0]);
