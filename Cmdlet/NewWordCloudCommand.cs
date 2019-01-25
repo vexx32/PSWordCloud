@@ -45,12 +45,12 @@ namespace PSWordCloud
 
         [Parameter]
         [ArgumentCompleter(typeof(ImageSizeCompleter))]
-        [SKSizeITransform]
+        [ToSKSizeITransform]
         public SKSizeI ImageSize { get; set; } = new SKSizeI(4096, 2304);
 
         [Parameter]
         [ArgumentCompleter(typeof(FontFamilyCompleter))]
-        [FontFamilyTransform]
+        [ToSKTypefaceTransform]
         public SKTypeface FontFamily { get; set; } = SKTypeface.FromFamilyName(
             "Consolas",
             SKFontStyleWeight.Normal,
@@ -107,6 +107,7 @@ namespace PSWordCloud
         protected override void BeginProcessing()
         {
             _random = MyInvocation.BoundParameters.ContainsKey("RandomSeed") ? new Random(RandomSeed) : new Random();
+
             var targetPaths = new List<string>();
 
             foreach (string path in Path)
