@@ -241,43 +241,42 @@ namespace PSWordCloud
                 Dictionary<string, float> finalWordEmSizes = new Dictionary<string, float>(
                     sortedWordList.Length, StringComparer.OrdinalIgnoreCase);
 
-                using (SKPaint painter = new SKPaint())
+                SKPaint painter = new SKPaint();
+
+                painter.Typeface = FontFamily;
+                bool retry = false;
+                do
                 {
-                    painter.Typeface = FontFamily;
-                    bool retry = false;
-                    do
+                    foreach (string word in sortedWordList)
                     {
-                        foreach (string word in sortedWordList)
+                        var adjustedWordSize = (float)Math.Round(
+                            2 * wordScaleDictionary[word] * fontScale * _random.NextDouble() /
+                            (1f + highestWordFreq - lowestWordFreq) + 0.9);
+
+                        if (adjustedWordSize < 5) continue;
+
+                        painter.TextSize = adjustedWordSize;
+                        var adjustedTextWidth = painter.MeasureText(word) * Padding;
+
+                        if (DisableRotation.IsPresent && adjustedTextWidth > drawableBounds.Width)
                         {
-                            var adjustedWordSize = (float)Math.Round(
-                                2 * wordScaleDictionary[word] * fontScale * _random.NextDouble() /
-                                (1f + highestWordFreq - lowestWordFreq) + 0.9);
-
-                            if (adjustedWordSize < 5) continue;
-
-                            painter.TextSize = adjustedWordSize;
-                            var adjustedTextWidth = painter.MeasureText(word) * Padding;
-
-                            if (DisableRotation.IsPresent && adjustedTextWidth > drawableBounds.Width)
-                            {
-                                retry = true;
-                                fontScale *= 0.98f;
-                                finalWordEmSizes.Clear();
-                                break;
-                            }
-                            else if (adjustedTextWidth > Math.Max(drawableBounds.Width, drawableBounds.Height))
-                            {
-                                retry = true;
-                                fontScale *= 0.98f;
-                                finalWordEmSizes.Clear();
-                                break;
-                            }
-
-                            finalWordEmSizes[word] = adjustedWordSize;
+                            retry = true;
+                            fontScale *= 0.98f;
+                            finalWordEmSizes.Clear();
+                            break;
                         }
+                        else if (adjustedTextWidth > Math.Max(drawableBounds.Width, drawableBounds.Height))
+                        {
+                            retry = true;
+                            fontScale *= 0.98f;
+                            finalWordEmSizes.Clear();
+                            break;
+                        }
+
+                        finalWordEmSizes[word] = adjustedWordSize;
                     }
-                    while (retry);
                 }
+                while (retry);
 
                 var aspectRatio = drawableBounds.Width / drawableBounds.Height;
                 SKPoint centrePoint = new SKPoint(drawableBounds.MidX, drawableBounds.MidY);
