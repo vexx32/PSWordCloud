@@ -53,6 +53,12 @@ namespace PSWordCloud
             dynamic sideLength = 0;
             switch (inputData)
             {
+                case System.Drawing.Size sz:
+                    return new SKSizeI(sz.Width, sz.Height);
+                case System.Drawing.SizeF sf:
+                    return new SKSizeI((int)sf.Width, (int)sf.Height);
+                case SKSize sk:
+                    return sk;
                 case short sh:
                     sideLength = sh;
                     break;
@@ -119,6 +125,21 @@ namespace PSWordCloud
             if (sideLength > 0 && sideLength <= int.MaxValue)
             {
                 return new SKSizeI((int)sideLength, (int)sideLength);
+            }
+
+            throw new ArgumentTransformationMetadataException();
+        }
+    }
+
+    public class SKTypefaceTransform : ArgumentTransformationAttribute
+    {
+        public override object Transform(EngineIntrinsics engineIntrinsics, object inputData)
+        {
+            switch (inputData)
+            {
+                case string s:
+                    // TODO
+                    break;
             }
 
             throw new ArgumentTransformationMetadataException();
