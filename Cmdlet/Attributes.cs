@@ -20,7 +20,7 @@ namespace PSWordCloud
             IDictionary fakeboundParameters)
         {
 
-            var matchingResults = SKSizeITransform.StandardImageSizes.Where(
+            var matchingResults = WordCloudUtils.StandardImageSizes.Where(
                 keyPair => keyPair.Key.StartsWith(wordToComplete, StringComparison.OrdinalIgnoreCase));
 
             foreach (KeyValuePair<string, (string Tooltip, SKSize)> result in matchingResults)
@@ -34,25 +34,15 @@ namespace PSWordCloud
         }
     }
 
-    public class SKSizeITransform : ArgumentTransformationAttribute
+    public class ToSKSizeITransformAttribute : ArgumentTransformationAttribute
     {
-        public static Dictionary<string, (string Tooltip, SKSize Size)> StandardImageSizes =
-        new Dictionary<string, (string, SKSize)>() {
-                {"480x800",     ("Mobile Screen Size (small)",  new SKSize(480, 800)  )},
-                {"640x1146",    ("Mobile Screen Size (medium)", new SKSize(640, 1146) )},
-                {"720p",        ("Standard HD 1280x720",        new SKSize(1280, 720) )},
-                {"1080p",       ("Full HD 1920x1080",           new SKSize(1920, 1080))},
-                {"4K",          ("Ultra HD 3840x2160",          new SKSize(3840, 2160))},
-                {"A4",          ("816x1056",                    new SKSize(816, 1056) )},
-                {"Poster11x17", ("1056x1632",                   new SKSize(1056, 1632))},
-                {"Poster18x24", ("1728x2304",                   new SKSize(1728, 2304))},
-                {"Poster24x36", ("2304x3456",                   new SKSize(2304, 3456))},
-            };
         public override object Transform(EngineIntrinsics engineIntrinsics, object inputData)
         {
             dynamic sideLength = 0;
             switch (inputData)
             {
+                case SKSize sk:
+                    return sk;
                 case short sh:
                     sideLength = sh;
                     break;
@@ -81,9 +71,9 @@ namespace PSWordCloud
                     sideLength = d;
                     break;
                 case string s:
-                    if (StandardImageSizes.ContainsKey(s))
+                    if (WordCloudUtils.StandardImageSizes.ContainsKey(s))
                     {
-                        return StandardImageSizes[s].Size;
+                        return WordCloudUtils.StandardImageSizes[s].Size;
                     }
                     else
                     {
@@ -119,6 +109,53 @@ namespace PSWordCloud
             if (sideLength > 0 && sideLength <= int.MaxValue)
             {
                 return new SKSizeI((int)sideLength, (int)sideLength);
+            }
+
+            throw new ArgumentTransformationMetadataException();
+        }
+    }
+
+    public class FontFamilyCompleter : IArgumentCompleter
+    {
+        private static List<string> _fontList = new List<string>(WordCloudUtils.FontManager.GetFontFamilies());
+
+        public IEnumerable<CompletionResult> CompleteArgument(
+            string commandName,
+            string parameterName,
+            string wordToComplete,
+            CommandAst commandAst,
+            IDictionary fakeBoundParameters)
+        {
+            var fonts = WordCloudUtils.FontManager.GetFontFamilies().;
+            if (string.IsNullOrEmpty(wordToComplete))
+            {
+                foreach (string font in _fontList)
+                {
+                    yield return new CompletionResult(font, font, CompletionResultType.ParameterValue, null);
+                }
+            }
+            else
+            {
+                foreach (string font in _fontList.Where(
+                    s => s.StartsWith(wordToComplete, StringComparison.CurrentCultureIgnoreCase)))
+                {
+                    yield return new CompletionResult(font, font, CompletionResultType.ParameterName, null);
+                }
+            }
+        }
+    }
+
+    public class ToSKTypefaceTransformAttribute : ArgumentTransformationAttribute
+    {
+        public override object Transform(EngineIntrinsics engineIntrinsics, object inputData)
+        {
+            switch (inputData)
+            {
+                case SKTypeface t:
+                    return t;
+                case string s:
+                    return SKTypeface.FromFamilyName(
+                        s, SKFontStyleWeight.Normal, SKFontStyleWidth.Normal, SKFontStyleSlant.Upright);
             }
 
             throw new ArgumentTransformationMetadataException();
