@@ -102,13 +102,22 @@ namespace PSWordCloud
                     }
 
                     break;
-                case object o:
-                    PSObject ps = PSObject.AsPSObject(o);
-                    if (ps.Properties["Width"] != null && ps.Properties["Height"] != null)
+                case object obj:
+                    dynamic properties = null;
+                    if (obj is Hashtable ht)
+                    {
+                        properties = ht;
+                    }
+                    else
+                    {
+                        properties = PSObject.AsPSObject(obj).Properties;
+                    }
+
+                    if (properties["Width"] != null && properties["Height"] != null)
                     {
                         // If these conversions fail, the exception will cause the transform to fail.
-                        var width = LanguagePrimitives.ConvertTo<int>(ps.Properties["Width"]);
-                        var height = LanguagePrimitives.ConvertTo<int>(ps.Properties["Height"]);
+                        var width = LanguagePrimitives.ConvertTo<int>(properties["Width"]);
+                        var height = LanguagePrimitives.ConvertTo<int>(properties["Height"]);
 
                         return new SKSizeI(width, height);
                     }
@@ -168,19 +177,28 @@ namespace PSWordCloud
                 case string s:
                     return WordCloudUtils.FontManager.MatchFamily(s, SKFontStyle.Normal);
                 case object o:
-                    PSObject ps = PSObject.AsPSObject(o);
-                    if (ps.Properties["FamilyName"] != null)
+                    dynamic properties = null;
+                    if (o is Hashtable ht)
                     {
-                        SKFontStyleWeight weight = ps.Properties["FontWeight"] == null ?
+                        properties = ht;
+                    }
+                    else
+                    {
+                        properties = PSObject.AsPSObject(o).Properties;
+                    }
+
+                    if (properties["FamilyName"] != null)
+                    {
+                        SKFontStyleWeight weight = properties["FontWeight"] == null ?
                             SKFontStyleWeight.Normal : LanguagePrimitives.ConvertTo<SKFontStyleWeight>(
-                                ps.Properties["FontWeight"]);
-                        SKFontStyleSlant slant = ps.Properties["FontSlant"] == null ?
+                                properties["FontWeight"]);
+                        SKFontStyleSlant slant = properties["FontSlant"] == null ?
                             SKFontStyleSlant.Upright : LanguagePrimitives.ConvertTo<SKFontStyleSlant>(
-                                ps.Properties["FontSlant"]);
-                        SKFontStyleWidth width = ps.Properties["FontWidth"] == null ?
+                                properties["FontSlant"]);
+                        SKFontStyleWidth width = properties["FontWidth"] == null ?
                             SKFontStyleWidth.Normal : LanguagePrimitives.ConvertTo<SKFontStyleWidth>(
-                                ps.Properties["FontWidth"]);
-                        string familyName = LanguagePrimitives.ConvertTo<string>(ps.Properties["FamilyName"]);
+                                properties["FontWidth"]);
+                        string familyName = LanguagePrimitives.ConvertTo<string>(properties["FamilyName"]);
 
                         return WordCloudUtils.FontManager.MatchFamily(familyName, new SKFontStyle(weight, width, slant));
                     }
