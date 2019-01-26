@@ -201,7 +201,7 @@ $Params = @{
 $PSCoreCode | New-WordCloud @Params
 ```
 
-![PowerShell](./_images/PowerShell-Titled.png)
+![PowerShell](./_images/PowerShell-Title.png)
 
 ```powershell
 $Params = @{
