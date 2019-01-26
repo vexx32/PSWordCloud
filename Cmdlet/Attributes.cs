@@ -102,6 +102,18 @@ namespace PSWordCloud
                     }
 
                     break;
+                case object o:
+                    PSObject ps = PSObject.AsPSObject(o);
+                    if (ps.Properties["Width"] != null && ps.Properties["Height"] != null)
+                    {
+                        // If these conversions fail, the exception will cause the transform to fail.
+                        var width = LanguagePrimitives.ConvertTo<int>(ps.Properties["Width"]);
+                        var height = LanguagePrimitives.ConvertTo<int>(ps.Properties["Height"]);
+
+                        return new SKSizeI(width, height);
+                    }
+
+                    break;
                 default:
                     throw new ArgumentTransformationMetadataException();
             }
@@ -155,6 +167,25 @@ namespace PSWordCloud
                     return t;
                 case string s:
                     return WordCloudUtils.FontManager.MatchFamily(s, SKFontStyle.Normal);
+                case object o:
+                    PSObject ps = PSObject.AsPSObject(o);
+                    if (ps.Properties["FamilyName"] != null)
+                    {
+                        SKFontStyleWeight weight = ps.Properties["FontWeight"] == null ?
+                            SKFontStyleWeight.Normal : LanguagePrimitives.ConvertTo<SKFontStyleWeight>(
+                                ps.Properties["FontWeight"]);
+                        SKFontStyleSlant slant = ps.Properties["FontSlant"] == null ?
+                            SKFontStyleSlant.Upright : LanguagePrimitives.ConvertTo<SKFontStyleSlant>(
+                                ps.Properties["FontSlant"]);
+                        SKFontStyleWidth width = ps.Properties["FontWidth"] == null ?
+                            SKFontStyleWidth.Normal : LanguagePrimitives.ConvertTo<SKFontStyleWidth>(
+                                ps.Properties["FontWidth"]);
+                        string familyName = LanguagePrimitives.ConvertTo<string>(ps.Properties["FamilyName"]);
+
+                        return WordCloudUtils.FontManager.MatchFamily(familyName, new SKFontStyle(weight, width, slant));
+                    }
+
+                    break;
             }
 
             throw new ArgumentTransformationMetadataException();
