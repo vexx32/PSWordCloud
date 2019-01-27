@@ -69,7 +69,7 @@ namespace PSWordCloud
             }
         }
 
-        internal static SKFontManager FontManager = SKFontManager.Default;
+        internal static SKFontManager FontManager = SKFontManager.CreateDefault();
 
         internal static ReadOnlyDictionary<string, (string Tooltip, SKSize Size)> StandardImageSizes =
             new ReadOnlyDictionary<string, (string, SKSize)>(new Dictionary<string, (string, SKSize)>() {

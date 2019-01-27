@@ -361,7 +361,7 @@ namespace PSWordCloud
                             WriteProgress(
                                 new ProgressRecord(
                                     _progressID,
-                                    string.Format("Drawing '{0}' at {1}", word, brush.TextSize),
+                                    string.Format("Drawing '{0}' at {1} em", word, brush.TextSize),
                                     "Finding available space to draw..."));
 
                             for (float radialDistance = 0;
