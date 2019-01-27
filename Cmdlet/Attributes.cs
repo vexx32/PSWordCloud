@@ -10,7 +10,7 @@ using SkiaSharp;
 
 namespace PSWordCloud
 {
-    public class ImageSizeCompleter : IArgumentCompleter
+    internal class ImageSizeCompleter : IArgumentCompleter
     {
         public IEnumerable<CompletionResult> CompleteArgument(
             string commandName,
@@ -20,7 +20,7 @@ namespace PSWordCloud
             IDictionary fakeboundParameters)
         {
 
-            var matchingResults = WordCloudUtils.StandardImageSizes.Where(
+            var matchingResults = WCUtils.StandardImageSizes.Where(
                 keyPair => keyPair.Key.StartsWith(wordToComplete, StringComparison.OrdinalIgnoreCase));
 
             foreach (KeyValuePair<string, (string Tooltip, SKSize)> result in matchingResults)
@@ -34,11 +34,11 @@ namespace PSWordCloud
         }
     }
 
-    public class ToSKSizeITransformAttribute : ArgumentTransformationAttribute
+    public class TransformToSKSizeIAttribute : ArgumentTransformationAttribute
     {
         public override object Transform(EngineIntrinsics engineIntrinsics, object inputData)
         {
-            dynamic sideLength = 0;
+            int sideLength = 0;
             switch (inputData)
             {
                 case SKSize sk:
@@ -53,27 +53,47 @@ namespace PSWordCloud
                     sideLength = i;
                     break;
                 case uint u:
-                    sideLength = u;
+                    if (u <= int.MaxValue)
+                    {
+                        sideLength = (int)u;
+                    }
+
                     break;
                 case long l:
-                    sideLength = l;
+                    if (l <= int.MaxValue)
+                    {
+                        sideLength = (int)l;
+                    }
+
                     break;
                 case ulong ul:
-                    sideLength = ul;
+                    if (ul <= int.MaxValue)
+                    {
+                        sideLength = (int)ul;
+                    }
                     break;
                 case decimal d:
-                    sideLength = d;
+                    if (d <= int.MaxValue)
+                    {
+                        sideLength = (int)Math.Round(d);
+                    }
                     break;
                 case float f:
-                    sideLength = f;
+                    if (f <= int.MaxValue)
+                    {
+                        sideLength = (int)Math.Round(f);
+                    }
                     break;
                 case double d:
-                    sideLength = d;
+                    if (d <= int.MaxValue)
+                    {
+                        sideLength = (int)Math.Round(d);
+                    }
                     break;
                 case string s:
-                    if (WordCloudUtils.StandardImageSizes.ContainsKey(s))
+                    if (WCUtils.StandardImageSizes.ContainsKey(s))
                     {
-                        return WordCloudUtils.StandardImageSizes[s].Size;
+                        return WCUtils.StandardImageSizes[s].Size;
                     }
                     else
                     {
@@ -102,43 +122,41 @@ namespace PSWordCloud
                     }
 
                     break;
-                case object obj:
-                    dynamic properties = null;
-                    if (obj is Hashtable ht)
+                case object o:
+                    IEnumerable properties = null;
+                    if (o is Hashtable ht)
                     {
                         properties = ht;
                     }
                     else
                     {
-                        properties = PSObject.AsPSObject(obj).Properties;
+                        properties = PSObject.AsPSObject(o).Properties;
                     }
 
-                    if (properties["Width"] != null && properties["Height"] != null)
+                    if (properties.GetValue("Width") != null && properties.GetValue("Height") != null)
                     {
                         // If these conversions fail, the exception will cause the transform to fail.
-                        var width = LanguagePrimitives.ConvertTo<int>(properties["Width"]);
-                        var height = LanguagePrimitives.ConvertTo<int>(properties["Height"]);
+                        var width = LanguagePrimitives.ConvertTo<int>(properties.GetValue("Width"));
+                        var height = LanguagePrimitives.ConvertTo<int>(properties.GetValue("Height"));
 
                         return new SKSizeI(width, height);
                     }
 
                     break;
-                default:
-                    throw new ArgumentTransformationMetadataException();
             }
 
-            if (sideLength > 0 && sideLength <= int.MaxValue)
+            if (sideLength > 0)
             {
-                return new SKSizeI((int)sideLength, (int)sideLength);
+                return new SKSizeI(sideLength, sideLength);
             }
 
             throw new ArgumentTransformationMetadataException();
         }
     }
 
-    public class FontFamilyCompleter : IArgumentCompleter
+    internal class FontFamilyCompleter : IArgumentCompleter
     {
-        private static List<string> _fontList = new List<string>(WordCloudUtils.FontManager.GetFontFamilies());
+        private static List<string> _fontList = new List<string>(WCUtils.FontManager.GetFontFamilies());
 
         public IEnumerable<CompletionResult> CompleteArgument(
             string commandName,
@@ -147,7 +165,7 @@ namespace PSWordCloud
             CommandAst commandAst,
             IDictionary fakeBoundParameters)
         {
-            var fonts = WordCloudUtils.FontManager.GetFontFamilies();
+            var fonts = WCUtils.FontManager.GetFontFamilies();
             if (string.IsNullOrEmpty(wordToComplete))
             {
                 foreach (string font in _fontList)
@@ -166,7 +184,7 @@ namespace PSWordCloud
         }
     }
 
-    public class ToSKTypefaceTransformAttribute : ArgumentTransformationAttribute
+    public class TransformToSKTypefaceAttribute : ArgumentTransformationAttribute
     {
         public override object Transform(EngineIntrinsics engineIntrinsics, object inputData)
         {
@@ -175,38 +193,104 @@ namespace PSWordCloud
                 case SKTypeface t:
                     return t;
                 case string s:
-                    return WordCloudUtils.FontManager.MatchFamily(s, SKFontStyle.Normal);
-                case object o:
-                    dynamic properties = null;
-                    if (o is Hashtable ht)
+                    return WCUtils.FontManager.MatchFamily(s, SKFontStyle.Normal);
+                default:
+                    IEnumerable properties = null;
+                    if (inputData is Hashtable ht)
                     {
                         properties = ht;
                     }
                     else
                     {
-                        properties = PSObject.AsPSObject(o).Properties;
+                        properties = PSObject.AsPSObject(inputData).Properties;
                     }
 
-                    if (properties["FamilyName"] != null)
-                    {
-                        SKFontStyleWeight weight = properties["FontWeight"] == null ?
-                            SKFontStyleWeight.Normal : LanguagePrimitives.ConvertTo<SKFontStyleWeight>(
-                                properties["FontWeight"]);
-                        SKFontStyleSlant slant = properties["FontSlant"] == null ?
-                            SKFontStyleSlant.Upright : LanguagePrimitives.ConvertTo<SKFontStyleSlant>(
-                                properties["FontSlant"]);
-                        SKFontStyleWidth width = properties["FontWidth"] == null ?
-                            SKFontStyleWidth.Normal : LanguagePrimitives.ConvertTo<SKFontStyleWidth>(
-                                properties["FontWidth"]);
-                        string familyName = LanguagePrimitives.ConvertTo<string>(properties["FamilyName"]);
+                    SKFontStyleWeight weight = properties.GetValue("FontWeight") == null ?
+                        SKFontStyleWeight.Normal : LanguagePrimitives.ConvertTo<SKFontStyleWeight>(
+                            properties.GetValue("FontWeight"));
+                    SKFontStyleSlant slant = properties.GetValue("FontSlant") == null ?
+                        SKFontStyleSlant.Upright : LanguagePrimitives.ConvertTo<SKFontStyleSlant>(
+                            properties.GetValue("FontSlant"));
+                    SKFontStyleWidth width = properties.GetValue("FontWidth") == null ?
+                        SKFontStyleWidth.Normal : LanguagePrimitives.ConvertTo<SKFontStyleWidth>(
+                            properties.GetValue("FontWidth"));
+                    string familyName = LanguagePrimitives.ConvertTo<string>(properties.GetValue("FamilyName"));
 
-                        return WordCloudUtils.FontManager.MatchFamily(familyName, new SKFontStyle(weight, width, slant));
-                    }
-
-                    break;
+                    return WCUtils.FontManager.MatchFamily(familyName, new SKFontStyle(weight, width, slant));
             }
-
-            throw new ArgumentTransformationMetadataException();
         }
     }
+
+    public class SKColorCompleter : IArgumentCompleter
+    {
+        public IEnumerable<CompletionResult> CompleteArgument(
+            string commandName,
+            string parameterName,
+            string wordToComplete,
+            CommandAst commandAst,
+            IDictionary fakeBoundParameters)
+        {
+            foreach (string color in WCUtils.ColorNames)
+            {
+                SKColor colorValue = WCUtils.ColorLibrary[color];
+                yield return new CompletionResult(
+                    color,
+                    color,
+                    CompletionResultType.ParameterValue,
+                    string.Format("{0} (R: {1}, G: {2}, B: {3}, A: {4})",
+                        color, colorValue.Red, colorValue.Green, colorValue.Blue, colorValue.Alpha));
+            }
+        }
+    }
+
+    public class TransformToSKColorAttribute : ArgumentTransformationAttribute
+    {
+        public override object Transform(EngineIntrinsics engineIntrinsics, object inputData)
+        {
+            switch (inputData)
+            {
+                case string s:
+                    if (WCUtils.ColorNames.Contains(s))
+                    {
+                        return WCUtils.ColorLibrary[s];
+                    }
+
+                    if (string.Equals(s, "transparent", StringComparison.OrdinalIgnoreCase))
+                    {
+                        return SKColor.Empty;
+                    }
+
+                    if (SKColor.TryParse(s, out SKColor c))
+                    {
+                        return c;
+                    }
+
+                    throw new ArgumentTransformationMetadataException();
+                case SKColor color:
+                    return color;
+                default:
+                    IEnumerable properties = null;
+                    if (inputData is Hashtable ht)
+                    {
+                        properties = ht;
+                    }
+                    else
+                    {
+                        properties = PSObject.AsPSObject(inputData).Properties;
+                    }
+
+                    byte red = properties.GetValue("red") == null ?
+                        (byte)0 : (byte)LanguagePrimitives.ConvertTo<byte>(properties.GetValue("red"));
+                    byte green = properties.GetValue("green") == null ?
+                        (byte)0 : (byte)LanguagePrimitives.ConvertTo<byte>(properties.GetValue("green"));
+                    byte blue = properties.GetValue("blue") == null ?
+                        (byte)0 : (byte)LanguagePrimitives.ConvertTo<byte>(properties.GetValue("blue"));
+                    byte alpha = properties.GetValue("alpha") == null ?
+                        (byte)0 : (byte)LanguagePrimitives.ConvertTo<byte>(properties.GetValue("alpha"));
+
+                    return new SKColor(red, green, blue, alpha);
+            }
+        }
+    }
+
 }
