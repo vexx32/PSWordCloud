@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections;
 using System.Collections.Generic;
+using System.Collections.ObjectModel;
 using System.Linq;
 using System.Management.Automation;
 using System.Management.Automation.Language;
@@ -156,7 +157,7 @@ namespace PSWordCloud
 
     internal class FontFamilyCompleter : IArgumentCompleter
     {
-        private static List<string> _fontList = new List<string>(WCUtils.FontManager.GetFontFamilies());
+        private static readonly ReadOnlyCollection<string> _fontList = new ReadOnlyCollection<string>(WCUtils.FontManager.GetFontFamilies());
 
         public IEnumerable<CompletionResult> CompleteArgument(
             string commandName,
@@ -176,7 +177,7 @@ namespace PSWordCloud
             else
             {
                 foreach (string font in _fontList.Where(
-                    s => s.StartsWith(wordToComplete, StringComparison.CurrentCultureIgnoreCase)))
+                    s => s.StartsWith(wordToComplete, StringComparison.OrdinalIgnoreCase)))
                 {
                     yield return new CompletionResult(font, font, CompletionResultType.ParameterName, null);
                 }

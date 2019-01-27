@@ -163,10 +163,11 @@ namespace PSWordCloud
 
             foreach (string path in Path)
             {
-                var resolvedPaths = SessionState.Path.GetResolvedProviderPathFromPSPath(path, out ProviderInfo provider);
+                var resolvedPaths = SessionState.Path.GetUnresolvedProviderPathFromPSPath(
+                    path, out ProviderInfo provider, out PSDriveInfo drive);
                 if (resolvedPaths != null)
                 {
-                    targetPaths.AddRange(resolvedPaths);
+                    targetPaths.Add(resolvedPaths);
                 }
             }
 
@@ -267,21 +268,17 @@ namespace PSWordCloud
             {
                 SKRectI drawableBounds = new SKRectI(0, 0, ImageSize.Width, ImageSize.Height);
                 drawableClip = new SKRegion();
-                drawableClip.SetRect(drawableBounds);
                 if (AllowBleed.IsPresent)
                 {
                     drawableBounds.Inflate(
-                        (int)(drawableBounds.Width * BLEED_AREA_SCALE),
-                        (int)(drawableBounds.Height * BLEED_AREA_SCALE));
+                        (int)Math.Round(drawableBounds.Width * BLEED_AREA_SCALE),
+                        (int)Math.Round(drawableBounds.Height * BLEED_AREA_SCALE));
                 }
+
+                drawableClip.SetRect(drawableBounds);
 
                 float fontScale = WordScale * 1.6f *
                         (drawableBounds.Height + drawableBounds.Width) / (averageWordFrequency * sortedWordList.Count);
-
-                SKRectI barrierExtent = SKRectI.Inflate(
-                    drawableBounds,
-                    drawableBounds.Width * 2,
-                    drawableBounds.Height * 2);
 
                 Dictionary<string, float> finalWordEmSizes = new Dictionary<string, float>(
                     sortedWordList.Count, StringComparer.OrdinalIgnoreCase);
@@ -333,9 +330,6 @@ namespace PSWordCloud
 
                 using (SKRegion occupiedRegion = new SKRegion())
                 {
-                    occupiedRegion.SetRect(barrierExtent);
-                    occupiedRegion.Op(drawableBounds, SKRegionOperation.Difference);
-
                     var maxRadialDistance = Math.Max(drawableBounds.Width, drawableBounds.Height) / 2f;
 
                     using (SKPaint brush = new SKPaint())
@@ -360,7 +354,7 @@ namespace PSWordCloud
                             WriteProgress(
                                 new ProgressRecord(
                                     _progressID,
-                                    string.Format("Drawing '{0}' at {1}", word, brush.TextSize),
+                                    string.Format("Drawing '{0}' at {1} em", word, brush.TextSize),
                                     "Finding available space to draw..."));
 
                             for (float radialDistance = 0;
@@ -392,7 +386,7 @@ namespace PSWordCloud
                                 if (TryGetAvailableRadialLocation(
                                     centrePoint, radialDistance, direction, initialAngle,
                                     angleIncrement, aspectRatio, inflatedWordSize,
-                                    occupiedRegion, !DisableRotation.IsPresent,
+                                    drawableBounds, occupiedRegion, !DisableRotation.IsPresent,
                                     out SKPoint point, out WordOrientation rotation))
                                 {
                                     wordPath = brush.GetTextPath(word, point.X, point.Y);
@@ -442,9 +436,9 @@ namespace PSWordCloud
             }
             finally
             {
-                if (wordPath != null) wordPath.Dispose();
-                if (wordRegion != null) wordRegion.Dispose();
-                if (drawableClip != null) drawableClip.Dispose();
+                wordPath?.Dispose();
+                wordRegion?.Dispose();
+                drawableClip?.Dispose();
             }
         }
 
@@ -456,6 +450,7 @@ namespace PSWordCloud
             float angleIncrement,
             float aspectRatio,
             SKSize wordSize,
+            SKRect drawableBounds,
             SKRegion occupiedRegion,
             bool allowRotation,
             out SKPoint location,
@@ -505,6 +500,11 @@ namespace PSWordCloud
                     SKPoint point = new SKPoint(
                             (float)complex.Real * aspectRatio + centre.X - offsetX,
                             (float)complex.Imaginary + centre.Y - offsetY);
+
+                    if (!drawableBounds.Contains(point))
+                    {
+                        continue;
+                    }
 
                     rect = SKRect.Create(point, size).ToSKRectI();
 
