@@ -176,10 +176,12 @@ namespace PSWordCloud
             }
             else
             {
-                foreach (string font in _fontList.Where(
-                    s => s.StartsWith(wordToComplete, StringComparison.OrdinalIgnoreCase)))
+                foreach (string font in _fontList)
                 {
-                    yield return new CompletionResult(font, font, CompletionResultType.ParameterName, string.Empty);
+                    if (font.StartsWith(wordToComplete, StringComparison.OrdinalIgnoreCase))
+                    {
+                        yield return new CompletionResult(font, font, CompletionResultType.ParameterName, string.Empty);
+                    }
                 }
             }
         }
