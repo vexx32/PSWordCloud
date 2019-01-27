@@ -166,7 +166,7 @@ namespace PSWordCloud
             CommandAst commandAst,
             IDictionary fakeBoundParameters)
         {
-            var fonts = WCUtils.FontManager.GetFontFamilies();
+            var fonts = WCUtils.FontManager.FontFamilies;
             if (string.IsNullOrEmpty(wordToComplete))
             {
                 foreach (string font in _fontList)
