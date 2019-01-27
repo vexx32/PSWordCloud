@@ -11,7 +11,7 @@ using SkiaSharp;
 
 namespace PSWordCloud
 {
-    internal class ImageSizeCompleter : IArgumentCompleter
+    public class ImageSizeCompleter : IArgumentCompleter
     {
         public IEnumerable<CompletionResult> CompleteArgument(
             string commandName,
@@ -155,7 +155,7 @@ namespace PSWordCloud
         }
     }
 
-    internal class FontFamilyCompleter : IArgumentCompleter
+    public class FontFamilyCompleter : IArgumentCompleter
     {
         private static readonly ReadOnlyCollection<string> _fontList = new ReadOnlyCollection<string>(WCUtils.FontManager.GetFontFamilies());
 
@@ -171,7 +171,7 @@ namespace PSWordCloud
             {
                 foreach (string font in _fontList)
                 {
-                    yield return new CompletionResult(font, font, CompletionResultType.ParameterValue, null);
+                    yield return new CompletionResult(font, font, CompletionResultType.ParameterValue, string.Empty);
                 }
             }
             else
@@ -179,7 +179,7 @@ namespace PSWordCloud
                 foreach (string font in _fontList.Where(
                     s => s.StartsWith(wordToComplete, StringComparison.OrdinalIgnoreCase)))
                 {
-                    yield return new CompletionResult(font, font, CompletionResultType.ParameterName, null);
+                    yield return new CompletionResult(font, font, CompletionResultType.ParameterName, string.Empty);
                 }
             }
         }
@@ -268,7 +268,7 @@ namespace PSWordCloud
 
                     if (WildcardPattern.ContainsWildcardCharacters(s))
                     {
-                        var pattern = new WildcardPattern("pattern", WildcardOptions.IgnoreCase);
+                        var pattern = new WildcardPattern(s, WildcardOptions.IgnoreCase);
                         var matches = new List<SKColor>();
                         foreach (var color in WCUtils.ColorLibrary)
                         {
