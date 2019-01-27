@@ -266,6 +266,21 @@ namespace PSWordCloud
                         return c;
                     }
 
+                    if (WildcardPattern.ContainsWildcardCharacters(s))
+                    {
+                        var pattern = new WildcardPattern("pattern", WildcardOptions.IgnoreCase);
+                        var matches = new List<SKColor>();
+                        foreach (var color in WCUtils.ColorLibrary)
+                        {
+                            if (pattern.IsMatch(color.Key))
+                            {
+                                matches.Add(color.Value);
+                            }
+                        }
+
+                        return matches.ToArray();
+                    }
+
                     throw new ArgumentTransformationMetadataException();
                 case SKColor color:
                     return color;

@@ -27,7 +27,7 @@ Get-ChildItem -Directory -Path "$PSScriptRoot\bin\release\netstandard2.0\publish
     }
 }
 
-Add-Type -Path "$PSScriptRoot\bin\release\netstandard2.0\publish\SkiaSharp.dll"
-Import-Module "$PSScriptRoot\bin\release\netstandard2.0\publish\PSWordCloudCmdlet.dll"
+Add-Type -Path "$PSScriptRoot\bin\debug\netstandard2.0\publish\SkiaSharp.dll"
+Import-Module "$PSScriptRoot\bin\debug\netstandard2.0\publish\PSWordCloudCmdlet.dll"
 
 Export-ModuleMember -Cmdlet 'New-WordCloud'
