@@ -163,10 +163,11 @@ namespace PSWordCloud
 
             foreach (string path in Path)
             {
-                var resolvedPaths = SessionState.Path.GetResolvedProviderPathFromPSPath(path, out ProviderInfo provider);
+                var resolvedPaths = SessionState.Path.GetUnresolvedProviderPathFromPSPath(
+                    path, out ProviderInfo provider, out PSDriveInfo drive);
                 if (resolvedPaths != null)
                 {
-                    targetPaths.AddRange(resolvedPaths);
+                    targetPaths.Add(resolvedPaths);
                 }
             }
 
