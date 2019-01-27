@@ -109,6 +109,9 @@ namespace PSWordCloud
         [Alias("AllowOverflow")]
         public SwitchParameter AllowBleed { get; set; }
 
+        [Parameter]
+        public SwitchParameter PassThru { get; set; }
+
         #endregion Parameters
 
         private static readonly string[] _stopWords = new[] {
@@ -413,7 +416,23 @@ namespace PSWordCloud
 
                         canvas.Flush();
                         streamWriter.Flush();
-                        // TODO: Ensure saved file is copied to all _resolvedPaths
+                        var file = InvokeProvider.Item.Get(_resolvedPaths[0]);
+                        if (PassThru.IsPresent)
+                        {
+                            WriteObject(file, true);
+                        }
+
+                        if (_resolvedPaths.Length > 1)
+                        {
+                            foreach (string path in _resolvedPaths)
+                            {
+                                if (path == _resolvedPaths[0]) continue;
+                                InvokeProvider.Item.Copy(
+                                    _resolvedPaths[0], path, false,
+                                    CopyContainers.CopyTargetContainer);
+                                WriteObject(InvokeProvider.Item.Get(path), true);
+                            }
+                        }
                     }
                 }
             }
