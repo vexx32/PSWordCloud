@@ -11,7 +11,7 @@ using SkiaSharp;
 
 namespace PSWordCloud
 {
-    internal class ImageSizeCompleter : IArgumentCompleter
+    public class ImageSizeCompleter : IArgumentCompleter
     {
         public IEnumerable<CompletionResult> CompleteArgument(
             string commandName,
@@ -155,7 +155,7 @@ namespace PSWordCloud
         }
     }
 
-    internal class FontFamilyCompleter : IArgumentCompleter
+    public class FontFamilyCompleter : IArgumentCompleter
     {
         private static readonly ReadOnlyCollection<string> _fontList = new ReadOnlyCollection<string>(WCUtils.FontManager.GetFontFamilies());
 
@@ -166,12 +166,12 @@ namespace PSWordCloud
             CommandAst commandAst,
             IDictionary fakeBoundParameters)
         {
-            var fonts = WCUtils.FontManager.GetFontFamilies();
+            var fonts = WCUtils.FontManager.FontFamilies;
             if (string.IsNullOrEmpty(wordToComplete))
             {
                 foreach (string font in _fontList)
                 {
-                    yield return new CompletionResult(font, font, CompletionResultType.ParameterValue, null);
+                    yield return new CompletionResult(font, font, CompletionResultType.ParameterValue, string.Empty);
                 }
             }
             else
@@ -179,7 +179,7 @@ namespace PSWordCloud
                 foreach (string font in _fontList.Where(
                     s => s.StartsWith(wordToComplete, StringComparison.OrdinalIgnoreCase)))
                 {
-                    yield return new CompletionResult(font, font, CompletionResultType.ParameterName, null);
+                    yield return new CompletionResult(font, font, CompletionResultType.ParameterName, string.Empty);
                 }
             }
         }
@@ -264,6 +264,21 @@ namespace PSWordCloud
                     if (SKColor.TryParse(s, out SKColor c))
                     {
                         return c;
+                    }
+
+                    if (WildcardPattern.ContainsWildcardCharacters(s))
+                    {
+                        var pattern = new WildcardPattern(s, WildcardOptions.IgnoreCase);
+                        var matches = new List<SKColor>();
+                        foreach (var color in WCUtils.ColorLibrary)
+                        {
+                            if (pattern.IsMatch(color.Key))
+                            {
+                                matches.Add(color.Value);
+                            }
+                        }
+
+                        return matches.ToArray();
                     }
 
                     throw new ArgumentTransformationMetadataException();
