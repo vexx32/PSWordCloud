@@ -1,24 +1,25 @@
 ﻿# Add library folders to necessary path vars
-Get-ChildItem -Directory -Path "$PSScriptRoot\runtimes\" -Recurse -Filter 'native' |
+Get-ChildItem -Directory -Path "$PSScriptRoot\bin\release\netstandard2.0\publish\runtimes\" -Recurse -Filter 'native' |
     ForEach-Object {
+    $Path = $_
     switch ($true) {
         ($IsWindows -or $PSVersionTable.PSVersion.Major -eq 5) {
             $env:PATH = '{0}{1}{2}' -f @(
-                $_.FullName
+                $Path.FullName
                 [System.IO.Path]::PathSeparator
                 $env:PATH
             )
         }
         $IsLinux {
             $env:LD_LIBRARY_PATH = '{0}{1}{2}' -f @(
-                $_.FullName
+                $Path.FullName
                 [System.IO.Path]::PathSeparator
                 $env:LD_LIBRARY_PATH
             )
         }
         $IsMacOS {
             $env:DYLD_LIBRARY_PATH = '{0}{1}{2}' -f @(
-                $_.FullName
+                $Path.FullName
                 [System.IO.Path]::PathSeparator
                 $env:DYLD_LIBRARY_PATH
             )
