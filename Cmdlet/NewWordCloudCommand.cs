@@ -85,6 +85,14 @@ namespace PSWordCloud
         public float Padding { get; set; } = 3.5f;
 
         [Parameter]
+        [ValidateRange(1, 500)]
+        public float DistanceStep { get; set; } = 5;
+
+        [Parameter]
+        [ValidateRange(1, 50)]
+        public float RadialStep { get; set; } = 15;
+
+        [Parameter]
         [Alias("MaxWords")]
         [ValidateRange(0, 1000)]
         public ushort MaxRenderedWords { get; set; } = 100;
@@ -125,10 +133,28 @@ namespace PSWordCloud
 
         private List<Task<string[]>> _wordProcessingTasks;
         private Random _random;
+        private int _progressID;
+        private int _colorIndex = 0;
+        private SKColor _nextColor
+        {
+            get
+            {
+                if (_colorIndex >= ColorSet.Length)
+                {
+                    _colorIndex = 0;
+                }
+
+                var color = ColorSet[_colorIndex];
+                _colorIndex++;
+
+                return color;
+            }
+        }
 
         protected override void BeginProcessing()
         {
             _random = MyInvocation.BoundParameters.ContainsKey("RandomSeed") ? new Random(RandomSeed) : new Random();
+            _progressID = _random.Next();
 
             var targetPaths = new List<string>();
 
@@ -182,11 +208,17 @@ namespace PSWordCloud
 
         protected override void EndProcessing()
         {
-            Dictionary<string, float> wordScaleDictionary = new Dictionary<string, float>(
-                StringComparer.OrdinalIgnoreCase);
-
             var lineStrings = Task.WhenAll<string[]>(_wordProcessingTasks);
             lineStrings.Wait();
+
+            var wordCount = 0;
+            float initialAngle = 0, angleIncrement = 0, inflationValue = 0;
+            SKPath wordPath = null;
+            SKRegion wordRegion = null;
+            SKRegion drawableClip = null;
+            SKRect wordBounds = SKRect.Empty;
+            Dictionary<string, float> wordScaleDictionary = new Dictionary<string, float>(
+                StringComparer.OrdinalIgnoreCase);
 
             foreach (var lineWords in lineStrings.Result)
             {
@@ -231,6 +263,8 @@ namespace PSWordCloud
             try
             {
                 SKRectI drawableBounds = new SKRectI(0, 0, ImageSize.Width, ImageSize.Height);
+                drawableClip = new SKRegion();
+                drawableClip.SetRect(drawableBounds);
                 if (AllowBleed.IsPresent)
                 {
                     drawableBounds.Inflate(
@@ -249,9 +283,9 @@ namespace PSWordCloud
                 Dictionary<string, float> finalWordEmSizes = new Dictionary<string, float>(
                     sortedWordList.Count, StringComparer.OrdinalIgnoreCase);
 
-                using (SKPaint painter = new SKPaint())
+                using (SKPaint brush = new SKPaint())
                 {
-                    painter.Typeface = Font;
+                    brush.Typeface = Font;
                     bool retry = false;
                     do
                     {
@@ -264,8 +298,8 @@ namespace PSWordCloud
                             // If the final word size is too small, it probably won't be visible in the final image anyway
                             if (adjustedWordSize < 5) continue;
 
-                            painter.TextSize = adjustedWordSize;
-                            var adjustedTextWidth = painter.MeasureText(word) * Padding;
+                            brush.TextSize = adjustedWordSize;
+                            var adjustedTextWidth = brush.MeasureText(word) * Padding;
 
                             if (DisableRotation.IsPresent && adjustedTextWidth > drawableBounds.Width)
                             {
@@ -301,19 +335,86 @@ namespace PSWordCloud
 
                     var maxRadialDistance = Math.Max(drawableBounds.Width, drawableBounds.Height) / 2f;
 
-                    var wordCount = 0;
-
-                    using (SKPath wordPath = new SKPath())
+                    using (SKPaint brush = new SKPaint())
+                    using (SKFileWStream streamWriter = new SKFileWStream(_resolvedPaths[0]))
+                    using (SKXmlStreamWriter xmlWriter = new SKXmlStreamWriter(streamWriter))
+                    using (SKCanvas canvas = SKSvgCanvas.Create(drawableBounds, xmlWriter))
                     {
+                        wordPath = new SKPath();
+                        brush.IsAutohinted = true;
+                        brush.IsAntialias = true;
 
+                        foreach (string word in sortedWordList)
+                        {
+                            wordCount++;
+                            wordPath.Reset();
+                            brush.TextSize = finalWordEmSizes[word];
+                            brush.StrokeWidth = finalWordEmSizes[word] * StrokeWidth / 100;
+                            brush.IsStroke = false;
+                            brush.Color = _nextColor;
+                            inflationValue = brush.StrokeWidth + Padding * finalWordEmSizes[word] / 10;
+
+                            WriteProgress(
+                                new ProgressRecord(
+                                    _progressID,
+                                    string.Format("Drawing '{0}' at {1}", word, brush.TextSize),
+                                    "Finding available space to draw..."));
+
+                            for (float radialDistance = 0;
+                                radialDistance <= maxRadialDistance;
+                                radialDistance += (float)_random.NextDouble() * finalWordEmSizes[word] * DistanceStep /
+                                Math.Max(1, 21 - Padding * 2))
+                            {
+                                angleIncrement = 3600f / ((radialDistance + 1) * RadialStep);
+                                ScanDirection direction = _random.Next() % 2 == 0 ?
+                                    ScanDirection.ClockWise : ScanDirection.CounterClockwise;
+                                switch (_random.Next() % 4)
+                                {
+                                    case 0:
+                                        initialAngle = 0;
+                                        break;
+                                    case 1:
+                                        initialAngle = 90;
+                                        break;
+                                    case 2:
+                                        initialAngle = 180;
+                                        break;
+                                    case 3:
+                                        initialAngle = 270;
+                                        break;
+                                }
+
+                                brush.MeasureText(word, ref wordBounds);
+                                SKSize inflatedWordSize = wordBounds.Size + new SKSize(inflationValue, inflationValue);
+                                if (TryGetAvailableRadialLocation(
+                                    centrePoint, radialDistance, direction, initialAngle,
+                                    angleIncrement, aspectRatio, inflatedWordSize,
+                                    occupiedRegion, !DisableRotation.IsPresent,
+                                    out SKPoint point, out WordOrientation rotation))
+                                {
+                                    wordPath = brush.GetTextPath(word, point.X, point.Y);
+                                    wordRegion = new SKRegion();
+                                    wordRegion.SetPath(wordPath, drawableClip);
+                                    occupiedRegion.Op(wordRegion, SKRegionOperation.Union);
+                                    canvas.DrawPath(wordPath, brush);
+
+                                    if (MyInvocation.BoundParameters.ContainsKey("StrokeWidth"))
+                                    {
+                                        brush.IsStroke = true;
+                                        brush.Color = StrokeColor;
+                                        canvas.DrawPath(wordPath, brush);
+                                    }
+
+                                    // Return to word loop for next word or end
+                                    break;
+                                }
+                            }
+                        }
+
+                        canvas.Flush();
+                        streamWriter.Flush();
+                        // TODO: Ensure saved file is copied to all _resolvedPaths
                     }
-
-                    // Basic SVG canvas creation
-                    SKFileWStream streamWriter = new SKFileWStream(_resolvedPaths[0]);
-                    SKXmlStreamWriter xmlWriter = new SKXmlStreamWriter(streamWriter);
-                    SKCanvas canvas = SKSvgCanvas.Create(drawableBounds, xmlWriter);
-
-                    // TODO: Ensure saved file is copied to all _resolvedPaths
                 }
             }
             catch (Exception e)
@@ -322,7 +423,9 @@ namespace PSWordCloud
             }
             finally
             {
-
+                if (wordPath != null) wordPath.Dispose();
+                if (wordRegion != null) wordRegion.Dispose();
+                if (drawableClip != null) drawableClip.Dispose();
             }
         }
 
@@ -383,6 +486,7 @@ namespace PSWordCloud
                     SKPoint point = new SKPoint(
                             (float)complex.Real * aspectRatio + centre.X - offsetX,
                             (float)complex.Imaginary + centre.Y - offsetY);
+
                     rect = SKRect.Create(point, size).ToSKRectI();
 
                     if (!occupiedRegion.Intersects(rect))
