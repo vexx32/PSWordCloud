@@ -5,7 +5,7 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <PackageReference Include="PowerShellStandard.Library" Version="5.1.0" />
+    <PackageReference Include="PowerShellStandard.Library" Version="5.1.0" PrivateAssets="All"/>
     <PackageReference Include="SkiaSharp" Version="1.68.0" />
   </ItemGroup>
 
