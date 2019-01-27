@@ -45,17 +45,31 @@ namespace PSWordCloud
 
         [Parameter]
         [ArgumentCompleter(typeof(ImageSizeCompleter))]
-        [ToSKSizeITransform]
+        [TransformToSKSizeI]
         public SKSizeI ImageSize { get; set; } = new SKSizeI(4096, 2304);
 
         [Parameter]
+        [Alias("FontFamily", "FontFace", "Typeface")]
         [ArgumentCompleter(typeof(FontFamilyCompleter))]
-        [ToSKTypefaceTransform]
-        public SKTypeface FontFamily { get; set; } = SKTypeface.FromFamilyName(
-            "Consolas",
-            SKFontStyleWeight.Normal,
-            SKFontStyleWidth.Normal,
-            SKFontStyleSlant.Upright);
+        [TransformToSKTypeface]
+        public SKTypeface Font { get; set; } = WCUtils.FontManager.MatchFamily(
+            "Consolas", SKFontStyle.Normal);
+
+        [Parameter]
+        [TransformToSKColor]
+        [ArgumentCompleter(typeof(SKColorCompleter))]
+        public SKColor[] ColorSet { get; set; } = WCUtils.StandardColors.ToArray();
+
+        [Parameter]
+        [Alias("OutlineWidth")]
+        [ValidateRange(0, 10)]
+        public int StrokeWidth { get; set; } = 0;
+
+        [Parameter]
+        [Alias("OutlineColor")]
+        [TransformToSKColor]
+        [ArgumentCompleter(typeof(SKColorCompleter))]
+        public SKColor StrokeColor { get; set; } = SKColors.Black;
 
         [Parameter]
         [Alias("Title")]
@@ -203,7 +217,6 @@ namespace PSWordCloud
             // All words counted and in the dictionary.
             var wordSizeValues = wordScaleDictionary.Values;
             var highestWordFreq = wordSizeValues.Max();
-            var lowestWordFreq = wordSizeValues.Min();
             if (FocusWord != null)
             {
                 wordScaleDictionary[FocusWord] = highestWordFreq = highestWordFreq * FOCUS_WORD_SCALE;
@@ -211,10 +224,9 @@ namespace PSWordCloud
 
             float averageWordFrequency = wordSizeValues.Average();
 
-            string[] sortedWordList = wordScaleDictionary.Keys
+            List<string> sortedWordList = new List<string>(wordScaleDictionary.Keys
                 .OrderByDescending(size => wordScaleDictionary[size])
-                .Take(MaxRenderedWords == 0 ? ushort.MaxValue : MaxRenderedWords)
-                .ToArray();
+                .Take(MaxRenderedWords == 0 ? ushort.MaxValue : MaxRenderedWords));
 
             try
             {
@@ -227,66 +239,82 @@ namespace PSWordCloud
                 }
 
                 float fontScale = WordScale * 1.6f *
-                        (drawableBounds.Height + drawableBounds.Width) / (averageWordFrequency * sortedWordList.Length);
+                        (drawableBounds.Height + drawableBounds.Width) / (averageWordFrequency * sortedWordList.Count);
 
-
-                SKRegion occupiedRegion = new SKRegion();
                 SKRectI barrierExtent = SKRectI.Inflate(
                     drawableBounds,
                     drawableBounds.Width * 2,
                     drawableBounds.Height * 2);
-                occupiedRegion.SetRect(barrierExtent);
-                occupiedRegion.Op(drawableBounds, SKRegionOperation.Difference);
 
                 Dictionary<string, float> finalWordEmSizes = new Dictionary<string, float>(
-                    sortedWordList.Length, StringComparer.OrdinalIgnoreCase);
+                    sortedWordList.Count, StringComparer.OrdinalIgnoreCase);
 
-                SKPaint painter = new SKPaint();
-
-                painter.Typeface = FontFamily;
-                bool retry = false;
-                do
+                using (SKPaint painter = new SKPaint())
                 {
-                    foreach (string word in sortedWordList)
+                    painter.Typeface = Font;
+                    bool retry = false;
+                    do
                     {
-                        var adjustedWordSize = (float)Math.Round(
-                            2 * wordScaleDictionary[word] * fontScale * _random.NextDouble() /
-                            (1f + highestWordFreq - lowestWordFreq) + 0.9);
-
-                        if (adjustedWordSize < 5) continue;
-
-                        painter.TextSize = adjustedWordSize;
-                        var adjustedTextWidth = painter.MeasureText(word) * Padding;
-
-                        if (DisableRotation.IsPresent && adjustedTextWidth > drawableBounds.Width)
+                        foreach (string word in sortedWordList)
                         {
-                            retry = true;
-                            fontScale *= 0.98f;
-                            finalWordEmSizes.Clear();
-                            break;
-                        }
-                        else if (adjustedTextWidth > Math.Max(drawableBounds.Width, drawableBounds.Height))
-                        {
-                            retry = true;
-                            fontScale *= 0.98f;
-                            finalWordEmSizes.Clear();
-                            break;
-                        }
+                            var adjustedWordSize = (float)Math.Round(
+                                2 * wordScaleDictionary[word] * fontScale * _random.NextDouble() /
+                                (1f + highestWordFreq - wordSizeValues.Min()) + 0.9);
 
-                        finalWordEmSizes[word] = adjustedWordSize;
+                            // If the final word size is too small, it probably won't be visible in the final image anyway
+                            if (adjustedWordSize < 5) continue;
+
+                            painter.TextSize = adjustedWordSize;
+                            var adjustedTextWidth = painter.MeasureText(word) * Padding;
+
+                            if (DisableRotation.IsPresent && adjustedTextWidth > drawableBounds.Width)
+                            {
+                                retry = true;
+                                fontScale *= 0.98f;
+                                finalWordEmSizes.Clear();
+                                break;
+                            }
+                            else if (adjustedTextWidth > Math.Max(drawableBounds.Width, drawableBounds.Height))
+                            {
+                                retry = true;
+                                fontScale *= 0.98f;
+                                finalWordEmSizes.Clear();
+                                break;
+                            }
+
+                            finalWordEmSizes[word] = adjustedWordSize;
+                        }
                     }
+                    while (retry);
                 }
-                while (retry);
 
-                var aspectRatio = drawableBounds.Width / drawableBounds.Height;
+                var aspectRatio = drawableBounds.Width / (float)drawableBounds.Height;
                 SKPoint centrePoint = new SKPoint(drawableBounds.MidX, drawableBounds.MidY);
 
-                // Basic SVG canvas creation
-                SKFileWStream streamWriter = new SKFileWStream(_resolvedPaths[0]);
-                SKXmlStreamWriter xmlWriter = new SKXmlStreamWriter(streamWriter);
-                SKCanvas canvas = SKSvgCanvas.Create(drawableBounds, xmlWriter);
+                // Remove all words that were cut from the final rendering list
+                sortedWordList.RemoveAll(x => !finalWordEmSizes.ContainsKey(x));
 
-                // TODO: Ensure saved file is copied to all _resolvedPaths
+                using (SKRegion occupiedRegion = new SKRegion())
+                {
+                    occupiedRegion.SetRect(barrierExtent);
+                    occupiedRegion.Op(drawableBounds, SKRegionOperation.Difference);
+
+                    var maxRadialDistance = Math.Max(drawableBounds.Width, drawableBounds.Height) / 2f;
+
+                    var wordCount = 0;
+
+                    using (SKPath wordPath = new SKPath())
+                    {
+
+                    }
+
+                    // Basic SVG canvas creation
+                    SKFileWStream streamWriter = new SKFileWStream(_resolvedPaths[0]);
+                    SKXmlStreamWriter xmlWriter = new SKXmlStreamWriter(streamWriter);
+                    SKCanvas canvas = SKSvgCanvas.Create(drawableBounds, xmlWriter);
+
+                    // TODO: Ensure saved file is copied to all _resolvedPaths
+                }
             }
             catch (Exception e)
             {
@@ -296,6 +324,79 @@ namespace PSWordCloud
             {
 
             }
+        }
+
+        private bool TryGetAvailableRadialLocation(
+            SKPoint centre,
+            float distance,
+            ScanDirection direction,
+            float initialAngle,
+            float angleIncrement,
+            float aspectRatio,
+            SKSize wordSize,
+            SKRegion occupiedRegion,
+            bool allowRotation,
+            out SKPoint location,
+            out WordOrientation orientation)
+        {
+            if (_random == null)
+            {
+                throw new NullReferenceException("Field _random has not been defined");
+            }
+
+            location = SKPoint.Empty;
+            orientation = WordOrientation.Horizontal;
+
+            bool clockwise = direction == ScanDirection.ClockWise;
+            float angle = initialAngle;
+            float maxAngle = clockwise ? initialAngle + 360 : initialAngle - 360;
+            SKRectI rect;
+            var availableOrientations = allowRotation ?
+                new[] { WordOrientation.Horizontal, WordOrientation.Vertical } : new[] { WordOrientation.Horizontal };
+            var rotatedWordSize = new SKSize(wordSize.Height, wordSize.Width);
+            if (direction == ScanDirection.CounterClockwise)
+            {
+                angleIncrement *= -1;
+            }
+
+            do
+            {
+                var offsetX = 0f;
+                var offsetY = 0f;
+                var size = SKSize.Empty;
+                Complex complex = Complex.FromPolarCoordinates(distance, angle.ToRadians());
+                foreach (WordOrientation currentOrientation in availableOrientations)
+                {
+                    if (currentOrientation == WordOrientation.Vertical)
+                    {
+                        offsetX = wordSize.Height * 0.5f * (float)(_random.NextDouble() + 0.25);
+                        offsetY = wordSize.Width * 0.5f * (float)(_random.NextDouble() + 0.25);
+                        size = rotatedWordSize;
+                    }
+                    else
+                    {
+                        offsetX = wordSize.Width * 0.5f * (float)(_random.NextDouble() + 0.25);
+                        offsetY = wordSize.Height * 0.5f * (float)(_random.NextDouble() + 0.25);
+                        size = wordSize;
+                    }
+
+                    SKPoint point = new SKPoint(
+                            (float)complex.Real * aspectRatio + centre.X - offsetX,
+                            (float)complex.Imaginary + centre.Y - offsetY);
+                    rect = SKRect.Create(point, size).ToSKRectI();
+
+                    if (!occupiedRegion.Intersects(rect))
+                    {
+                        location = point;
+                        orientation = currentOrientation;
+                        return true;
+                    }
+                }
+
+                angle += angleIncrement;
+            } while (clockwise ? angle <= maxAngle : angle >= maxAngle);
+
+            return false;
         }
 
         private async Task<string[]> ProcessLineAsync(string line)
