@@ -20,17 +20,17 @@ namespace PSWordCloud
             CommandAst commandAst,
             IDictionary fakeboundParameters)
         {
-
-            var matchingResults = WCUtils.StandardImageSizes.Where(
-                keyPair => keyPair.Key.StartsWith(wordToComplete, StringComparison.OrdinalIgnoreCase));
-
-            foreach (KeyValuePair<string, (string Tooltip, SKSize)> result in matchingResults)
+            foreach (var result in WCUtils.StandardImageSizes)
             {
-                yield return new CompletionResult(
-                    result.Key,
-                    result.Key,
-                    CompletionResultType.ParameterValue,
-                    result.Value.Tooltip);
+                if (string.IsNullOrEmpty(wordToComplete) ||
+                    result.Key.StartsWith(wordToComplete, StringComparison.OrdinalIgnoreCase))
+                {
+                    yield return new CompletionResult(
+                        result.Key,
+                        result.Key,
+                        CompletionResultType.ParameterValue,
+                        result.Value.Tooltip);
+                }
             }
         }
     }
@@ -157,8 +157,6 @@ namespace PSWordCloud
 
     public class FontFamilyCompleter : IArgumentCompleter
     {
-        private static readonly ReadOnlyCollection<string> _fontList = new ReadOnlyCollection<string>(WCUtils.FontManager.GetFontFamilies());
-
         public IEnumerable<CompletionResult> CompleteArgument(
             string commandName,
             string parameterName,
@@ -166,18 +164,11 @@ namespace PSWordCloud
             CommandAst commandAst,
             IDictionary fakeBoundParameters)
         {
-            var fonts = WCUtils.FontManager.FontFamilies;
-            if (string.IsNullOrEmpty(wordToComplete))
+            var fontList = WCUtils.FontManager.FontFamilies;
+            foreach (string font in fontList)
             {
-                foreach (string font in _fontList)
-                {
-                    yield return new CompletionResult(font, font, CompletionResultType.ParameterValue, string.Empty);
-                }
-            }
-            else
-            {
-                foreach (string font in _fontList.Where(
-                    s => s.StartsWith(wordToComplete, StringComparison.OrdinalIgnoreCase)))
+                if (string.IsNullOrEmpty(wordToComplete) ||
+                    font.StartsWith(wordToComplete, StringComparison.OrdinalIgnoreCase))
                 {
                     yield return new CompletionResult(font, font, CompletionResultType.ParameterName, string.Empty);
                 }
@@ -233,13 +224,15 @@ namespace PSWordCloud
         {
             foreach (string color in WCUtils.ColorNames)
             {
-                SKColor colorValue = WCUtils.ColorLibrary[color];
-                yield return new CompletionResult(
-                    color,
-                    color,
-                    CompletionResultType.ParameterValue,
-                    string.Format("{0} (R: {1}, G: {2}, B: {3}, A: {4})",
-                        color, colorValue.Red, colorValue.Green, colorValue.Blue, colorValue.Alpha));
+                if (string.IsNullOrEmpty(wordToComplete) ||
+                    color.StartsWith(wordToComplete, StringComparison.OrdinalIgnoreCase))
+                {
+                    SKColor colorValue = WCUtils.ColorLibrary[color];
+                    yield return new CompletionResult(
+                        color, color, CompletionResultType.ParameterValue,
+                        string.Format("{0} (R: {1}, G: {2}, B: {3}, A: {4})",
+                            color, colorValue.Red, colorValue.Green, colorValue.Blue, colorValue.Alpha));
+                }
             }
         }
     }
@@ -278,7 +271,14 @@ namespace PSWordCloud
                             }
                         }
 
-                        return matches.ToArray();
+                        if (matches.Count > 0)
+                        {
+                            return matches.ToArray();
+                        }
+                        else
+                        {
+                            throw new ArgumentTransformationMetadataException();
+                        }
                     }
 
                     throw new ArgumentTransformationMetadataException();
