@@ -49,10 +49,10 @@ namespace PSWordCloud
         public SKSizeI ImageSize { get; set; } = new SKSizeI(4096, 2304);
 
         [Parameter]
-        [Alias("FontFamily", "FontFace", "Typeface")]
+        [Alias("FontFamily", "FontFace")]
         [ArgumentCompleter(typeof(FontFamilyCompleter))]
         [TransformToSKTypeface]
-        public SKTypeface Font { get; set; } = WCUtils.FontManager.MatchFamily(
+        public SKTypeface Typeface { get; set; } = WCUtils.FontManager.MatchFamily(
             "Consolas", SKFontStyle.Normal);
 
         [Parameter]
@@ -131,8 +131,7 @@ namespace PSWordCloud
         };
 
         private static readonly char[] _splitChars = new[] {
-            ' ','.',',','"','?','!','{','}','[',']',':','(',')','“','”','*','#','%','^','&','+','='
-        };
+            ' ','.',',','"','?','!','{','}','[',']',':','(',')','“','”','*','#','%','^','&','+','=' };
 
         private List<Task<string[]>> _wordProcessingTasks;
         private Random _random;
@@ -287,7 +286,7 @@ namespace PSWordCloud
                 bool retry;
                 using (SKPaint brush = new SKPaint())
                 {
-                    brush.Typeface = Font;
+                    brush.Typeface = Typeface;
                     do
                     {
                         retry = false;
@@ -363,7 +362,7 @@ namespace PSWordCloud
                             radialDistance += (float)_random.NextDouble() * finalWordEmSizes[word] * DistanceStep /
                             Math.Max(1, 21 - Padding * 2))
                         {
-                            angleIncrement = 3600f / ((radialDistance + 1) * RadialStep);
+                            angleIncrement = 360f / ((radialDistance + 1) * RadialStep);
                             ScanDirection direction = _random.Next() % 2 == 0 ?
                                 ScanDirection.ClockWise : ScanDirection.CounterClockwise;
                             switch (_random.Next() % 4)
