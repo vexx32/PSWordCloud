@@ -336,12 +336,12 @@ namespace PSWordCloud
                 using (SKXmlStreamWriter xmlWriter = new SKXmlStreamWriter(streamWriter))
                 using (SKCanvas canvas = SKSvgCanvas.Create(drawableBounds, xmlWriter))
                 {
-                    wordRegion = new SKRegion();
                     occupiedRegion = new SKRegion();
                     occupiedRegion.SetRect(
                         SKRectI.Inflate(drawableBounds, drawableBounds.Width / 4, drawableBounds.Height / 4));
                     occupiedRegion.Op(drawableBounds, SKRegionOperation.Difference);
                     wordPath = new SKPath();
+                    wordRegion = new SKRegion();
                     brush.IsAutohinted = true;
                     brush.IsAntialias = true;
 
@@ -406,7 +406,6 @@ namespace PSWordCloud
                                 }
 
                                 // Return to word loop for next word or end
-                                wordRegion.Dispose();
                                 break;
                             }
                         }
