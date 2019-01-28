@@ -336,7 +336,11 @@ namespace PSWordCloud
                 using (SKXmlStreamWriter xmlWriter = new SKXmlStreamWriter(streamWriter))
                 using (SKCanvas canvas = SKSvgCanvas.Create(drawableBounds, xmlWriter))
                 {
+                    wordRegion = new SKRegion();
                     occupiedRegion = new SKRegion();
+                    occupiedRegion.SetRect(
+                        SKRectI.Inflate(drawableBounds, drawableBounds.Width / 4, drawableBounds.Height / 4));
+                    occupiedRegion.Op(drawableBounds, SKRegionOperation.Difference);
                     wordPath = new SKPath();
                     brush.IsAutohinted = true;
                     brush.IsAntialias = true;
@@ -386,11 +390,10 @@ namespace PSWordCloud
                             if (TryGetAvailableRadialLocation(
                                 centrePoint, radialDistance, direction, initialAngle,
                                 angleIncrement, aspectRatio, inflatedWordSize,
-                                drawableBounds, ref occupiedRegion, !DisableRotation.IsPresent,
+                                drawableBounds, occupiedRegion, !DisableRotation.IsPresent,
                                 out SKPoint point, out WordOrientation rotation))
                             {
                                 wordPath = brush.GetTextPath(word, point.X, point.Y);
-                                wordRegion = new SKRegion();
                                 wordRegion.SetPath(wordPath, drawableClip);
                                 occupiedRegion.Op(wordRegion, SKRegionOperation.Union);
                                 canvas.DrawPath(wordPath, brush);
@@ -403,6 +406,7 @@ namespace PSWordCloud
                                 }
 
                                 // Return to word loop for next word or end
+                                wordRegion.Dispose();
                                 break;
                             }
                         }
@@ -450,7 +454,7 @@ namespace PSWordCloud
             float aspectRatio,
             SKSize wordSize,
             SKRect drawableBounds,
-            ref SKRegion occupiedRegion,
+            SKRegion occupiedRegion,
             bool allowRotation,
             out SKPoint location,
             out WordOrientation orientation)
