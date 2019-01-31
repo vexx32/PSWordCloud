@@ -349,9 +349,10 @@ namespace PSWordCloud
                     {
                         wordCount++;
                         wordPath.Reset();
-                        brush.TextSize = finalWordEmSizes[word];
+                        brush.TextSize = finalWordEmSizes[word] * 10;
                         brush.StrokeWidth = finalWordEmSizes[word] * StrokeWidth / 100;
                         brush.IsStroke = false;
+                        brush.IsVerticalText = false;
                         brush.Color = _nextColor;
                         inflationValue = brush.StrokeWidth + Padding * finalWordEmSizes[word] / 10;
 
@@ -393,6 +394,11 @@ namespace PSWordCloud
                                 drawableBounds, occupiedRegion, !DisableRotation.IsPresent,
                                 out SKPoint point, out WordOrientation rotation))
                             {
+                                if (rotation == WordOrientation.Vertical)
+                                {
+                                    brush.IsVerticalText = true;
+                                }
+
                                 wordPath = brush.GetTextPath(word, point.X, point.Y);
                                 wordRegion.SetPath(wordPath, drawableClip);
                                 occupiedRegion.Op(wordRegion, SKRegionOperation.Union);
@@ -469,7 +475,6 @@ namespace PSWordCloud
             bool clockwise = direction == ScanDirection.ClockWise;
             float angle = initialAngle;
             float maxAngle = clockwise ? initialAngle + 360 : initialAngle - 360;
-            SKRectI rect;
             var availableOrientations = allowRotation ?
                 new[] { WordOrientation.Horizontal, WordOrientation.Vertical } : new[] { WordOrientation.Horizontal };
             var rotatedWordSize = new SKSize(wordSize.Height, wordSize.Width);
@@ -484,37 +489,41 @@ namespace PSWordCloud
                 var offsetY = 0f;
                 var size = SKSize.Empty;
                 Complex complex = Complex.FromPolarCoordinates(distance, angle.ToRadians());
-                foreach (WordOrientation currentOrientation in availableOrientations)
+
+                using (SKRegion wordBoundsRegion = new SKRegion())
                 {
-                    if (currentOrientation == WordOrientation.Vertical)
+                    foreach (WordOrientation currentOrientation in availableOrientations)
                     {
-                        offsetX = wordSize.Height * 0.5f * (float)(_random.NextDouble() + 0.25);
-                        offsetY = wordSize.Width * 0.5f * (float)(_random.NextDouble() + 0.25);
-                        size = rotatedWordSize;
-                    }
-                    else
-                    {
-                        offsetX = wordSize.Width * 0.5f * (float)(_random.NextDouble() + 0.25);
-                        offsetY = wordSize.Height * 0.5f * (float)(_random.NextDouble() + 0.25);
-                        size = wordSize;
-                    }
+                        if (currentOrientation == WordOrientation.Vertical)
+                        {
+                            offsetX = wordSize.Height * 0.5f * (float)(_random.NextDouble() + 0.25);
+                            offsetY = wordSize.Width * 0.5f * (float)(_random.NextDouble() + 0.25);
+                            size = rotatedWordSize;
+                        }
+                        else
+                        {
+                            offsetX = wordSize.Width * 0.5f * (float)(_random.NextDouble() + 0.25);
+                            offsetY = wordSize.Height * 0.5f * (float)(_random.NextDouble() + 0.25);
+                            size = wordSize;
+                        }
 
-                    SKPoint point = new SKPoint(
-                            (float)complex.Real * aspectRatio + centre.X - offsetX,
-                            (float)complex.Imaginary + centre.Y - offsetY);
+                        SKPoint point = new SKPoint(
+                                (float)complex.Real * aspectRatio + centre.X - offsetX,
+                                (float)complex.Imaginary + centre.Y - offsetY);
 
-                    if (!drawableBounds.Contains(point))
-                    {
-                        continue;
-                    }
+                        if (!drawableBounds.Contains(point))
+                        {
+                            continue;
+                        }
 
-                    rect = SKRect.Create(point, size).ToSKRectI();
+                        wordBoundsRegion.SetRect(SKRectI.Round(SKRect.Create(point, size)));
 
-                    if (occupiedRegion.Bounds.IsEmpty || !occupiedRegion.Intersects(rect))
-                    {
-                        location = point;
-                        orientation = currentOrientation;
-                        return true;
+                        if (occupiedRegion.Bounds.IsEmpty || !occupiedRegion.Intersects(wordBoundsRegion))
+                        {
+                            location = point;
+                            orientation = currentOrientation;
+                            return true;
+                        }
                     }
                 }
 
@@ -529,7 +538,7 @@ namespace PSWordCloud
             return await Task.Run<string[]>(() =>
             {
                 var words = new List<string>(line.Split(_splitChars, StringSplitOptions.RemoveEmptyEntries));
-                words.RemoveAll(x => Array.IndexOf(_stopWords, x) != -1);
+                words.RemoveAll(x => _stopWords.Contains(x));
                 return words.ToArray();
             });
         }
