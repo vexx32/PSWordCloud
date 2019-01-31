@@ -1,5 +1,5 @@
 ﻿# Add library folders to necessary path vars
-Get-ChildItem -Directory -Path "$PSScriptRoot\bin\release\netstandard2.0\publish\runtimes\" -Recurse -Filter 'native' |
+Get-ChildItem -Path "$PSScriptRoot\bin\Debug\netstandard2.0\publish\runtimes" -Recurse -Directory -Filter 'native' |
     ForEach-Object {
     $Path = $_
     switch ($true) {
