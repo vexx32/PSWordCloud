@@ -275,6 +275,7 @@ namespace PSWordCloud
                 wordPath = new SKPath();
                 clipBounds = new SKRegion();
                 clipBounds.SetRect(drawableBounds);
+
                 float fontScale = WordScale * 1.6f *
                         (drawableBounds.Height + drawableBounds.Width) / (averageWordFrequency * sortedWordList.Count);
 
@@ -345,6 +346,8 @@ namespace PSWordCloud
 
                     brush.IsAutohinted = true;
                     brush.IsAntialias = true;
+                    brush.Style = SKPaintStyle.StrokeAndFill;
+                    brush.Typeface = Typeface;
 
                     foreach (string word in sortedWordList)
                     {
@@ -355,7 +358,7 @@ namespace PSWordCloud
                         targetOrientation = WordOrientation.Horizontal;
 
                         brush.TextSize = finalWordEmSizes[word];
-                        brush.StrokeWidth = finalWordEmSizes[word] * StrokeWidth / 100;
+                        brush.StrokeWidth = StrokeWidth == 0 ? 0 : finalWordEmSizes[word] * StrokeWidth / 100;
                         brush.IsStroke = false;
                         brush.IsVerticalText = false;
                         brush.Color = _nextColor;
@@ -452,15 +455,17 @@ namespace PSWordCloud
                                 brush.IsVerticalText = true;
                             }
 
-                            canvas.DrawPath(wordPath, brush);
                             SKRegion wordRegion = new SKRegion();
                             wordRegion.SetPath(wordPath, clipBounds);
                             occupiedSpace.Op(wordRegion, SKRegionOperation.Union);
 
+                            canvas.DrawPath(wordPath, brush);
+
+
                             if (MyInvocation.BoundParameters.ContainsKey("StrokeWidth"))
                             {
-                                brush.IsStroke = true;
                                 brush.Color = StrokeColor;
+                                brush.IsStroke = true;
                                 canvas.DrawPath(wordPath, brush);
                             }
                         }
