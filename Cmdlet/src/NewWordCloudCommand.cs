@@ -224,7 +224,7 @@ namespace PSWordCloud
             SKRectI drawableBounds = new SKRectI(0, 0, ImageSize.Width, ImageSize.Height);
             SKRegion clipBounds = null;
 
-            float angle = 0, angleIncrement = 0, inflationValue = 0;
+            float inflationValue = 0;
 
             WordOrientation[] availableOrientations = DisableRotation ?
                 new[] { WordOrientation.Horizontal } : new[] { WordOrientation.Horizontal, WordOrientation.Vertical };
@@ -337,12 +337,8 @@ namespace PSWordCloud
                     }
 
                     WordOrientation targetOrientation;
-                    Complex coordinateConverter;
 
-                    SKPoint targetPoint = SKPoint.Empty;
-                    bool spaceAvailable = false;
-                    float offsetX;
-                    float offsetY;
+                    SKPoint targetPoint;
 
                     brush.IsAutohinted = true;
                     brush.IsAntialias = true;
@@ -353,9 +349,9 @@ namespace PSWordCloud
                     {
                         wordCount++;
                         wordPath.Reset();
-                        spaceAvailable = false;
                         inflationValue = brush.StrokeWidth + Padding * finalWordEmSizes[word] / 10;
                         targetOrientation = WordOrientation.Horizontal;
+                        targetPoint = SKPoint.Empty;
 
                         brush.TextSize = finalWordEmSizes[word];
                         brush.StrokeWidth = StrokeWidth == 0 ? 0 : finalWordEmSizes[word] * StrokeWidth / 100;
@@ -375,80 +371,52 @@ namespace PSWordCloud
                                 (float)_random.NextDouble() * finalWordEmSizes[word] * DistanceStep /
                                 Math.Max(1, 21 - Padding * 2))
                         {
-                            angleIncrement = 360f / ((radialDistance + 1) * RadialStep);
-                            ScanDirection direction = _random.Next() % 2 == 0 ?
-                                ScanDirection.ClockWise : ScanDirection.CounterClockwise;
-                            switch (_random.Next() % 4)
-                            {
-                                case 0:
-                                    angle = 0;
-                                    break;
-
-                                case 1:
-                                    angle = 90;
-                                    break;
-
-                                case 2:
-                                    angle = 180;
-                                    break;
-
-                                case 3:
-                                    angle = 270;
-                                    break;
-                            }
-
-                            float maxAngle = direction == ScanDirection.ClockWise ? angle + 360 : angle - 360;
-
                             brush.MeasureText(word, ref wordBounds);
                             wordBounds.Inflate(new SKSize(inflationValue, inflationValue));
                             SKSize inflatedWordSize = wordBounds.Size;
+                            SKPoint adjustedPoint, pointOffset;
 
-                            do
+                            foreach (var point in GetRadialPoints(centrePoint, radialDistance, aspectRatio))
                             {
-                                coordinateConverter = Complex.FromPolarCoordinates(radialDistance, angle);
+                                if (!clipBounds.Contains(SKPointI.Round(point)))
+                                {
+                                    continue;
+                                }
+
                                 foreach (var orientation in availableOrientations)
                                 {
                                     if (orientation == WordOrientation.Vertical)
                                     {
-                                        offsetX = inflatedWordSize.Height * 0.5f * (float)(_random.NextDouble() + 0.25);
-                                        offsetY = inflatedWordSize.Width * 0.5f * (float)(_random.NextDouble() + 0.25);
+                                        pointOffset = new SKPoint(
+                                            inflatedWordSize.Height * 0.5f * (float)(_random.NextDouble() + 0.25),
+                                            inflatedWordSize.Width * 0.5f * (float)(_random.NextDouble() + 0.25));
                                         brush.IsVerticalText = true;
                                     }
                                     else
                                     {
-                                        offsetX = inflatedWordSize.Width * 0.5f * (float)(_random.NextDouble() + 0.25);
-                                        offsetY = inflatedWordSize.Height * 0.5f * (float)(_random.NextDouble() + 0.25);
+                                        pointOffset = new SKPoint(
+                                            inflatedWordSize.Width * 0.5f * (float)(_random.NextDouble() + 0.25),
+                                            inflatedWordSize.Height * 0.5f * (float)(_random.NextDouble() + 0.25));
                                         brush.IsVerticalText = false;
                                     }
 
-                                    SKPoint point = new SKPoint(
-                                            (float)coordinateConverter.Real * aspectRatio + centrePoint.X - offsetX,
-                                            (float)coordinateConverter.Imaginary + centrePoint.Y - offsetY);
-
-                                    wordPath = brush.GetTextPath(word, point.X, point.Y);
-
-                                    if (!clipBounds.Contains(SKPointI.Round(point)))
-                                    {
-                                        goto nextWord;
-                                    }
-
+                                    adjustedPoint = SKPoint.Add(point, pointOffset);
+                                    wordPath = brush.GetTextPath(word, adjustedPoint.X, adjustedPoint.Y);
                                     wordPath.GetTightBounds(out SKRect bounds);
                                     wordRectRegion.SetRect(SKRectI.Round(bounds));
+
                                     if (occupiedSpace.Bounds.IsEmpty || !occupiedSpace.Intersects(wordRectRegion))
                                     {
-                                        targetPoint = point;
+                                        targetPoint = adjustedPoint;
                                         targetOrientation = orientation;
-                                        spaceAvailable = true;
                                         goto nextWord;
                                     }
                                 }
-
-                                angle += angleIncrement;
-                            } while (direction == ScanDirection.ClockWise ? angle <= maxAngle : angle >= maxAngle);
+                            }
                         }
 
                     nextWord:
-                        if (spaceAvailable)
+                        if (targetPoint != SKPoint.Empty)
                         {
                             if (targetOrientation == WordOrientation.Vertical)
                             {
@@ -501,6 +469,42 @@ namespace PSWordCloud
                 clipBounds?.Dispose();
                 wordPath?.Dispose();
             }
+        }
+
+        private IEnumerable<SKPoint> GetRadialPoints(SKPoint centre, float radius, float aspectRatio = 1)
+        {
+            Complex point;
+            float angle = 0, maxAngle = 0, angleIncrement = 360f / (radius * RadialStep + 1);
+            bool clockwise = _random.NextDouble() > 0.5;
+
+            switch (_random.Next() % 4)
+            {
+                case 0:
+                    angle = 0;
+                    break;
+
+                case 1:
+                    angle = 90;
+                    break;
+
+                case 2:
+                    angle = 180;
+                    break;
+
+                case 3:
+                    angle = 270;
+                    break;
+            }
+
+            maxAngle = clockwise ? angle + 360 : angle - 360;
+
+            do
+            {
+                point = Complex.FromPolarCoordinates(radius, angle);
+                yield return new SKPoint((float)point.Real * aspectRatio, (float)point.Imaginary);
+
+                angle += angleIncrement;
+            } while (clockwise ? angle <= maxAngle : angle >= maxAngle);
         }
 
         private async Task<string[]> ProcessLineAsync(string line)
