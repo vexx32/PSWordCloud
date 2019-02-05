@@ -503,6 +503,42 @@ namespace PSWordCloud
             }
         }
 
+        private IEnumerable<SKPoint> GetRadialPoints(SKPoint centre, float radius)
+        {
+            Complex point;
+            float angle = 0, maxAngle = 0, angleIncrement = 360f / (radius * RadialStep + 1);
+            bool clockwise = _random.NextDouble() > 0.5;
+
+            switch (_random.Next() % 4)
+            {
+                case 0:
+                    angle = 0;
+                    break;
+
+                case 1:
+                    angle = 90;
+                    break;
+
+                case 2:
+                    angle = 180;
+                    break;
+
+                case 3:
+                    angle = 270;
+                    break;
+            }
+
+            maxAngle = clockwise ? angle + 360 : angle - 360;
+
+            do
+            {
+                point = Complex.FromPolarCoordinates(radius, angle);
+                yield return new SKPoint((float)point.Real, (float)point.Imaginary);
+
+                angle += angleIncrement;
+            } while (clockwise ? angle <= maxAngle : angle >= maxAngle);
+        }
+
         private async Task<string[]> ProcessLineAsync(string line)
         {
             return await Task.Run<string[]>(() =>
