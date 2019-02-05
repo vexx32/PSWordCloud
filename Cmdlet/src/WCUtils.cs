@@ -15,11 +15,6 @@ namespace PSWordCloud
         Vertical
     }
 
-    internal enum ScanDirection : sbyte
-    {
-        ClockWise = 1,
-        CounterClockwise = -1
-    }
     static class WCUtils
     {
         public static float ToRadians(this float degrees)
@@ -39,15 +34,6 @@ namespace PSWordCloud
         internal static SKColor GetColorByName(string colorName)
         {
             return ColorLibrary[colorName];
-        }
-
-        internal static SKRectI ToSKRectI(this SKRect rectangle)
-        {
-            return new SKRectI(
-                (int)Math.Round(rectangle.Left),
-                (int)Math.Round(rectangle.Top),
-                (int)Math.Round(rectangle.Right),
-                (int)Math.Round(rectangle.Bottom));
         }
 
         internal static object GetValue(this IEnumerable collection, string key)
