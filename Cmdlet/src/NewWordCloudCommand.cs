@@ -423,10 +423,7 @@ namespace PSWordCloud
                                 brush.IsVerticalText = true;
                             }
 
-                            SKRegion wordRegion = new SKRegion();
-                            wordRegion.SetPath(wordPath, clipBounds);
-                            occupiedSpace.Op(wordRegion, SKRegionOperation.Union);
-
+                            occupiedSpace.Op(wordPath, SKRegionOperation.Union);
                             canvas.DrawPath(wordPath, brush);
 
                             if (MyInvocation.BoundParameters.ContainsKey("StrokeWidth"))
