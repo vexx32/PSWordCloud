@@ -329,7 +329,6 @@ namespace PSWordCloud
                 using (SKCanvas canvas = SKSvgCanvas.Create(drawableBounds, xmlWriter))
                 using (SKPaint brush = new SKPaint())
                 using (SKRegion occupiedSpace = new SKRegion())
-                using (SKRegion wordRectRegion = new SKRegion())
                 {
                     if (BackgroundColor != SKColor.Empty)
                     {
@@ -345,6 +344,11 @@ namespace PSWordCloud
                     brush.Style = SKPaintStyle.StrokeAndFill;
                     brush.Typeface = Typeface;
 
+                    var progress = new ProgressRecord(
+                            _progressID,
+                            string.Empty,
+                            "Finding available space to draw...");
+
                     foreach (string word in sortedWordList)
                     {
                         wordCount++;
@@ -359,11 +363,9 @@ namespace PSWordCloud
                         brush.IsVerticalText = false;
                         brush.Color = _nextColor;
 
-                        WriteProgress(
-                            new ProgressRecord(
-                                _progressID,
-                                string.Format("Drawing '{0}' at {1} em", word, brush.TextSize),
-                                "Finding available space to draw..."));
+                        progress.Activity = string.Format("Drawing '{0}' at {1} em", word, brush.TextSize);
+                        progress.PercentComplete = 100 * wordCount / finalWordEmSizes.Count;
+                        WriteProgress(progress);
 
                         for (float radialDistance = 0;
                             radialDistance <= maxRadialDistance;
@@ -400,12 +402,10 @@ namespace PSWordCloud
                                         brush.IsVerticalText = false;
                                     }
 
-                                    adjustedPoint = SKPoint.Add(point, pointOffset);
+                                    adjustedPoint = SKPoint.Subtract(point, pointOffset);
                                     wordPath = brush.GetTextPath(word, adjustedPoint.X, adjustedPoint.Y);
-                                    wordPath.GetTightBounds(out SKRect bounds);
-                                    wordRectRegion.SetRect(SKRectI.Round(bounds));
 
-                                    if (occupiedSpace.Bounds.IsEmpty || !occupiedSpace.Intersects(wordRectRegion))
+                                    if (!occupiedSpace.IntersectsPath(wordPath))
                                     {
                                         targetPoint = adjustedPoint;
                                         targetOrientation = orientation;
@@ -428,7 +428,6 @@ namespace PSWordCloud
                             occupiedSpace.Op(wordRegion, SKRegionOperation.Union);
 
                             canvas.DrawPath(wordPath, brush);
-
 
                             if (MyInvocation.BoundParameters.ContainsKey("StrokeWidth"))
                             {
