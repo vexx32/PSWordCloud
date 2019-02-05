@@ -22,6 +22,31 @@ namespace PSWordCloud
             return (float)(degrees * Math.PI / 180);
         }
 
+        public static bool SetPath(this SKRegion region, SKPath path, bool usePathBounds)
+        {
+            if (usePathBounds && path.GetBounds(out SKRect bounds))
+            {
+                using (SKRegion clip = new SKRegion())
+                {
+                    clip.SetRect(SKRectI.Ceiling(bounds));
+                    return region.SetPath(path, clip);
+                }
+            }
+            else
+            {
+                return region.SetPath(path);
+            }
+        }
+
+        public static bool Op(this SKRegion region, SKPath path, SKRegionOperation operation)
+        {
+            using (SKRegion pathRegion = new SKRegion())
+            {
+                pathRegion.SetPath(path, true);
+                return region.Op(pathRegion, operation);
+            }
+        }
+
         public static bool IntersectsPath(this SKRegion region, SKPath path)
         {
             if (region.Bounds.IsEmpty)
