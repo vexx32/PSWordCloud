@@ -22,6 +22,26 @@ namespace PSWordCloud
             return (float)(degrees * Math.PI / 180);
         }
 
+        public static bool IntersectsPath(this SKRegion region, SKPath path)
+        {
+            if (region.Bounds.IsEmpty)
+            {
+                return false;
+            }
+
+            using (SKRegion pathRegion = new SKRegion())
+            {
+                pathRegion.SetPath(path, region);
+
+                if (region.Intersects(pathRegion))
+                {
+                    return true;
+                }
+
+                return false;
+            }
+        }
+
         internal static readonly ReadOnlyDictionary<string, SKColor> ColorLibrary =
             new ReadOnlyDictionary<string, SKColor>(typeof(SKColors)
             .GetFields(BindingFlags.Static | BindingFlags.Public)
