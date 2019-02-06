@@ -24,6 +24,15 @@ namespace PSWordCloud
             return (float)(degrees * Math.PI / 180);
         }
 
+        public static void NextWord(this SKPaint brush, float wordSize, float strokeWidth, SKColor color)
+        {
+            brush.TextSize = wordSize;
+            brush.StrokeWidth = strokeWidth == 0 ? 0 : wordSize * strokeWidth / 100;
+            brush.IsStroke = false;
+            brush.IsVerticalText = false;
+            brush.Color = color;
+        }
+
         public static bool SetPath(this SKRegion region, SKPath path, bool usePathBounds)
         {
             if (usePathBounds && path.GetBounds(out SKRect bounds))

@@ -136,7 +136,9 @@ namespace PSWordCloud
         private static readonly char[] _splitChars = new[] {
             ' ','.',',','"','?','!','{','}','[',']',':','(',')','“','”','*','#','%','^','&','+','=' };
 
-        private List<Task<string[]>> _wordProcessingTasks;
+        private List<Task<IEnumerable<string>>> _wordProcessingTasks;
+        private float _fontScale;
+        private float _wordScaleRange;
         private Random _random;
         private int _progressID;
         private int _colorIndex = 0;
@@ -203,7 +205,7 @@ namespace PSWordCloud
 
             if (_wordProcessingTasks == null)
             {
-                _wordProcessingTasks = new List<Task<string[]>>(text.Length);
+                _wordProcessingTasks = new List<Task<IEnumerable<string>>>(text.Length);
             }
 
             foreach (var line in text)
@@ -214,7 +216,7 @@ namespace PSWordCloud
 
         protected override void EndProcessing()
         {
-            var lineStrings = Task.WhenAll<string[]>(_wordProcessingTasks);
+            var lineStrings = Task.WhenAll<IEnumerable<string>>(_wordProcessingTasks);
             lineStrings.Wait();
 
             var wordCount = 0;
@@ -226,49 +228,23 @@ namespace PSWordCloud
 
             float inflationValue = 0;
 
-            WordOrientation[] availableOrientations = DisableRotation ?
-                new[] { WordOrientation.Horizontal } : new[] { WordOrientation.Horizontal, WordOrientation.Vertical };
-
             foreach (var lineWords in lineStrings.Result)
             {
-                foreach (string word in lineWords)
-                {
-                    var trimmedWord = System.Text.RegularExpressions.Regex.Replace(
-                        word, "s$", string.Empty, RegexOptions.IgnoreCase);
-                    var pluralWord = String.Format("{0}s", word);
-                    if (wordScaleDictionary.ContainsKey(trimmedWord))
-                    {
-                        wordScaleDictionary[trimmedWord]++;
-                    }
-                    else if (wordScaleDictionary.ContainsKey(pluralWord))
-                    {
-                        wordScaleDictionary[word] = wordScaleDictionary[pluralWord] + 1;
-                        wordScaleDictionary.Remove(pluralWord);
-                    }
-                    else if (wordScaleDictionary.ContainsKey(word))
-                    {
-                        wordScaleDictionary[word]++;
-                    }
-                    else
-                    {
-                        wordScaleDictionary.Add(word, 1);
-                    }
-                }
+                CountWords(lineWords, wordScaleDictionary);
             }
 
             // All words counted and in the dictionary.
-            var wordSizeValues = wordScaleDictionary.Values;
-            var highestWordFreq = wordSizeValues.Max();
+            var highestWordFreq = wordScaleDictionary.Values.Max();
+
             if (FocusWord != null)
             {
                 wordScaleDictionary[FocusWord] = highestWordFreq = highestWordFreq * FOCUS_WORD_SCALE;
             }
 
-            float averageWordFrequency = wordSizeValues.Average();
+            _wordScaleRange = highestWordFreq - wordScaleDictionary.Values.Min();
+            float averageWordFrequency = wordScaleDictionary.Values.Average();
 
-            List<string> sortedWordList = new List<string>(
-                wordScaleDictionary.Keys.OrderByDescending(size => wordScaleDictionary[size])
-                .Take(MaxRenderedWords == 0 ? ushort.MaxValue : MaxRenderedWords));
+            List<string> sortedWordList = new List<string>(SortWordList(wordScaleDictionary));
 
             try
             {
@@ -276,7 +252,7 @@ namespace PSWordCloud
                 clipBounds = new SKRegion();
                 clipBounds.SetRect(drawableBounds);
 
-                float fontScale = WordScale * 1.6f *
+                _fontScale = WordScale * 1.6f *
                         (drawableBounds.Height + drawableBounds.Width) / (averageWordFrequency * sortedWordList.Count);
 
                 var finalWordEmSizes = new Dictionary<string, float>(
@@ -291,9 +267,7 @@ namespace PSWordCloud
                         retry = false;
                         foreach (string word in sortedWordList)
                         {
-                            var adjustedWordSize = 0.5f +
-                                    2 * wordScaleDictionary[word] * fontScale * (float)_random.NextDouble() /
-                                    (1.9f * (highestWordFreq - wordSizeValues.Min() - averageWordFrequency));
+                            var adjustedWordSize = ScaleWordSize(wordScaleDictionary[word], wordScaleDictionary);
 
                             // If the final word size is too small, it probably won't be visible in the final image anyway
                             if (adjustedWordSize < 5) continue;
@@ -305,7 +279,7 @@ namespace PSWordCloud
                                 || adjustedTextWidth > Math.Max(drawableBounds.Width, drawableBounds.Height))
                             {
                                 retry = true;
-                                fontScale *= 0.98f;
+                                _fontScale *= 0.98f;
                                 finalWordEmSizes.Clear();
                                 break;
                             }
@@ -353,15 +327,12 @@ namespace PSWordCloud
                     {
                         wordCount++;
                         wordPath.Reset();
+
                         inflationValue = brush.StrokeWidth + Padding * finalWordEmSizes[word] / 10;
                         targetOrientation = WordOrientation.Horizontal;
                         targetPoint = SKPoint.Empty;
 
-                        brush.TextSize = finalWordEmSizes[word];
-                        brush.StrokeWidth = StrokeWidth == 0 ? 0 : finalWordEmSizes[word] * StrokeWidth / 100;
-                        brush.IsStroke = false;
-                        brush.IsVerticalText = false;
-                        brush.Color = _nextColor;
+                        brush.NextWord(finalWordEmSizes[word], StrokeWidth, _nextColor);
 
                         progress.Activity = string.Format("Drawing '{0}' at {1} em", word, brush.TextSize);
                         progress.PercentComplete = 100 * wordCount / finalWordEmSizes.Count;
@@ -380,12 +351,12 @@ namespace PSWordCloud
 
                             foreach (var point in GetRadialPoints(centrePoint, radialDistance, aspectRatio))
                             {
-                                if (!clipBounds.Contains(SKPointI.Round(point)))
+                                if (!canvas.LocalClipBounds.Contains(point))
                                 {
                                     continue;
                                 }
 
-                                foreach (var orientation in availableOrientations)
+                                foreach (var orientation in GetRotationModes())
                                 {
                                     if (orientation == WordOrientation.Vertical)
                                     {
@@ -467,6 +438,53 @@ namespace PSWordCloud
             }
         }
 
+        private void CountWords(IEnumerable<string> wordList, IDictionary<string, float> dictionary)
+        {
+            foreach (string word in wordList)
+            {
+                var trimmedWord = System.Text.RegularExpressions.Regex.Replace(
+                    word, "s$", string.Empty, RegexOptions.IgnoreCase);
+                var pluralWord = String.Format("{0}s", word);
+                if (dictionary.ContainsKey(trimmedWord))
+                {
+                    dictionary[trimmedWord]++;
+                }
+                else if (dictionary.ContainsKey(pluralWord))
+                {
+                    dictionary[word] = dictionary[pluralWord] + 1;
+                    dictionary.Remove(pluralWord);
+                }
+                else if (dictionary.ContainsKey(word))
+                {
+                    dictionary[word]++;
+                }
+                else
+                {
+                    dictionary.Add(word, 1);
+                }
+            }
+        }
+
+        private IEnumerable<WordOrientation> GetRotationModes()
+        {
+            yield return WordOrientation.Horizontal;
+            if (!DisableRotation)
+            {
+                yield return WordOrientation.Vertical;
+            }
+        }
+
+        private float ScaleWordSize(float wordSize, IDictionary<string, float> wordScaleDictionary)
+        {
+            return 0.5f + 2 * wordSize * _fontScale * (float)_random.NextDouble() / (0.5f + 2 * _wordScaleRange);
+        }
+
+        private IEnumerable<string> SortWordList(IDictionary<string, float> dictionary)
+        {
+            return dictionary.Keys.OrderByDescending(size => dictionary[size])
+                .Take(MaxRenderedWords == 0 ? ushort.MaxValue : MaxRenderedWords);
+        }
+
         private IEnumerable<SKPoint> GetRadialPoints(SKPoint centre, float radius, float aspectRatio = 1)
         {
             Complex point;
@@ -503,14 +521,15 @@ namespace PSWordCloud
             } while (clockwise ? angle <= maxAngle : angle >= maxAngle);
         }
 
-        private async Task<string[]> ProcessLineAsync(string line)
+        private async Task<IEnumerable<string>> ProcessLineAsync(string line)
         {
-            return await Task.Run<string[]>(() =>
-            {
-                var words = new List<string>(line.Split(_splitChars, StringSplitOptions.RemoveEmptyEntries));
-                words.RemoveAll(x => _stopWords.Contains(x));
-                return words.ToArray();
-            });
+            return await Task.Run<IEnumerable<string>>(
+                () =>
+                {
+                    var words = new List<string>(line.Split(_splitChars, StringSplitOptions.RemoveEmptyEntries));
+                    words.RemoveAll(x => _stopWords.Contains(x));
+                    return words;
+                });
         }
     }
 }
