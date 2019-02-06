@@ -252,7 +252,7 @@ namespace PSWordCloud
                 clipBounds = new SKRegion();
                 clipBounds.SetRect(drawableBounds);
 
-                _fontScale = WordScale * 5f *
+                _fontScale = WordScale * 10f *
                         (clipBounds.Bounds.Height + clipBounds.Bounds.Width) /
                         (averageWordFrequency * Math.Min(sortedWordList.Count, MaxRenderedWords));
 
@@ -280,7 +280,7 @@ namespace PSWordCloud
                                 || adjustedTextWidth > Math.Max(drawableBounds.Width, drawableBounds.Height))
                             {
                                 retry = true;
-                                _fontScale *= 0.98f;
+                                _fontScale *= 0.9998f;
                                 scaledWordSizes.Clear();
                                 break;
                             }
@@ -329,7 +329,7 @@ namespace PSWordCloud
                         wordCount++;
                         wordPath.Reset();
 
-                        inflationValue = brush.StrokeWidth + Padding * scaledWordSizes[word] / 10;
+                        inflationValue = brush.StrokeWidth + Padding * scaledWordSizes[word] / 8;
                         targetOrientation = WordOrientation.Horizontal;
                         targetPoint = SKPoint.Empty;
 
@@ -342,7 +342,9 @@ namespace PSWordCloud
                         for (float radius = 0; radius <= maxRadius; radius += GetRadiusIncrement(scaledWordSizes[word]))
                         {
                             brush.MeasureText(word, ref wordBounds);
-                            wordBounds.Inflate(inflationValue, inflationValue);
+                            wordBounds.Inflate(
+                                inflationValue * (wordBounds.Width / wordBounds.Height),
+                                inflationValue);
                             SKSize inflatedWordSize = wordBounds.Size;
                             SKPoint adjustedPoint, pointOffset;
 
@@ -379,7 +381,7 @@ namespace PSWordCloud
                                             break;
                                     }
 
-                                    adjustedPoint = SKPoint.Subtract(point, pointOffset);
+                                    adjustedPoint = SKPoint.Add(point, pointOffset);
                                     wordPath = brush.GetTextPath(word, adjustedPoint.X, adjustedPoint.Y);
                                     wordPath.Transform(matrix);
                                     wordPath.GetBounds(out SKRect bounds);
@@ -561,7 +563,7 @@ namespace PSWordCloud
                 () =>
                 {
                     var words = new List<string>(line.Split(_splitChars, StringSplitOptions.RemoveEmptyEntries));
-                    words.RemoveAll(x => _stopWords.Contains(x));
+                    words.RemoveAll(x => _stopWords.Contains(x, StringComparer.OrdinalIgnoreCase));
                     return words;
                 });
         }
