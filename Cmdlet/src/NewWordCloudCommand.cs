@@ -228,9 +228,6 @@ namespace PSWordCloud
 
             float inflationValue = 0;
 
-            WordOrientation[] availableOrientations = DisableRotation ?
-                new[] { WordOrientation.Horizontal } : new[] { WordOrientation.Horizontal, WordOrientation.Vertical };
-
             foreach (var lineWords in lineStrings.Result)
             {
                 CountWords(lineWords, wordScaleDictionary);
@@ -330,15 +327,12 @@ namespace PSWordCloud
                     {
                         wordCount++;
                         wordPath.Reset();
+
                         inflationValue = brush.StrokeWidth + Padding * finalWordEmSizes[word] / 10;
                         targetOrientation = WordOrientation.Horizontal;
                         targetPoint = SKPoint.Empty;
 
-                        brush.TextSize = finalWordEmSizes[word];
-                        brush.StrokeWidth = StrokeWidth == 0 ? 0 : finalWordEmSizes[word] * StrokeWidth / 100;
-                        brush.IsStroke = false;
-                        brush.IsVerticalText = false;
-                        brush.Color = _nextColor;
+                        brush.NextWord(finalWordEmSizes[word], StrokeWidth, _nextColor);
 
                         progress.Activity = string.Format("Drawing '{0}' at {1} em", word, brush.TextSize);
                         progress.PercentComplete = 100 * wordCount / finalWordEmSizes.Count;
@@ -357,12 +351,12 @@ namespace PSWordCloud
 
                             foreach (var point in GetRadialPoints(centrePoint, radialDistance, aspectRatio))
                             {
-                                if (!clipBounds.Contains(SKPointI.Round(point)))
+                                if (!canvas.LocalClipBounds.Contains(point))
                                 {
                                     continue;
                                 }
 
-                                foreach (var orientation in availableOrientations)
+                                foreach (var orientation in GetRotationModes())
                                 {
                                     if (orientation == WordOrientation.Vertical)
                                     {
@@ -468,6 +462,15 @@ namespace PSWordCloud
                 {
                     dictionary.Add(word, 1);
                 }
+            }
+        }
+
+        private IEnumerable<WordOrientation> GetRotationModes()
+        {
+            yield return WordOrientation.Horizontal;
+            if (!DisableRotation)
+            {
+                yield return WordOrientation.Vertical;
             }
         }
 
