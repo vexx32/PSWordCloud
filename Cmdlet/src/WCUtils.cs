@@ -14,7 +14,8 @@ namespace PSWordCloud
     internal enum WordOrientation : sbyte
     {
         Horizontal,
-        Vertical
+        Vertical,
+        VerticalFlipped,
     }
 
     internal static class WCUtils
@@ -58,6 +59,20 @@ namespace PSWordCloud
             }
         }
 
+        public static bool IntersectsRect(this SKRegion region, SKRect rect)
+        {
+            if (region.Bounds.IsEmpty)
+            {
+                return false;
+            }
+
+            using (SKRegion rectRegion = new SKRegion())
+            {
+                rectRegion.SetRect(SKRectI.Round(rect));
+                return region.Intersects(rectRegion);
+            }
+        }
+
         public static bool IntersectsPath(this SKRegion region, SKPath path)
         {
             if (region.Bounds.IsEmpty)
@@ -68,13 +83,7 @@ namespace PSWordCloud
             using (SKRegion pathRegion = new SKRegion())
             {
                 pathRegion.SetPath(path, region);
-
-                if (region.Intersects(pathRegion))
-                {
-                    return true;
-                }
-
-                return false;
+                return region.Intersects(pathRegion);
             }
         }
 
