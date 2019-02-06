@@ -247,10 +247,7 @@ namespace PSWordCloud
             _wordScaleRange = highestWordFreq - wordScaleDictionary.Values.Min();
             float averageWordFrequency = wordScaleDictionary.Values.Average();
 
-
-            List<string> sortedWordList = new List<string>(
-                wordScaleDictionary.Keys.OrderByDescending(size => wordScaleDictionary[size])
-                .Take(MaxRenderedWords == 0 ? ushort.MaxValue : MaxRenderedWords));
+            List<string> sortedWordList = new List<string>(SortWordList(wordScaleDictionary));
 
             try
             {
@@ -477,6 +474,12 @@ namespace PSWordCloud
         private float ScaleWordSize(float wordSize, IDictionary<string, float> wordScaleDictionary)
         {
             return 0.5f + 2 * wordSize * _fontScale * (float)_random.NextDouble() / (0.5f + 2 * _wordScaleRange);
+        }
+
+        private IEnumerable<string> SortWordList(IDictionary<string, float> dictionary)
+        {
+            return dictionary.Keys.OrderByDescending(size => dictionary[size])
+                .Take(MaxRenderedWords == 0 ? ushort.MaxValue : MaxRenderedWords);
         }
 
         private IEnumerable<SKPoint> GetRadialPoints(SKPoint centre, float radius, float aspectRatio = 1)
