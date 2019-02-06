@@ -137,6 +137,8 @@ namespace PSWordCloud
             ' ','.',',','"','?','!','{','}','[',']',':','(',')','“','”','*','#','%','^','&','+','=' };
 
         private List<Task<string[]>> _wordProcessingTasks;
+        private float _fontScale;
+        private float _wordScaleRange;
         private Random _random;
         private int _progressID;
         private int _colorIndex = 0;
@@ -257,14 +259,16 @@ namespace PSWordCloud
             }
 
             // All words counted and in the dictionary.
-            var wordSizeValues = wordScaleDictionary.Values;
-            var highestWordFreq = wordSizeValues.Max();
+            var highestWordFreq = wordScaleDictionary.Values.Max();
+
             if (FocusWord != null)
             {
                 wordScaleDictionary[FocusWord] = highestWordFreq = highestWordFreq * FOCUS_WORD_SCALE;
             }
 
-            float averageWordFrequency = wordSizeValues.Average();
+            _wordScaleRange = highestWordFreq - wordScaleDictionary.Values.Min();
+            float averageWordFrequency = wordScaleDictionary.Values.Average();
+
 
             List<string> sortedWordList = new List<string>(
                 wordScaleDictionary.Keys.OrderByDescending(size => wordScaleDictionary[size])
@@ -276,7 +280,7 @@ namespace PSWordCloud
                 clipBounds = new SKRegion();
                 clipBounds.SetRect(drawableBounds);
 
-                float fontScale = WordScale * 1.6f *
+                _fontScale = WordScale * 1.6f *
                         (drawableBounds.Height + drawableBounds.Width) / (averageWordFrequency * sortedWordList.Count);
 
                 var finalWordEmSizes = new Dictionary<string, float>(
@@ -291,9 +295,7 @@ namespace PSWordCloud
                         retry = false;
                         foreach (string word in sortedWordList)
                         {
-                            var adjustedWordSize = 0.5f +
-                                    2 * wordScaleDictionary[word] * fontScale * (float)_random.NextDouble() /
-                                    (1.9f * (highestWordFreq - wordSizeValues.Min() - averageWordFrequency));
+                            var adjustedWordSize = ScaleWordSize(wordScaleDictionary[word], wordScaleDictionary);
 
                             // If the final word size is too small, it probably won't be visible in the final image anyway
                             if (adjustedWordSize < 5) continue;
@@ -305,7 +307,7 @@ namespace PSWordCloud
                                 || adjustedTextWidth > Math.Max(drawableBounds.Width, drawableBounds.Height))
                             {
                                 retry = true;
-                                fontScale *= 0.98f;
+                                _fontScale *= 0.98f;
                                 finalWordEmSizes.Clear();
                                 break;
                             }
@@ -465,6 +467,11 @@ namespace PSWordCloud
                 clipBounds?.Dispose();
                 wordPath?.Dispose();
             }
+        }
+
+        private float ScaleWordSize(float wordSize, IDictionary<string, float> wordScaleDictionary)
+        {
+            return 0.5f + 2 * wordSize * _fontScale * (float)_random.NextDouble() / (0.5f + 2 * _wordScaleRange);
         }
 
         private IEnumerable<SKPoint> GetRadialPoints(SKPoint centre, float radius, float aspectRatio = 1)
