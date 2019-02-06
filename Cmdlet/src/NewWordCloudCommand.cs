@@ -252,8 +252,9 @@ namespace PSWordCloud
                 clipBounds = new SKRegion();
                 clipBounds.SetRect(drawableBounds);
 
-                _fontScale = WordScale * 1.6f *
-                        (drawableBounds.Height + drawableBounds.Width) / (averageWordFrequency * sortedWordList.Count);
+                _fontScale = WordScale * 5f *
+                        (clipBounds.Bounds.Height + clipBounds.Bounds.Width) /
+                        (averageWordFrequency * Math.Min(sortedWordList.Count, MaxRenderedWords));
 
                 var scaledWordSizes = new Dictionary<string, float>(
                     sortedWordList.Count, StringComparer.OrdinalIgnoreCase);
@@ -320,7 +321,7 @@ namespace PSWordCloud
 
                     var progress = new ProgressRecord(
                             _progressID,
-                            string.Empty,
+                            "Starting...",
                             "Finding available space to draw...");
 
                     foreach (string word in sortedWordList)
@@ -379,6 +380,12 @@ namespace PSWordCloud
                                         goto nextWord;
                                     }
                                 }
+
+                                if (radius == 0)
+                                {
+                                    // No point checking more than a single point at the origin
+                                    break;
+                                }
                             }
                         }
 
@@ -435,7 +442,7 @@ namespace PSWordCloud
         }
 
         private float GetRadiusIncrement(float wordSize)
-            => (float)_random.NextDouble() * wordSize * DistanceStep / Math.Max(1, 21 - Padding * 2);
+            => ((float)_random.NextDouble() * wordSize * DistanceStep) / Math.Max(1, 21 - Padding * 2);
 
 
         private void CountWords(IEnumerable<string> wordList, IDictionary<string, float> dictionary)
@@ -510,7 +517,15 @@ namespace PSWordCloud
                     break;
             }
 
-            maxAngle = clockwise ? angle + 360 : angle - 360;
+            if (clockwise)
+            {
+                maxAngle = angle + 360;
+            }
+            else
+            {
+                maxAngle = angle - 360;
+                angleIncrement *= -1;
+            }
 
             do
             {
