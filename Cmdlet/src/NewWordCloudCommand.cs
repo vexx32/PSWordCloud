@@ -136,7 +136,7 @@ namespace PSWordCloud
         private static readonly char[] _splitChars = new[] {
             ' ','.',',','"','?','!','{','}','[',']',':','(',')','“','”','*','#','%','^','&','+','=' };
 
-        private List<Task<string[]>> _wordProcessingTasks;
+        private List<Task<IEnumerable<string>>> _wordProcessingTasks;
         private float _fontScale;
         private float _wordScaleRange;
         private Random _random;
@@ -205,7 +205,7 @@ namespace PSWordCloud
 
             if (_wordProcessingTasks == null)
             {
-                _wordProcessingTasks = new List<Task<string[]>>(text.Length);
+                _wordProcessingTasks = new List<Task<IEnumerable<string>>>(text.Length);
             }
 
             foreach (var line in text)
@@ -216,7 +216,7 @@ namespace PSWordCloud
 
         protected override void EndProcessing()
         {
-            var lineStrings = Task.WhenAll<string[]>(_wordProcessingTasks);
+            var lineStrings = Task.WhenAll<IEnumerable<string>>(_wordProcessingTasks);
             lineStrings.Wait();
 
             var wordCount = 0;
@@ -233,29 +233,7 @@ namespace PSWordCloud
 
             foreach (var lineWords in lineStrings.Result)
             {
-                foreach (string word in lineWords)
-                {
-                    var trimmedWord = System.Text.RegularExpressions.Regex.Replace(
-                        word, "s$", string.Empty, RegexOptions.IgnoreCase);
-                    var pluralWord = String.Format("{0}s", word);
-                    if (wordScaleDictionary.ContainsKey(trimmedWord))
-                    {
-                        wordScaleDictionary[trimmedWord]++;
-                    }
-                    else if (wordScaleDictionary.ContainsKey(pluralWord))
-                    {
-                        wordScaleDictionary[word] = wordScaleDictionary[pluralWord] + 1;
-                        wordScaleDictionary.Remove(pluralWord);
-                    }
-                    else if (wordScaleDictionary.ContainsKey(word))
-                    {
-                        wordScaleDictionary[word]++;
-                    }
-                    else
-                    {
-                        wordScaleDictionary.Add(word, 1);
-                    }
-                }
+                CountWords(lineWords, wordScaleDictionary);
             }
 
             // All words counted and in the dictionary.
@@ -469,6 +447,33 @@ namespace PSWordCloud
             }
         }
 
+        private void CountWords(IEnumerable<string> wordList, IDictionary<string, float> dictionary)
+        {
+            foreach (string word in wordList)
+            {
+                var trimmedWord = System.Text.RegularExpressions.Regex.Replace(
+                    word, "s$", string.Empty, RegexOptions.IgnoreCase);
+                var pluralWord = String.Format("{0}s", word);
+                if (dictionary.ContainsKey(trimmedWord))
+                {
+                    dictionary[trimmedWord]++;
+                }
+                else if (dictionary.ContainsKey(pluralWord))
+                {
+                    dictionary[word] = dictionary[pluralWord] + 1;
+                    dictionary.Remove(pluralWord);
+                }
+                else if (dictionary.ContainsKey(word))
+                {
+                    dictionary[word]++;
+                }
+                else
+                {
+                    dictionary.Add(word, 1);
+                }
+            }
+        }
+
         private float ScaleWordSize(float wordSize, IDictionary<string, float> wordScaleDictionary)
         {
             return 0.5f + 2 * wordSize * _fontScale * (float)_random.NextDouble() / (0.5f + 2 * _wordScaleRange);
@@ -510,14 +515,15 @@ namespace PSWordCloud
             } while (clockwise ? angle <= maxAngle : angle >= maxAngle);
         }
 
-        private async Task<string[]> ProcessLineAsync(string line)
+        private async Task<IEnumerable<string>> ProcessLineAsync(string line)
         {
-            return await Task.Run<string[]>(() =>
-            {
-                var words = new List<string>(line.Split(_splitChars, StringSplitOptions.RemoveEmptyEntries));
-                words.RemoveAll(x => _stopWords.Contains(x));
-                return words.ToArray();
-            });
+            return await Task.Run<IEnumerable<string>>(
+                () =>
+                {
+                    var words = new List<string>(line.Split(_splitChars, StringSplitOptions.RemoveEmptyEntries));
+                    words.RemoveAll(x => _stopWords.Contains(x));
+                    return words;
+                });
         }
     }
 }
