@@ -353,27 +353,37 @@ namespace PSWordCloud
                                     continue;
                                 }
 
+                                SKMatrix matrix = SKMatrix.MakeIdentity();
                                 foreach (var orientation in GetRotationModes())
                                 {
-                                    if (orientation == WordOrientation.Vertical)
+                                    switch (orientation)
                                     {
-                                        pointOffset = new SKPoint(
-                                            inflatedWordSize.Height * 0.5f * (float)(_random.NextDouble() + 0.25),
-                                            inflatedWordSize.Width * 0.5f * (float)(_random.NextDouble() + 0.25));
-                                        brush.IsVerticalText = true;
-                                    }
-                                    else
-                                    {
-                                        pointOffset = new SKPoint(
-                                            inflatedWordSize.Width * 0.5f * (float)(_random.NextDouble() + 0.25),
-                                            inflatedWordSize.Height * 0.5f * (float)(_random.NextDouble() + 0.25));
-                                        brush.IsVerticalText = false;
+                                        case WordOrientation.Vertical:
+                                            pointOffset = new SKPoint(
+                                                inflatedWordSize.Height * 0.5f * (float)(_random.NextDouble() + 0.25),
+                                                inflatedWordSize.Width * 0.5f * (float)(_random.NextDouble() + 0.25));
+                                            SKMatrix.RotateDegrees(ref matrix, 90, centrePoint.X, centrePoint.Y);
+                                            break;
+
+                                        case WordOrientation.VerticalFlipped:
+                                            pointOffset = new SKPoint(
+                                                inflatedWordSize.Height * 0.5f * (float)(_random.NextDouble() + 0.25),
+                                                inflatedWordSize.Width * 0.5f * (float)(_random.NextDouble() + 0.25));
+                                            SKMatrix.RotateDegrees(ref matrix, -90, centrePoint.X, centrePoint.Y);
+                                            break;
+
+                                        default:
+                                            pointOffset = new SKPoint(
+                                                inflatedWordSize.Width * 0.5f * (float)(_random.NextDouble() + 0.25),
+                                                inflatedWordSize.Height * 0.5f * (float)(_random.NextDouble() + 0.25));
+                                            break;
                                     }
 
                                     adjustedPoint = SKPoint.Subtract(point, pointOffset);
                                     wordPath = brush.GetTextPath(word, adjustedPoint.X, adjustedPoint.Y);
-
-                                    if (!occupiedSpace.IntersectsPath(wordPath))
+                                    wordPath.Transform(matrix);
+                                    wordPath.GetBounds(out SKRect bounds);
+                                    if (!occupiedSpace.IntersectsRect(bounds))
                                     {
                                         targetPoint = adjustedPoint;
                                         targetOrientation = orientation;
@@ -477,7 +487,16 @@ namespace PSWordCloud
             yield return WordOrientation.Horizontal;
             if (!DisableRotation)
             {
-                yield return WordOrientation.Vertical;
+                if (_random.NextDouble() > 0.5)
+                {
+                    yield return WordOrientation.Vertical;
+                    yield return WordOrientation.VerticalFlipped;
+                }
+                else
+                {
+                    yield return WordOrientation.VerticalFlipped;
+                    yield return WordOrientation.Vertical;
+                }
             }
         }
 
