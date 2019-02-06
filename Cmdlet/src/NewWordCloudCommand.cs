@@ -255,7 +255,7 @@ namespace PSWordCloud
                 _fontScale = WordScale * 1.6f *
                         (drawableBounds.Height + drawableBounds.Width) / (averageWordFrequency * sortedWordList.Count);
 
-                var finalWordEmSizes = new Dictionary<string, float>(
+                var scaledWordSizes = new Dictionary<string, float>(
                     sortedWordList.Count, StringComparer.OrdinalIgnoreCase);
 
                 bool retry;
@@ -280,11 +280,11 @@ namespace PSWordCloud
                             {
                                 retry = true;
                                 _fontScale *= 0.98f;
-                                finalWordEmSizes.Clear();
+                                scaledWordSizes.Clear();
                                 break;
                             }
 
-                            finalWordEmSizes[word] = adjustedWordSize;
+                            scaledWordSizes[word] = adjustedWordSize;
                         }
                     }
                     while (retry);
@@ -294,9 +294,9 @@ namespace PSWordCloud
                 SKPoint centrePoint = new SKPoint(drawableBounds.MidX, drawableBounds.MidY);
 
                 // Remove all words that were cut from the final rendering list
-                sortedWordList.RemoveAll(x => !finalWordEmSizes.ContainsKey(x));
+                sortedWordList.RemoveAll(x => !scaledWordSizes.ContainsKey(x));
 
-                var maxRadialDistance = Math.Max(drawableBounds.Width, drawableBounds.Height) / 2f;
+                var maxRadius = Math.Max(drawableBounds.Width, drawableBounds.Height) / 2f;
 
                 using (SKFileWStream streamWriter = new SKFileWStream(_resolvedPaths[0]))
                 using (SKXmlStreamWriter xmlWriter = new SKXmlStreamWriter(streamWriter))
@@ -328,28 +328,24 @@ namespace PSWordCloud
                         wordCount++;
                         wordPath.Reset();
 
-                        inflationValue = brush.StrokeWidth + Padding * finalWordEmSizes[word] / 10;
+                        inflationValue = brush.StrokeWidth + Padding * scaledWordSizes[word] / 10;
                         targetOrientation = WordOrientation.Horizontal;
                         targetPoint = SKPoint.Empty;
 
-                        brush.NextWord(finalWordEmSizes[word], StrokeWidth, _nextColor);
+                        brush.NextWord(scaledWordSizes[word], StrokeWidth, _nextColor);
 
                         progress.Activity = string.Format("Drawing '{0}' at {1} em", word, brush.TextSize);
-                        progress.PercentComplete = 100 * wordCount / finalWordEmSizes.Count;
+                        progress.PercentComplete = 100 * wordCount / scaledWordSizes.Count;
                         WriteProgress(progress);
 
-                        for (float radialDistance = 0;
-                            radialDistance <= maxRadialDistance;
-                            radialDistance +=
-                                (float)_random.NextDouble() * finalWordEmSizes[word] * DistanceStep /
-                                Math.Max(1, 21 - Padding * 2))
+                        for (float radius = 0; radius <= maxRadius; radius += GetRadiusIncrement(scaledWordSizes[word]))
                         {
                             brush.MeasureText(word, ref wordBounds);
-                            wordBounds.Inflate(new SKSize(inflationValue, inflationValue));
+                            wordBounds.Inflate(inflationValue, inflationValue);
                             SKSize inflatedWordSize = wordBounds.Size;
                             SKPoint adjustedPoint, pointOffset;
 
-                            foreach (var point in GetRadialPoints(centrePoint, radialDistance, aspectRatio))
+                            foreach (var point in GetRadialPoints(centrePoint, radius, aspectRatio))
                             {
                                 if (!canvas.LocalClipBounds.Contains(point))
                                 {
@@ -437,6 +433,10 @@ namespace PSWordCloud
                 wordPath?.Dispose();
             }
         }
+
+        private float GetRadiusIncrement(float wordSize)
+            => (float)_random.NextDouble() * wordSize * DistanceStep / Math.Max(1, 21 - Padding * 2);
+
 
         private void CountWords(IEnumerable<string> wordList, IDictionary<string, float> dictionary)
         {
