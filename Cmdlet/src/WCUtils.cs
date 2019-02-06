@@ -6,7 +6,9 @@ using System.Linq;
 using System.Management.Automation;
 using System.Reflection;
 using SkiaSharp;
+using System.Runtime.CompilerServices;
 
+[assembly: InternalsVisibleTo("Cmdlet.Tests")]
 namespace PSWordCloud
 {
     internal enum WordOrientation : sbyte
@@ -15,7 +17,7 @@ namespace PSWordCloud
         Vertical
     }
 
-    static class WCUtils
+    internal static class WCUtils
     {
         public static float ToRadians(this float degrees)
         {
