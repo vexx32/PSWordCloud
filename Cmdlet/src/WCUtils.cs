@@ -81,7 +81,10 @@ namespace PSWordCloud
         internal static readonly ReadOnlyDictionary<string, SKColor> ColorLibrary =
             new ReadOnlyDictionary<string, SKColor>(typeof(SKColors)
             .GetFields(BindingFlags.Static | BindingFlags.Public)
-            .ToDictionary((field => field.Name), (field => (SKColor)field.GetValue(null))));
+            .ToDictionary(
+                (field => field.Name),
+                (field => (SKColor)field.GetValue(null)),
+                StringComparer.OrdinalIgnoreCase));
 
         internal static readonly IEnumerable<string> ColorNames = ColorLibrary.Keys;
 
