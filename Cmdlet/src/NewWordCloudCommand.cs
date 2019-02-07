@@ -515,7 +515,7 @@ namespace PSWordCloud
 
         private void SetFontScale(SKRegion space, float averageWordFrequency, int wordCount)
         {
-            _fontScale = 2.5f * WordScale * (space.Bounds.Height + space.Bounds.Width)
+            _fontScale = WordScale * (space.Bounds.Height + space.Bounds.Width)
                 / (1.5f * averageWordFrequency * Math.Min(wordCount, MaxRenderedWords));
         }
 
