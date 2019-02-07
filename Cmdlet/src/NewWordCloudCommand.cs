@@ -89,7 +89,7 @@ namespace PSWordCloud
 
         [Parameter]
         [Alias("Spacing")]
-        public float Padding { get; set; } = 3.5f;
+        public float Padding { get; set; } = 5f;
 
         [Parameter]
         [ValidateRange(1, 500)]
@@ -322,7 +322,7 @@ namespace PSWordCloud
                         "Starting...",
                         "Finding available space to draw...");
 
-                    foreach (string word in sortedWordList)
+                    foreach (string word in sortedWordList.OrderByDescending(x => scaledWordSizes[x]))
                     {
                         wordCount++;
                         wordPath.Reset();
@@ -340,9 +340,7 @@ namespace PSWordCloud
                         for (float radius = 0; radius <= maxRadius; radius += GetRadiusIncrement(scaledWordSizes[word]))
                         {
                             brush.MeasureText(word, ref wordBounds);
-                            wordBounds.Inflate(
-                                inflationValue * (wordBounds.Width / wordBounds.Height),
-                                inflationValue);
+                            wordBounds.Inflate(inflationValue, inflationValue);
                             SKSize inflatedWordSize = wordBounds.Size;
                             SKPoint adjustedPoint, pointOffset;
 
@@ -362,14 +360,14 @@ namespace PSWordCloud
                                             pointOffset = new SKPoint(
                                                 inflatedWordSize.Height * 0.5f * (float)(_random.NextDouble() + 0.25),
                                                 inflatedWordSize.Width * 0.5f * (float)(_random.NextDouble() + 0.25));
-                                            SKMatrix.RotateDegrees(ref matrix, 90, point.X, point.Y);
+                                            SKMatrix.RotateDegrees(ref matrix, 90, centrePoint.X, centrePoint.Y);
                                             break;
 
                                         case WordOrientation.VerticalFlipped:
                                             pointOffset = new SKPoint(
                                                 inflatedWordSize.Height * 0.5f * (float)(_random.NextDouble() + 0.25),
                                                 inflatedWordSize.Width * 0.5f * (float)(_random.NextDouble() + 0.25));
-                                            SKMatrix.RotateDegrees(ref matrix, -90, point.X, point.Y);
+                                            SKMatrix.RotateDegrees(ref matrix, -90, centrePoint.X, centrePoint.Y);
                                             break;
 
                                         default:
