@@ -239,49 +239,61 @@ namespace PSWordCloud
 
     public class TransformToSKColorAttribute : ArgumentTransformationAttribute
     {
+        private IEnumerable<SKColor> MatchColors(string[] names)
+        {
+            foreach (string s in names)
+            {
+                if (WCUtils.ColorNames.Contains(s))
+                {
+                    yield return WCUtils.ColorLibrary[s];
+                    continue;
+                }
+
+                if (string.Equals(s, "transparent", StringComparison.OrdinalIgnoreCase))
+                {
+                    yield return SKColor.Empty;
+                    continue;
+                }
+
+                if (WildcardPattern.ContainsWildcardCharacters(s))
+                {
+                    bool foundMatch = false;
+                    var pattern = new WildcardPattern(s, WildcardOptions.IgnoreCase);
+                    foreach (var color in WCUtils.ColorLibrary)
+                    {
+                        if (pattern.IsMatch(color.Key))
+                        {
+                            yield return color.Value;
+                            foundMatch = true;
+                        }
+                    }
+
+                    if (foundMatch)
+                    {
+                        continue;
+                    }
+                    else
+                    {
+                        throw new ArgumentTransformationMetadataException();
+                    }
+                }
+
+                if (SKColor.TryParse(s, out SKColor c))
+                {
+                    yield return c;
+                    continue;
+                }
+            }
+        }
+
         public override object Transform(EngineIntrinsics engineIntrinsics, object inputData)
         {
             switch (inputData)
             {
                 case string s:
-                    if (WCUtils.ColorNames.Contains(s))
-                    {
-                        return WCUtils.ColorLibrary[s];
-                    }
-
-                    if (string.Equals(s, "transparent", StringComparison.OrdinalIgnoreCase))
-                    {
-                        return SKColor.Empty;
-                    }
-
-                    if (SKColor.TryParse(s, out SKColor c))
-                    {
-                        return c;
-                    }
-
-                    if (WildcardPattern.ContainsWildcardCharacters(s))
-                    {
-                        var pattern = new WildcardPattern(s, WildcardOptions.IgnoreCase);
-                        var matches = new List<SKColor>();
-                        foreach (var color in WCUtils.ColorLibrary)
-                        {
-                            if (pattern.IsMatch(color.Key))
-                            {
-                                matches.Add(color.Value);
-                            }
-                        }
-
-                        if (matches.Count > 0)
-                        {
-                            return matches.ToArray();
-                        }
-                        else
-                        {
-                            throw new ArgumentTransformationMetadataException();
-                        }
-                    }
-
-                    throw new ArgumentTransformationMetadataException();
+                    return MatchColors(new[] { s }).ToArray();
+                case string[] ss:
+                    return MatchColors(ss).ToArray();
                 case SKColor color:
                     return color;
                 default:
