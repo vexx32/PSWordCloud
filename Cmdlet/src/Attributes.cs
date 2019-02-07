@@ -239,72 +239,136 @@ namespace PSWordCloud
 
     public class TransformToSKColorAttribute : ArgumentTransformationAttribute
     {
+        private IEnumerable<SKColor> MatchColor(string name)
+        {
+            if (WCUtils.ColorNames.Contains(name))
+            {
+                yield return WCUtils.ColorLibrary[name];
+                yield break;
+            }
+
+            if (string.Equals(name, "transparent", StringComparison.OrdinalIgnoreCase))
+            {
+                yield return SKColor.Empty;
+                yield break;
+            }
+
+            if (WildcardPattern.ContainsWildcardCharacters(name))
+            {
+                bool foundMatch = false;
+                var pattern = new WildcardPattern(name, WildcardOptions.IgnoreCase);
+                foreach (var color in WCUtils.ColorLibrary)
+                {
+                    if (pattern.IsMatch(color.Key))
+                    {
+                        yield return color.Value;
+                        foundMatch = true;
+                    }
+                }
+
+                if (foundMatch)
+                {
+                    yield break;
+                }
+            }
+
+            if (SKColor.TryParse(name, out SKColor c))
+            {
+                yield return c;
+                yield break;
+            }
+
+            throw new ArgumentTransformationMetadataException();
+        }
+
+        private IEnumerable<SKColor> TransformObject(object input)
+        {
+            object[] array;
+            if (input is object[] o)
+            {
+                array = o;
+            }
+            else
+            {
+                array = new[] { input };
+            }
+
+            foreach (object item in array)
+            {
+                if (item is string s)
+                {
+                    foreach (var color in MatchColor(s))
+                    {
+                        yield return color;
+                    }
+
+                    continue;
+                }
+
+                IEnumerable properties = null;
+                if (item is Hashtable ht)
+                {
+                    properties = ht;
+                }
+                else
+                {
+                    properties = PSObject.AsPSObject(item).Properties;
+                }
+
+                byte red = properties.GetValue("red") == null ?
+                    (byte)0 : (byte)LanguagePrimitives.ConvertTo<byte>(properties.GetValue("red"));
+                byte green = properties.GetValue("green") == null ?
+                    (byte)0 : (byte)LanguagePrimitives.ConvertTo<byte>(properties.GetValue("green"));
+                byte blue = properties.GetValue("blue") == null ?
+                    (byte)0 : (byte)LanguagePrimitives.ConvertTo<byte>(properties.GetValue("blue"));
+                byte alpha = properties.GetValue("alpha") == null ?
+                    (byte)0 : (byte)LanguagePrimitives.ConvertTo<byte>(properties.GetValue("alpha"));
+
+                yield return new SKColor(red, green, blue, alpha);
+            }
+        }
+
+        private object Normalize(IEnumerable<SKColor> results)
+        {
+            if (results.Count() == 1)
+            {
+                return results.First();
+            }
+            else
+            {
+                return results.ToArray();
+            }
+        }
+
         public override object Transform(EngineIntrinsics engineIntrinsics, object inputData)
         {
+            SKColor[] results;
             switch (inputData)
             {
                 case string s:
-                    if (WCUtils.ColorNames.Contains(s))
+                    results = MatchColor(s).ToArray();
+                    if (results.Length == 1)
                     {
-                        return WCUtils.ColorLibrary[s];
-                    }
-
-                    if (string.Equals(s, "transparent", StringComparison.OrdinalIgnoreCase))
-                    {
-                        return SKColor.Empty;
-                    }
-
-                    if (SKColor.TryParse(s, out SKColor c))
-                    {
-                        return c;
-                    }
-
-                    if (WildcardPattern.ContainsWildcardCharacters(s))
-                    {
-                        var pattern = new WildcardPattern(s, WildcardOptions.IgnoreCase);
-                        var matches = new List<SKColor>();
-                        foreach (var color in WCUtils.ColorLibrary)
-                        {
-                            if (pattern.IsMatch(color.Key))
-                            {
-                                matches.Add(color.Value);
-                            }
-                        }
-
-                        if (matches.Count > 0)
-                        {
-                            return matches.ToArray();
-                        }
-                        else
-                        {
-                            throw new ArgumentTransformationMetadataException();
-                        }
-                    }
-
-                    throw new ArgumentTransformationMetadataException();
-                case SKColor color:
-                    return color;
-                default:
-                    IEnumerable properties = null;
-                    if (inputData is Hashtable ht)
-                    {
-                        properties = ht;
+                        return results[0];
                     }
                     else
                     {
-                        properties = PSObject.AsPSObject(inputData).Properties;
+                        return results;
                     }
 
-                    byte red = properties.GetValue("red") == null ?
-                        (byte)0 : (byte)LanguagePrimitives.ConvertTo<byte>(properties.GetValue("red"));
-                    byte green = properties.GetValue("green") == null ?
-                        (byte)0 : (byte)LanguagePrimitives.ConvertTo<byte>(properties.GetValue("green"));
-                    byte blue = properties.GetValue("blue") == null ?
-                        (byte)0 : (byte)LanguagePrimitives.ConvertTo<byte>(properties.GetValue("blue"));
-                    byte alpha = properties.GetValue("alpha") == null ?
-                        (byte)0 : (byte)LanguagePrimitives.ConvertTo<byte>(properties.GetValue("alpha"));
+                case SKColor color:
+                    return color;
 
-                    return new SKColor(red, green, blue, alpha);
+                default:
+                    results = TransformObject(inputData).ToArray();
+                    if (results.Length == 1)
+                    {
+                        return results[0];
+                    }
+                    else
+                    {
+                        return results;
+                    }
             }
         }
     }
