@@ -489,11 +489,29 @@ namespace PSWordCloud
                 yield break;
             }
 
-            var modes = new List<WordOrientation>((WordOrientation[])typeof(WordOrientation).GetEnumValues());
-            modes.Shuffle(_random);
-            foreach (var orientation in modes)
+            var set = _random.Next() % 4;
+
+            switch (set)
             {
-                yield return orientation;
+                case 0:
+                    yield return WordOrientation.Horizontal;
+                    yield return WordOrientation.Vertical;
+                    yield break;
+
+                case 1:
+                    yield return WordOrientation.Vertical;
+                    yield return WordOrientation.Horizontal;
+                    yield break;
+
+                case 2:
+                    yield return WordOrientation.Horizontal;
+                    yield return WordOrientation.VerticalFlipped;
+                    yield break;
+
+                case 3:
+                    yield return WordOrientation.VerticalFlipped;
+                    yield return WordOrientation.Horizontal;
+                    yield break;
             }
         }
 
