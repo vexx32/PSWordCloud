@@ -341,7 +341,6 @@ namespace PSWordCloud
                         {
                             brush.MeasureText(word, ref wordBounds);
                             wordBounds.Inflate(inflationValue, inflationValue);
-                            SKSize inflatedWordSize = wordBounds.Size;
                             SKPoint adjustedPoint, pointOffset;
 
                             foreach (var point in GetRadialPoints(centrePoint, radius, aspectRatio))
@@ -358,24 +357,24 @@ namespace PSWordCloud
                                     {
                                         case WordOrientation.Vertical:
                                             pointOffset = new SKPoint(
-                                                (inflatedWordSize.Height / 2) * (float)(_random.NextDouble() + 0.25),
-                                                (inflatedWordSize.Width / 2) * (float)(_random.NextDouble() + 0.25));
+                                                (wordBounds.Height / 2) * (float)(_random.NextDouble() + 0.25),
+                                                (wordBounds.Width / 2) * (float)(_random.NextDouble() + 0.25));
                                             adjustedPoint = point - pointOffset;
                                             SKMatrix.RotateDegrees(ref matrix, 90, adjustedPoint.X, adjustedPoint.Y);
                                             break;
 
                                         case WordOrientation.VerticalFlipped:
                                             pointOffset = new SKPoint(
-                                                (inflatedWordSize.Height / 2) * (float)(_random.NextDouble() + 0.25),
-                                                (inflatedWordSize.Width / 2) * (float)(_random.NextDouble() + 0.25));
+                                                (wordBounds.Height / 2) * (float)(_random.NextDouble() + 0.25),
+                                                (wordBounds.Width / 2) * (float)(_random.NextDouble() + 0.25));
                                             adjustedPoint = point - pointOffset;
                                             SKMatrix.RotateDegrees(ref matrix, -90, adjustedPoint.X, adjustedPoint.Y);
                                             break;
 
                                         default:
                                             pointOffset = new SKPoint(
-                                                (inflatedWordSize.Width / 2) + (float)(_random.NextDouble() - 0.5),
-                                                (inflatedWordSize.Height / 2) + (float)(_random.NextDouble() - 0.5));
+                                                (wordBounds.Width / 2) + (float)(_random.NextDouble() - 0.5),
+                                                (wordBounds.Height / 2) + (float)(_random.NextDouble() - 0.5));
                                             adjustedPoint = point - pointOffset;
                                             break;
                                     }
@@ -384,8 +383,8 @@ namespace PSWordCloud
                                     wordPath.Transform(matrix);
                                     wordPath.GetBounds(out wordBounds);
 
-                                    var inflatedWordBounds = SKRect.Inflate(wordBounds, inflationValue, inflationValue);
-                                    if (!occupiedSpace.IntersectsRect(inflatedWordBounds)
+                                    wordBounds.Inflate(inflationValue, inflationValue);
+                                    if (!occupiedSpace.IntersectsRect(wordBounds)
                                         && !wordBounds.FallsOutside(clipRegion))
                                     {
                                         targetPoint = adjustedPoint;
