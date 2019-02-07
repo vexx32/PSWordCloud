@@ -594,7 +594,8 @@ namespace PSWordCloud
                     var words = new List<string>(line.Split(_splitChars, StringSplitOptions.RemoveEmptyEntries));
                     words.RemoveAll(x =>
                         _stopWords.Contains(x, StringComparer.OrdinalIgnoreCase)
-                        || Regex.IsMatch(x, "^[^a-z]+$", RegexOptions.IgnoreCase));
+                        || Regex.IsMatch(x, "^[^a-z]+$", RegexOptions.IgnoreCase)
+                        || x.Length < 2);
                     return words;
                 });
         }
