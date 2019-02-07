@@ -377,7 +377,7 @@ namespace PSWordCloud
                                             break;
                                     }
 
-                                    adjustedPoint = SKPoint.Add(point, pointOffset);
+                                    adjustedPoint = SKPoint.Subtract(point, pointOffset);
                                     wordPath = brush.GetTextPath(word, adjustedPoint.X, adjustedPoint.Y);
                                     wordPath.Transform(matrix);
                                     wordPath.GetBounds(out SKRect bounds);
