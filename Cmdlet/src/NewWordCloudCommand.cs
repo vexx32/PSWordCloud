@@ -327,7 +327,7 @@ namespace PSWordCloud
                         wordCount++;
                         wordPath.Reset();
 
-                        inflationValue = brush.StrokeWidth + Padding * scaledWordSizes[word] / 8;
+                        inflationValue = brush.StrokeWidth + Padding * scaledWordSizes[word] / 100;
                         targetOrientation = WordOrientation.Horizontal;
                         targetPoint = SKPoint.Empty;
 
