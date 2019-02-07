@@ -272,7 +272,7 @@ namespace PSWordCloud
                             if (adjustedWordSize < 5) continue;
 
                             brush.TextSize = adjustedWordSize;
-                            var adjustedTextWidth = brush.MeasureText(word) * Padding;
+                            var adjustedTextWidth = brush.MeasureText(word) + Padding;
 
                             if ((DisableRotation.IsPresent && adjustedTextWidth > drawableBounds.Width)
                                 || adjustedTextWidth > Math.Max(drawableBounds.Width, drawableBounds.Height))
