@@ -333,7 +333,7 @@ namespace PSWordCloud
 
                         brush.NextWord(scaledWordSizes[word], StrokeWidth, _nextColor);
 
-                        progress.Activity = string.Format("Drawing '{0}' at {1} em", word, brush.TextSize);
+                        progress.Activity = string.Format("Drawing '{0}' at {1:0} em", word, brush.TextSize);
                         progress.PercentComplete = 100 * wordCount / scaledWordSizes.Count;
                         WriteProgress(progress);
 
