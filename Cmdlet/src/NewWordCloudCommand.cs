@@ -358,15 +358,15 @@ namespace PSWordCloud
                                     {
                                         case WordOrientation.Vertical:
                                             pointOffset = new SKPoint(
-                                                inflatedWordSize.Height * 0.5f * (float)(_random.NextDouble() + 0.25),
-                                                inflatedWordSize.Width * 0.5f * (float)(_random.NextDouble() + 0.25));
+                                                (inflatedWordSize.Height / 2) + (float)(_random.NextDouble() + 0.25),
+                                                (inflatedWordSize.Width / 2) + (float)(_random.NextDouble() + 0.25));
                                             SKMatrix.RotateDegrees(ref matrix, 90, centrePoint.X, centrePoint.Y);
                                             break;
 
                                         case WordOrientation.VerticalFlipped:
                                             pointOffset = new SKPoint(
-                                                inflatedWordSize.Height * 0.5f * (float)(_random.NextDouble() + 0.25),
-                                                inflatedWordSize.Width * 0.5f * (float)(_random.NextDouble() + 0.25));
+                                                (inflatedWordSize.Height / 2) + (float)(_random.NextDouble() + 0.25),
+                                                (inflatedWordSize.Width / 2) + (float)(_random.NextDouble() + 0.25));
                                             SKMatrix.RotateDegrees(ref matrix, -90, centrePoint.X, centrePoint.Y);
                                             break;
 
@@ -515,7 +515,7 @@ namespace PSWordCloud
 
         private void SetFontScale(SKRegion space, float averageWordFrequency, int wordCount)
         {
-            _fontScale = WordScale * (space.Bounds.Height + space.Bounds.Width)
+            _fontScale = 2.5f * WordScale * (space.Bounds.Height + space.Bounds.Width)
                 / (1.5f * averageWordFrequency * Math.Min(wordCount, MaxRenderedWords));
         }
 
