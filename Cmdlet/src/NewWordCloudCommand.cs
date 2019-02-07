@@ -372,8 +372,8 @@ namespace PSWordCloud
 
                                         default:
                                             pointOffset = new SKPoint(
-                                                inflatedWordSize.Width * 0.5f * (float)(_random.NextDouble() + 0.25),
-                                                inflatedWordSize.Height * 0.5f * (float)(_random.NextDouble() + 0.25));
+                                                (inflatedWordSize.Width / 2) + (float)(_random.NextDouble() + 0.25),
+                                                (inflatedWordSize.Height / 2) + (float)(_random.NextDouble() + 0.25));
                                             break;
                                     }
 
