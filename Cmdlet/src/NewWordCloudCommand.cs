@@ -382,6 +382,7 @@ namespace PSWordCloud
                                     wordPath = brush.GetTextPath(word, adjustedPoint.X, adjustedPoint.Y);
                                     wordPath.Transform(matrix);
                                     wordPath.GetBounds(out wordBounds);
+                                    wordPath.FillType = SKPathFillType.Winding;
 
                                     wordBounds.Inflate(inflationValue, inflationValue);
                                     if (!occupiedSpace.IntersectsRect(wordBounds)
