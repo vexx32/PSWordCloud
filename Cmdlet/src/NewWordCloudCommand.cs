@@ -15,7 +15,7 @@ namespace PSWordCloud
 
         #region Constants
 
-        private const float FOCUS_WORD_SCALE = 1.3f;
+        private const float FOCUS_WORD_SCALE = 1.5f;
         private const float BLEED_AREA_SCALE = 1.15f;
 
         #endregion Constants
