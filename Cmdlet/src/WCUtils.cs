@@ -25,6 +25,21 @@ namespace PSWordCloud
             return (float)(degrees * Math.PI / 180);
         }
 
+        /// <summary>
+        /// Checks if any part of the rectangle lies outside the region's bounds.
+        /// </summary>
+        /// <param name="region">The region to test for edge intersection.</param>
+        /// <param name="other">The rectangle to test position against the edges of the region.</param>
+        /// <returns>Returns false if the rectangle is entirely within the region, and false otherwise.</returns>
+        public static bool FallsOutside(this SKRect other, SKRegion region)
+        {
+            var bounds = region.Bounds;
+            return other.Top < bounds.Top
+                || other.Bottom > bounds.Bottom
+                || other.Left < bounds.Left
+                || other.Right > bounds.Right;
+        }
+
         public static void NextWord(this SKPaint brush, float wordSize, float strokeWidth, SKColor color)
         {
             brush.TextSize = wordSize;
