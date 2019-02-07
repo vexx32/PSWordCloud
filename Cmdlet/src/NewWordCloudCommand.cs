@@ -327,7 +327,7 @@ namespace PSWordCloud
                         wordCount++;
                         wordPath.Reset();
 
-                        inflationValue = brush.StrokeWidth + Padding * scaledWordSizes[word] / 8;
+                        inflationValue = StrokeWidth + Padding * scaledWordSizes[word] * 0.03f;
                         targetOrientation = WordOrientation.Horizontal;
                         targetPoint = SKPoint.Empty;
 
@@ -358,30 +358,35 @@ namespace PSWordCloud
                                     {
                                         case WordOrientation.Vertical:
                                             pointOffset = new SKPoint(
-                                                (inflatedWordSize.Height / 2) + (float)(_random.NextDouble() + 0.25),
-                                                (inflatedWordSize.Width / 2) + (float)(_random.NextDouble() + 0.25));
-                                            SKMatrix.RotateDegrees(ref matrix, 90, centrePoint.X, centrePoint.Y);
+                                                (inflatedWordSize.Height / 2) * (float)(_random.NextDouble() + 0.25),
+                                                (inflatedWordSize.Width / 2) * (float)(_random.NextDouble() + 0.25));
+                                            adjustedPoint = point - pointOffset;
+                                            SKMatrix.RotateDegrees(ref matrix, 90, adjustedPoint.X, adjustedPoint.Y);
                                             break;
 
                                         case WordOrientation.VerticalFlipped:
                                             pointOffset = new SKPoint(
-                                                (inflatedWordSize.Height / 2) + (float)(_random.NextDouble() + 0.25),
-                                                (inflatedWordSize.Width / 2) + (float)(_random.NextDouble() + 0.25));
-                                            SKMatrix.RotateDegrees(ref matrix, -90, centrePoint.X, centrePoint.Y);
+                                                (inflatedWordSize.Height / 2) * (float)(_random.NextDouble() + 0.25),
+                                                (inflatedWordSize.Width / 2) * (float)(_random.NextDouble() + 0.25));
+                                            adjustedPoint = point - pointOffset;
+                                            SKMatrix.RotateDegrees(ref matrix, -90, adjustedPoint.X, adjustedPoint.Y);
                                             break;
 
                                         default:
                                             pointOffset = new SKPoint(
-                                                (inflatedWordSize.Width / 2) + (float)(_random.NextDouble() + 0.25),
-                                                (inflatedWordSize.Height / 2) + (float)(_random.NextDouble() + 0.25));
+                                                (inflatedWordSize.Width / 2) + (float)(_random.NextDouble() - 0.5),
+                                                (inflatedWordSize.Height / 2) + (float)(_random.NextDouble() - 0.5));
+                                            adjustedPoint = point - pointOffset;
                                             break;
                                     }
 
-                                    adjustedPoint = SKPoint.Subtract(point, pointOffset);
                                     wordPath = brush.GetTextPath(word, adjustedPoint.X, adjustedPoint.Y);
                                     wordPath.Transform(matrix);
-                                    wordPath.GetBounds(out SKRect bounds);
-                                    if (!occupiedSpace.IntersectsRect(bounds) && !bounds.FallsOutside(clipRegion))
+                                    wordPath.GetBounds(out wordBounds);
+
+                                    var inflatedWordBounds = SKRect.Inflate(wordBounds, inflationValue, inflationValue);
+                                    if (!occupiedSpace.IntersectsRect(inflatedWordBounds)
+                                        && !wordBounds.FallsOutside(clipRegion))
                                     {
                                         targetPoint = adjustedPoint;
                                         targetOrientation = orientation;
@@ -515,8 +520,8 @@ namespace PSWordCloud
 
         private void SetFontScale(SKRegion space, float averageWordFrequency, int wordCount)
         {
-            _fontScale = 2.5f * WordScale * (space.Bounds.Height + space.Bounds.Width)
-                / (1.5f * averageWordFrequency * Math.Min(wordCount, MaxRenderedWords));
+            _fontScale = WordScale * (space.Bounds.Height + space.Bounds.Width)
+                / (averageWordFrequency * Math.Min(wordCount, MaxRenderedWords));
         }
 
         private float ScaleWordSize(float baseSize, IDictionary<string, float> scaleDictionary)
@@ -526,7 +531,7 @@ namespace PSWordCloud
                 - scaleDictionary.Values.Min()
                 - scaleDictionary.Values.Average();
 
-            float scaledSize = baseSize * _fontScale * (0.9f + 2 * (float)_random.NextDouble() / (1 + wordDensity));
+            float scaledSize = baseSize * _fontScale * (0.9f + 3 * (float)_random.NextDouble() / (1 + wordDensity));
             return scaledSize < 0.5f ? scaledSize + 0.5f : scaledSize;
         }
 
