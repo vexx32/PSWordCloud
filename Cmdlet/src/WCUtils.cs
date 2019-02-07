@@ -5,8 +5,8 @@ using System.Collections.ObjectModel;
 using System.Linq;
 using System.Management.Automation;
 using System.Reflection;
-using SkiaSharp;
 using System.Runtime.CompilerServices;
+using SkiaSharp;
 
 [assembly: InternalsVisibleTo("Cmdlet.Tests")]
 namespace PSWordCloud
@@ -138,7 +138,7 @@ namespace PSWordCloud
             }
         }
 
-        internal static SKFontManager FontManager = SKFontManager.CreateDefault();
+        public static SKFontManager FontManager = SKFontManager.Default;
 
         internal static ReadOnlyDictionary<string, (string Tooltip, SKSizeI Size)> StandardImageSizes =
             new ReadOnlyDictionary<string, (string, SKSizeI)>(new Dictionary<string, (string, SKSizeI)>() {
