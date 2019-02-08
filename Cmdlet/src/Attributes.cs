@@ -164,13 +164,22 @@ namespace PSWordCloud
             CommandAst commandAst,
             IDictionary fakeBoundParameters)
         {
+            string matchString = wordToComplete.TrimStart('"').TrimEnd('"');
             var fontList = WCUtils.FontManager.FontFamilies;
             foreach (string font in fontList)
             {
                 if (string.IsNullOrEmpty(wordToComplete) ||
-                    font.StartsWith(wordToComplete, StringComparison.OrdinalIgnoreCase))
+                    font.StartsWith(matchString, StringComparison.OrdinalIgnoreCase))
                 {
-                    yield return new CompletionResult(font, font, CompletionResultType.ParameterName, string.Empty);
+                    if (font.Contains(' ') || wordToComplete.StartsWith("\""))
+                    {
+                        var result = string.Format("\"{0}\"", font);
+                        yield return new CompletionResult(result, font, CompletionResultType.ParameterName, font);
+                    }
+                    else
+                    {
+                        yield return new CompletionResult(font, font, CompletionResultType.ParameterName, font);
+                    }
                 }
             }
         }
