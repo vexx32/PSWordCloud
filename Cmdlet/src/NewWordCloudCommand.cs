@@ -440,10 +440,10 @@ namespace PSWordCloud
                                     {
                                         case WordOrientation.Vertical:
                                             pointOffset = new SKPoint(
-                                                -(wordBounds.Height / 2) + (float)(_random.NextDouble() - 0.5),
+                                                (wordBounds.Height / 2) + (float)(_random.NextDouble() - 0.5),
                                                 (wordBounds.Width / 2) + (float)(_random.NextDouble() - 0.5));
                                             adjustedPoint = point - pointOffset;
-                                            SKMatrix.RotateDegrees(ref matrix, 90, adjustedPoint.X, adjustedPoint.Y);
+                                            SKMatrix.RotateDegrees(ref matrix, 90, point.X, point.Y);
                                             break;
 
                                         case WordOrientation.VerticalFlipped:
@@ -451,7 +451,7 @@ namespace PSWordCloud
                                                 (wordBounds.Height / 2) + (float)(_random.NextDouble() - 0.5),
                                                 (wordBounds.Width / 2) + (float)(_random.NextDouble() - 0.5));
                                             adjustedPoint = point - pointOffset;
-                                            SKMatrix.RotateDegrees(ref matrix, -90, adjustedPoint.X, adjustedPoint.Y);
+                                            SKMatrix.RotateDegrees(ref matrix, -90, point.X, point.Y);
                                             break;
 
                                         default:
@@ -608,7 +608,7 @@ namespace PSWordCloud
         private void SetFontScale(SKRegion space, float averageWordFrequency, int wordCount)
         {
             _fontScale = WordScale * (space.Bounds.Height + space.Bounds.Width)
-                / (1.25f * averageWordFrequency * Math.Min(wordCount, MaxRenderedWords));
+                / (1.5f * averageWordFrequency * Math.Min(wordCount, MaxRenderedWords));
         }
 
         private float ScaleWordSize(float baseSize, IDictionary<string, float> scaleDictionary)
