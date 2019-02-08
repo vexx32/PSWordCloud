@@ -29,7 +29,7 @@ Get-ChildItem -Path "$PSScriptRoot${/}bin${/}Debug${/}netstandard2.0${/}publish$
     }
 }
 
-Add-Type -Path "$PSScriptRoot${/}bin${/}debug${/}netstandard2.0${/}publish${/}SkiaSharp.dll"
-Import-Module "$PSScriptRoot${/}bin${/}debug${/}netstandard2.0${/}publish${/}PSWordCloudCmdlet.dll"
+Add-Type -Path "$PSScriptRoot${/}bin${/}Debug${/}netstandard2.0${/}publish${/}SkiaSharp.dll"
+Import-Module "$PSScriptRoot${/}bin${/}Debug${/}netstandard2.0${/}publish${/}PSWordCloudCmdlet.dll"
 
 Export-ModuleMember -Cmdlet 'New-WordCloud'
