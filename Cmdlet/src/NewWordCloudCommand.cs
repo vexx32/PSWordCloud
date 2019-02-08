@@ -44,6 +44,11 @@ namespace PSWordCloud
         [Alias("OutFile", "ExportPath", "ImagePath")]
         public string[] Path { get; set; }
 
+        private string _backgroundFullPath;
+        [Parameter(Mandatory = true, ParameterSetName = "FileBackground")]
+        [Parameter(Mandatory = true, ParameterSetName = "FileBackground-Mono")]
+        public string BackgroundImage { get; set; }
+
         [Parameter]
         [ArgumentCompleter(typeof(ImageSizeCompleter))]
         [TransformToSKSizeI]
@@ -175,6 +180,12 @@ namespace PSWordCloud
                 }
             }
 
+            if (ParameterSetName == "FileBackground" || ParameterSetName == "FileBackground-Mono")
+            {
+                Environment.CurrentDirectory = SessionState.Path.CurrentFileSystemLocation.Path;
+                _backgroundFullPath = System.IO.Path.GetFullPath(BackgroundImage);
+            }
+
             if (targetPaths.Count == 0)
             {
                 ThrowTerminatingError(new ErrorRecord(
@@ -222,9 +233,10 @@ namespace PSWordCloud
             var wordCount = 0;
             var wordScaleDictionary = new Dictionary<string, float>(StringComparer.OrdinalIgnoreCase);
             SKRect wordBounds = SKRect.Empty;
+            SKRectI drawableBounds;
             SKPath wordPath = null;
-            SKRectI drawableBounds = new SKRectI(0, 0, ImageSize.Width, ImageSize.Height);
             SKRegion clipRegion = null;
+            SKBitmap backgroundImage = null;
 
             float inflationValue = 0;
 
@@ -248,6 +260,16 @@ namespace PSWordCloud
 
             try
             {
+                if (ParameterSetName.StartsWith("FileBackground"))
+                {
+                    backgroundImage = SKBitmap.Decode(_backgroundFullPath);
+                    drawableBounds = new SKRectI(0, 0, backgroundImage.Width, backgroundImage.Height);
+                }
+                else
+                {
+                    drawableBounds = new SKRectI(0, 0, ImageSize.Width, ImageSize.Height);
+                }
+
                 wordPath = new SKPath();
                 clipRegion = new SKRegion();
                 clipRegion.SetRect(drawableBounds);
@@ -297,13 +319,17 @@ namespace PSWordCloud
 
                 var maxRadius = Math.Max(drawableBounds.Width, drawableBounds.Height) / 2f;
 
-                using (SKFileWStream streamWriter = new SKFileWStream(_resolvedPaths[0]))
-                using (SKXmlStreamWriter xmlWriter = new SKXmlStreamWriter(streamWriter))
+                using (SKFileWStream outputStream = new SKFileWStream(_resolvedPaths[0]))
+                using (SKXmlStreamWriter xmlWriter = new SKXmlStreamWriter(outputStream))
                 using (SKCanvas canvas = SKSvgCanvas.Create(drawableBounds, xmlWriter))
                 using (SKPaint brush = new SKPaint())
                 using (SKRegion occupiedSpace = new SKRegion())
                 {
-                    if (BackgroundColor != SKColor.Empty)
+                    if (ParameterSetName.StartsWith("FileBackground"))
+                    {
+                        canvas.DrawBitmap(backgroundImage, 0, 0);
+                    }
+                    else if (BackgroundColor != SKColor.Empty)
                     {
                         canvas.Clear(BackgroundColor);
                     }
@@ -423,7 +449,7 @@ namespace PSWordCloud
                     }
 
                     canvas.Flush();
-                    streamWriter.Flush();
+                    outputStream.Flush();
                     var file = InvokeProvider.Item.Get(_resolvedPaths[0]);
                     if (PassThru.IsPresent)
                     {
@@ -451,6 +477,7 @@ namespace PSWordCloud
             {
                 clipRegion?.Dispose();
                 wordPath?.Dispose();
+                backgroundImage?.Dispose();
             }
         }
 
