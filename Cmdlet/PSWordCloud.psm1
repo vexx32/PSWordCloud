@@ -25,6 +25,11 @@ Get-ChildItem -Path "$PSScriptRoot${/}bin${/}Debug${/}netstandard2.0${/}publish$
                 [System.IO.Path]::PathSeparator
                 $env:DYLD_LIBRARY_PATH
             )
+            $env:DYLD_PRINT_LIBRARIES = '{0}{1}{2}' -f @(
+                $Path.FullName
+                [System.IO.Path]::PathSeparator
+                $env:DYLD_PRINT_LIBRARIES
+            )
         }
     }
 }
