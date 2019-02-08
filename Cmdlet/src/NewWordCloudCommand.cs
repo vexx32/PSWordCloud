@@ -17,6 +17,8 @@ namespace PSWordCloud
 
         private const float FOCUS_WORD_SCALE = 1.5f;
         private const float BLEED_AREA_SCALE = 1.15f;
+        private const float MIN_SATURATION_VALUE = 5f;
+        private const float MIN_BRIGHTNESS_DISTANCE = 25f;
 
         #endregion Constants
 
@@ -62,11 +64,16 @@ namespace PSWordCloud
             "Consolas", SKFontStyle.Normal);
 
         [Parameter]
+        public SKFontStyle FontStyle { get; set; } = SKFontStyle.Normal;
+
+        [Parameter(ParameterSetName = "ColorBackground")]
+        [Parameter(ParameterSetName = "ColorBackground-Mono")]
         [Alias("Backdrop", "CanvasColor")]
         [ArgumentCompleter(typeof(SKColorCompleter))]
         [TransformToSKColor]
         public SKColor BackgroundColor { get; set; } = SKColors.Black;
 
+        private IEnumerable<SKColor> _colors;
         [Parameter]
         [TransformToSKColor]
         [ArgumentCompleter(typeof(SKColorCompleter))]
@@ -106,8 +113,13 @@ namespace PSWordCloud
 
         [Parameter]
         [Alias("MaxWords")]
-        [ValidateRange(0, 1000)]
-        public ushort MaxRenderedWords { get; set; } = 100;
+        [ValidateRange(0, int.MaxValue)]
+        public int MaxRenderedWords { get; set; } = 100;
+
+        [Parameter]
+        [Alias("MaxColours")]
+        [ValidateRange(1, int.MaxValue)]
+        public int MaxColors { get; set; } = int.MaxValue;
 
         [Parameter]
         [Alias("SeedValue")]
@@ -116,6 +128,15 @@ namespace PSWordCloud
         [Parameter]
         [Alias()]
         public SwitchParameter DisableRotation { get; set; }
+
+        [Parameter(Mandatory = true, ParameterSetName = "FileBackground-Mono")]
+        [Parameter(Mandatory = true, ParameterSetName = "ColorBackground-Mono")]
+        [Alias("BlackAndWhite", "Greyscale")]
+        public SwitchParameter Monochrome { get; set; }
+
+        [Parameter]
+        [Alias()]
+        public SwitchParameter AllowStopWords { get; set; }
 
         [Parameter]
         public SwitchParameter PassThru { get; set; }
@@ -151,15 +172,39 @@ namespace PSWordCloud
         {
             get
             {
-                if (_colorIndex >= ColorSet.Length)
+                if (_colorIndex >= _colors.Count())
                 {
                     _colorIndex = 0;
                 }
 
-                var color = ColorSet[_colorIndex];
+                var color = _colors.ElementAt(_colorIndex);
                 _colorIndex++;
 
                 return color;
+            }
+        }
+
+        private IEnumerable<SKColor> ProcessColorSet(SKColor[] set)
+        {
+            _random.Shuffle(set);
+            BackgroundColor.ToHsv(out float bh, out float bs, out float backgroundBrightness);
+
+            foreach (var color in set.Take(MaxColors))
+            {
+                if (!Monochrome)
+                {
+                    color.ToHsv(out float h, out float s, out float v);
+                    if (s >= MIN_SATURATION_VALUE && Math.Abs(v - backgroundBrightness) > MIN_BRIGHTNESS_DISTANCE)
+                    {
+                        yield return color;
+                    }
+                }
+                else
+                {
+                    color.ToHsv(out float h, out float s, out float brightness);
+                    byte level = (byte)Math.Floor(255 * brightness / 100f);
+                    yield return new SKColor(level, level, level);
+                }
             }
         }
 
@@ -196,6 +241,16 @@ namespace PSWordCloud
             }
 
             _resolvedPaths = targetPaths.ToArray();
+
+            _colors = ProcessColorSet(ColorSet).OrderByDescending(
+                x =>
+                {
+                    x.ToHsv(out float h, out float saturation, out float brightness);
+                    var rand = brightness * ((float)_random.NextDouble() - 0.5f) / (1 - saturation);
+                    return brightness + rand;
+                });
+
+            Typeface = WCUtils.FontManager.MatchTypeface(Typeface, FontStyle);
         }
 
         protected override void ProcessRecord()
@@ -548,7 +603,7 @@ namespace PSWordCloud
         private void SetFontScale(SKRegion space, float averageWordFrequency, int wordCount)
         {
             _fontScale = WordScale * (space.Bounds.Height + space.Bounds.Width)
-                / (averageWordFrequency * Math.Min(wordCount, MaxRenderedWords));
+                / (1.25f * averageWordFrequency * Math.Min(wordCount, MaxRenderedWords));
         }
 
         private float ScaleWordSize(float baseSize, IDictionary<string, float> scaleDictionary)
@@ -625,7 +680,7 @@ namespace PSWordCloud
                 {
                     var words = new List<string>(line.Split(_splitChars, StringSplitOptions.RemoveEmptyEntries));
                     words.RemoveAll(x =>
-                        _stopWords.Contains(x, StringComparer.OrdinalIgnoreCase)
+                        (_stopWords.Contains(x, StringComparer.OrdinalIgnoreCase) && !AllowStopWords)
                         || Regex.IsMatch(x, "^[^a-z]+$", RegexOptions.IgnoreCase)
                         || x.Length < 2);
                     return words;
