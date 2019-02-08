@@ -1,5 +1,7 @@
-﻿# Add library folders to necessary path vars
-Get-ChildItem -Path "$PSScriptRoot\bin\Debug\netstandard2.0\publish\runtimes" -Recurse -Directory -Filter 'native' |
+﻿${/} = [System.IO.Path]::DirectorySeparatorChar
+
+# Add library folders to necessary path vars
+Get-ChildItem -Path "$PSScriptRoot${/}bin${/}Debug${/}netstandard2.0${/}publish${/}runtimes" -Recurse -Directory -Filter 'native' |
     ForEach-Object {
     $Path = $_
     switch ($true) {
@@ -27,7 +29,7 @@ Get-ChildItem -Path "$PSScriptRoot\bin\Debug\netstandard2.0\publish\runtimes" -R
     }
 }
 
-Add-Type -Path "$PSScriptRoot\bin\debug\netstandard2.0\publish\SkiaSharp.dll"
-Import-Module "$PSScriptRoot\bin\debug\netstandard2.0\publish\PSWordCloudCmdlet.dll"
+Add-Type -Path "$PSScriptRoot${/}bin${/}Debug${/}netstandard2.0${/}publish${/}SkiaSharp.dll"
+Import-Module "$PSScriptRoot${/}bin${/}Debug${/}netstandard2.0${/}publish${/}PSWordCloudCmdlet.dll"
 
 Export-ModuleMember -Cmdlet 'New-WordCloud'
