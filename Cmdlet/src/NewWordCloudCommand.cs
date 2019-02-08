@@ -345,9 +345,6 @@ namespace PSWordCloud
                         {
                             var adjustedWordSize = ScaleWordSize(wordScaleDictionary[word], wordScaleDictionary);
 
-                            // If the final word size is too small, it probably won't be visible in the final image anyway
-                            if (adjustedWordSize < 5) continue;
-
                             brush.TextSize = adjustedWordSize;
                             var adjustedTextWidth = brush.MeasureText(word) + Padding;
 
@@ -367,7 +364,7 @@ namespace PSWordCloud
                 }
 
                 var aspectRatio = drawableBounds.Width / (float)drawableBounds.Height;
-                SKPoint centrePoint = new SKPoint(drawableBounds.MidX, drawableBounds.MidY);
+                SKPoint centrePoint = new SKPoint(drawableBounds.Width / 2f, drawableBounds.Height / 2f);
 
                 // Remove all words that were cut from the final rendering list
                 sortedWordList.RemoveAll(x => !scaledWordSizes.ContainsKey(x));
@@ -416,7 +413,9 @@ namespace PSWordCloud
                         var wordColor = _nextColor;
                         brush.NextWord(scaledWordSizes[word], StrokeWidth, wordColor);
 
-                        progress.Activity = string.Format("Drawing '{0}' at {1:0} em", word, brush.TextSize);
+                        progress.Activity = string.Format(
+                            "Drawing '{0}' at {1:0} em ({2} of {3})",
+                            word, brush.TextSize, wordCount, scaledWordSizes.Count);
                         progress.PercentComplete = 100 * wordCount / scaledWordSizes.Count;
                         WriteProgress(progress);
 
@@ -443,7 +442,7 @@ namespace PSWordCloud
                                                 (wordBounds.Height / 2) + (float)(_random.NextDouble() - 0.5),
                                                 (wordBounds.Width / 2) + (float)(_random.NextDouble() - 0.5));
                                             adjustedPoint = point - pointOffset;
-                                            SKMatrix.RotateDegrees(ref matrix, 90, point.X, point.Y);
+                                            SKMatrix.RotateDegrees(ref matrix, 90, adjustedPoint.X, adjustedPoint.Y);
                                             break;
 
                                         case WordOrientation.VerticalFlipped:
@@ -451,7 +450,7 @@ namespace PSWordCloud
                                                 (wordBounds.Height / 2) + (float)(_random.NextDouble() - 0.5),
                                                 (wordBounds.Width / 2) + (float)(_random.NextDouble() - 0.5));
                                             adjustedPoint = point - pointOffset;
-                                            SKMatrix.RotateDegrees(ref matrix, -90, point.X, point.Y);
+                                            SKMatrix.RotateDegrees(ref matrix, -90, adjustedPoint.X, adjustedPoint.Y);
                                             break;
 
                                         default:
@@ -488,11 +487,6 @@ namespace PSWordCloud
                     nextWord:
                         if (targetPoint != SKPoint.Empty)
                         {
-                            if (targetOrientation == WordOrientation.Vertical)
-                            {
-                                brush.IsVerticalText = true;
-                            }
-
                             if (MyInvocation.BoundParameters.ContainsKey("StrokeWidth"))
                             {
                                 brush.Color = StrokeColor;
@@ -579,29 +573,19 @@ namespace PSWordCloud
                 yield break;
             }
 
-            var set = _random.Next() % 4;
-
-            switch (set)
+            if (_random.NextDouble() > 0.5)
             {
-                case 0:
-                    yield return WordOrientation.Horizontal;
-                    yield return WordOrientation.Vertical;
-                    yield break;
-
-                case 1:
-                    yield return WordOrientation.Vertical;
-                    yield return WordOrientation.Horizontal;
-                    yield break;
-
-                case 2:
-                    yield return WordOrientation.Horizontal;
-                    yield return WordOrientation.VerticalFlipped;
-                    yield break;
-
-                case 3:
-                    yield return WordOrientation.VerticalFlipped;
-                    yield return WordOrientation.Horizontal;
-                    yield break;
+                yield return WordOrientation.Horizontal;
+                yield return _random.NextDouble() > 0.5
+                    ? WordOrientation.Vertical
+                    : WordOrientation.VerticalFlipped;
+            }
+            else
+            {
+                yield return _random.NextDouble() > 0.5
+                    ? WordOrientation.Vertical
+                    : WordOrientation.VerticalFlipped;
+                yield return WordOrientation.Horizontal;
             }
         }
 
