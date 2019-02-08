@@ -51,7 +51,8 @@ namespace PSWordCloud
         [Parameter(Mandatory = true, ParameterSetName = "FileBackground-Mono")]
         public string BackgroundImage { get; set; }
 
-        [Parameter]
+        [Parameter(ParameterSetName = "ColorBackground")]
+        [Parameter(ParameterSetName = "ColorBackground-Mono")]
         [ArgumentCompleter(typeof(ImageSizeCompleter))]
         [TransformToSKSizeI]
         public SKSizeI ImageSize { get; set; } = new SKSizeI(4096, 2304);
