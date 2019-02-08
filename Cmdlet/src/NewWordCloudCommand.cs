@@ -277,7 +277,7 @@ namespace PSWordCloud
 
             foreach (var line in text)
             {
-                _wordProcessingTasks.Add(Task.Run(async () => await ProcessLineAsync(line)));
+                _wordProcessingTasks.Add(ProcessLineAsync(line));
             }
         }
 
