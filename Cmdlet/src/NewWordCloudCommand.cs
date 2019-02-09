@@ -158,7 +158,9 @@ namespace PSWordCloud
         };
 
         private static readonly char[] _splitChars = new[] {
-            ' ','\n','\t','\r','.',',',';','\\','/','|',':','"','?','!','{','}','[',']',':','(',')','“','”','*','#','%','^','&','+','=' };
+            ' ','\n','\t','\r','.',',',';','\\','/','|',
+            ':','"','?','!','{','}','[',']',':','(',')',
+            '<','>','“','”','*','#','%','^','&','+','=' };
 
         private List<Task<IEnumerable<string>>> _wordProcessingTasks;
         private float _fontScale;
