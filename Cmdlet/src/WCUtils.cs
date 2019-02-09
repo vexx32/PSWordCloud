@@ -61,6 +61,13 @@ namespace PSWordCloud
             brush.Color = color;
         }
 
+        public static float SortValue(this SKColor color, float sortAdjustment)
+        {
+            color.ToHsv(out float h, out float saturation, out float brightness);
+            var rand = brightness * (sortAdjustment - 0.5f) / (1 - saturation);
+            return brightness + rand;
+        }
+
         public static bool SetPath(this SKRegion region, SKPath path, bool usePathBounds)
         {
             if (usePathBounds && path.GetBounds(out SKRect bounds))

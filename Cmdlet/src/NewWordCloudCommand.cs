@@ -38,13 +38,18 @@ namespace PSWordCloud
         [AllowEmptyString()]
         public PSObject InputObject { get; set; }
 
-        private string[] _resolvedPaths;
+        private string _resolvedPath;
         [Parameter(Mandatory = true, Position = 0, ParameterSetName = "ColorBackground")]
         [Parameter(Mandatory = true, Position = 0, ParameterSetName = "ColorBackground-Mono")]
         [Parameter(Mandatory = true, Position = 0, ParameterSetName = "FileBackground")]
         [Parameter(Mandatory = true, Position = 0, ParameterSetName = "FileBackground-Mono")]
         [Alias("OutFile", "ExportPath", "ImagePath")]
-        public string[] Path { get; set; }
+        public string Path
+        {
+            get => _resolvedPath;
+            set => _resolvedPath = SessionState.Path
+                .GetUnresolvedProviderPathFromPSPath(value, out ProviderInfo provider, out PSDriveInfo drive);
+        }
 
         private string _backgroundFullPath;
         [Parameter(Mandatory = true, ParameterSetName = "FileBackground")]
@@ -164,7 +169,6 @@ namespace PSWordCloud
 
         private List<Task<IEnumerable<string>>> _wordProcessingTasks;
         private float _fontScale;
-        private float _wordScaleRange;
         private static Random _random;
         private static Random Random { get => _random = _random ?? new Random(); }
         private static float RandomFloat { get => (float)Random.NextDouble(); }
@@ -188,20 +192,10 @@ namespace PSWordCloud
 
         protected override void BeginProcessing()
         {
-            _random = MyInvocation.BoundParameters.ContainsKey("RandomSeed") ? new Random(RandomSeed) : new Random();
+            _random = MyInvocation.BoundParameters.ContainsKey(nameof(RandomSeed))
+                ? new Random(RandomSeed)
+                : new Random();
             _progressID = Random.Next();
-
-            var targetPaths = new List<string>();
-
-            foreach (string path in Path)
-            {
-                var resolvedPaths = SessionState.Path.GetUnresolvedProviderPathFromPSPath(
-                    path, out ProviderInfo provider, out PSDriveInfo drive);
-                if (resolvedPaths != null)
-                {
-                    targetPaths.Add(resolvedPaths);
-                }
-            }
 
             if (ParameterSetName == "FileBackground" || ParameterSetName == "FileBackground-Mono")
             {
@@ -209,27 +203,10 @@ namespace PSWordCloud
                 _backgroundFullPath = System.IO.Path.GetFullPath(BackgroundImage);
             }
 
-            if (targetPaths.Count == 0)
-            {
-                ThrowTerminatingError(new ErrorRecord(
-                    new ArgumentException("Unable to resolve any recognisable paths", "Path"),
-                    "PSWordCloud.BadPath",
-                    ErrorCategory.InvalidArgument,
-                    Path));
-            }
-
-            _resolvedPaths = targetPaths.ToArray();
-
             _colors = ProcessColorSet(ColorSet, BackgroundColor, MaxRenderedWords, Monochrome)
-                .OrderByDescending(x =>
-                    {
-                        x.ToHsv(out float h, out float saturation, out float brightness);
-                        var rand = brightness * (RandomFloat - 0.5f) / (1 - saturation);
-                        return brightness + rand;
-                    });
-
-            Typeface = WCUtils.FontManager.MatchTypeface(Typeface, FontStyle);
+                .OrderByDescending(x => x.SortValue(RandomFloat));
         }
+
 
         protected override void ProcessRecord()
         {
@@ -240,11 +217,7 @@ namespace PSWordCloud
             }
             else
             {
-                text = InputObject.BaseObject as string[];
-                if (text == null)
-                {
-                    text = new[] { InputObject.BaseObject as string };
-                }
+                text = InputObject.BaseObject as string[] ?? new[] { InputObject.BaseObject as string };
             }
 
             if (_wordProcessingTasks == null)
@@ -254,7 +227,7 @@ namespace PSWordCloud
 
             foreach (var line in text)
             {
-                _wordProcessingTasks.Add(ProcessLineAsync(line));
+                _wordProcessingTasks.Add(ProcessInputAsync(line));
             }
         }
 
@@ -281,19 +254,16 @@ namespace PSWordCloud
             // All words counted and in the dictionary.
             var highestWordFreq = wordScaleDictionary.Values.Max();
 
-            if (FocusWord != null)
+            if (MyInvocation.BoundParameters.ContainsKey(nameof(FocusWord)))
             {
                 wordScaleDictionary[FocusWord] = highestWordFreq = highestWordFreq * FOCUS_WORD_SCALE;
             }
-
-            _wordScaleRange = highestWordFreq - wordScaleDictionary.Values.Min();
-            float averageWordFrequency = wordScaleDictionary.Values.Average();
 
             List<string> sortedWordList = new List<string>(SortWordList(wordScaleDictionary, MaxRenderedWords));
 
             try
             {
-                if (ParameterSetName.StartsWith("FileBackground"))
+                if (MyInvocation.BoundParameters.ContainsKey(nameof(BackgroundImage)))
                 {
                     backgroundImage = SKBitmap.Decode(_backgroundFullPath);
                     drawableBounds = new SKRectI(0, 0, backgroundImage.Width, backgroundImage.Height);
@@ -309,7 +279,8 @@ namespace PSWordCloud
 
                 _fontScale = SetFontScale(
                     clipRegion,
-                    WordScale, averageWordFrequency,
+                    WordScale,
+                    wordScaleDictionary.Values.Average(),
                     Math.Min(wordScaleDictionary.Count, MaxRenderedWords));
 
                 var scaledWordSizes = new Dictionary<string, float>(
@@ -352,7 +323,7 @@ namespace PSWordCloud
 
                 var maxRadius = Math.Max(drawableBounds.Width, drawableBounds.Height) / 2f;
 
-                using (SKFileWStream outputStream = new SKFileWStream(_resolvedPaths[0]))
+                using (SKFileWStream outputStream = new SKFileWStream(_resolvedPath))
                 using (SKXmlStreamWriter xmlWriter = new SKXmlStreamWriter(outputStream))
                 using (SKCanvas canvas = SKSvgCanvas.Create(drawableBounds, xmlWriter))
                 using (SKPaint brush = new SKPaint())
@@ -368,7 +339,6 @@ namespace PSWordCloud
                     }
 
                     WordOrientation targetOrientation;
-
                     SKPoint targetPoint;
 
                     brush.IsAutohinted = true;
@@ -463,13 +433,15 @@ namespace PSWordCloud
                                     // No point checking more than a single point at the origin
                                     break;
                                 }
+
+                                radius += radialIncrement;
                             }
                         }
 
                     nextWord:
                         if (targetPoint != SKPoint.Empty)
                         {
-                            if (MyInvocation.BoundParameters.ContainsKey("StrokeWidth"))
+                            if (MyInvocation.BoundParameters.ContainsKey(nameof(StrokeWidth)))
                             {
                                 brush.Color = StrokeColor;
                                 brush.IsStroke = true;
@@ -486,22 +458,9 @@ namespace PSWordCloud
 
                     canvas.Flush();
                     outputStream.Flush();
-                    var file = InvokeProvider.Item.Get(_resolvedPaths[0]);
                     if (PassThru.IsPresent)
                     {
-                        WriteObject(file, true);
-                    }
-
-                    if (_resolvedPaths.Length > 1)
-                    {
-                        foreach (string path in _resolvedPaths)
-                        {
-                            if (path == _resolvedPaths[0]) continue;
-                            InvokeProvider.Item.Copy(
-                                _resolvedPaths[0], path, false,
-                                CopyContainers.CopyTargetContainer);
-                            WriteObject(InvokeProvider.Item.Get(path), true);
-                        }
+                        WriteObject(InvokeProvider.Item.Get(_resolvedPath), true);
                     }
                 }
             }
@@ -618,7 +577,7 @@ namespace PSWordCloud
 
         private static IEnumerable<string> SortWordList(IDictionary<string, float> dictionary, int maxWords)
         {
-            return dictionary.Keys.OrderByDescending(size => dictionary[size])
+            return dictionary.Keys.OrderByDescending(word => dictionary[word])
                 .Take(maxWords == 0 ? int.MaxValue : maxWords);
         }
 
@@ -673,7 +632,7 @@ namespace PSWordCloud
             } while (clockwise ? angle <= maxAngle : angle >= maxAngle);
         }
 
-        private async Task<IEnumerable<string>> ProcessLineAsync(string line)
+        private async Task<IEnumerable<string>> ProcessInputAsync(string line)
         {
             return await Task.Run<IEnumerable<string>>(
                 () =>
