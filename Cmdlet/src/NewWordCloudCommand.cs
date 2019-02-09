@@ -169,7 +169,6 @@ namespace PSWordCloud
 
         private List<Task<IEnumerable<string>>> _wordProcessingTasks;
         private float _fontScale;
-        private float _wordScaleRange;
         private static Random _random;
         private static Random Random { get => _random = _random ?? new Random(); }
         private static float RandomFloat { get => (float)Random.NextDouble(); }
@@ -260,7 +259,6 @@ namespace PSWordCloud
                 wordScaleDictionary[FocusWord] = highestWordFreq = highestWordFreq * FOCUS_WORD_SCALE;
             }
 
-            _wordScaleRange = highestWordFreq - wordScaleDictionary.Values.Min();
             float averageWordFrequency = wordScaleDictionary.Values.Average();
 
             List<string> sortedWordList = new List<string>(SortWordList(wordScaleDictionary, MaxRenderedWords));
