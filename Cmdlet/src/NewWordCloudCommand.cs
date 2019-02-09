@@ -259,8 +259,6 @@ namespace PSWordCloud
                 wordScaleDictionary[FocusWord] = highestWordFreq = highestWordFreq * FOCUS_WORD_SCALE;
             }
 
-            float averageWordFrequency = wordScaleDictionary.Values.Average();
-
             List<string> sortedWordList = new List<string>(SortWordList(wordScaleDictionary, MaxRenderedWords));
 
             try
@@ -281,7 +279,8 @@ namespace PSWordCloud
 
                 _fontScale = SetFontScale(
                     clipRegion,
-                    WordScale, averageWordFrequency,
+                    WordScale,
+                    wordScaleDictionary.Values.Average(),
                     Math.Min(wordScaleDictionary.Count, MaxRenderedWords));
 
                 var scaledWordSizes = new Dictionary<string, float>(
