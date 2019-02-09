@@ -205,13 +205,9 @@ namespace PSWordCloud
             }
 
             _colors = ProcessColorSet(ColorSet, BackgroundColor, MaxRenderedWords, Monochrome)
-                .OrderByDescending(x =>
-                    {
-                        x.ToHsv(out float h, out float saturation, out float brightness);
-                        var rand = brightness * (RandomFloat - 0.5f) / (1 - saturation);
-                        return brightness + rand;
-                    });
+                .OrderByDescending(x => x.SortValue(RandomFloat));
         }
+
 
         protected override void ProcessRecord()
         {
