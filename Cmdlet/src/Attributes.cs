@@ -206,18 +206,30 @@ namespace PSWordCloud
                         properties = PSObject.AsPSObject(inputData).Properties;
                     }
 
-                    SKFontStyleWeight weight = properties.GetValue("FontWeight") == null ?
-                        SKFontStyleWeight.Normal : LanguagePrimitives.ConvertTo<SKFontStyleWeight>(
-                            properties.GetValue("FontWeight"));
-                    SKFontStyleSlant slant = properties.GetValue("FontSlant") == null ?
-                        SKFontStyleSlant.Upright : LanguagePrimitives.ConvertTo<SKFontStyleSlant>(
-                            properties.GetValue("FontSlant"));
-                    SKFontStyleWidth width = properties.GetValue("FontWidth") == null ?
-                        SKFontStyleWidth.Normal : LanguagePrimitives.ConvertTo<SKFontStyleWidth>(
-                            properties.GetValue("FontWidth"));
-                    string familyName = LanguagePrimitives.ConvertTo<string>(properties.GetValue("FamilyName"));
+                    SKFontStyle style;
+                    if (properties.GetValue("FontWeight") == null
+                        || properties.GetValue("FontSlant") == null
+                        || properties.GetValue("FontWidth") == null)
+                    {
+                        SKFontStyleWeight weight = properties.GetValue("FontWeight") == null ?
+                            SKFontStyleWeight.Normal : LanguagePrimitives.ConvertTo<SKFontStyleWeight>(
+                                properties.GetValue("FontWeight"));
+                        SKFontStyleSlant slant = properties.GetValue("FontSlant") == null ?
+                            SKFontStyleSlant.Upright : LanguagePrimitives.ConvertTo<SKFontStyleSlant>(
+                                properties.GetValue("FontSlant"));
+                        SKFontStyleWidth width = properties.GetValue("FontWidth") == null ?
+                            SKFontStyleWidth.Normal : LanguagePrimitives.ConvertTo<SKFontStyleWidth>(
+                                properties.GetValue("FontWidth"));
+                        style = new SKFontStyle(weight, width, slant);
+                    }
+                    else
+                    {
+                        var customStyle = properties.GetValue("FontStyle") as SKFontStyle;
+                        style = customStyle == null ? SKFontStyle.Normal : customStyle;
+                    }
 
-                    return WCUtils.FontManager.MatchFamily(familyName, new SKFontStyle(weight, width, slant));
+                    string familyName = LanguagePrimitives.ConvertTo<string>(properties.GetValue("FamilyName"));
+                    return WCUtils.FontManager.MatchFamily(familyName, style);
             }
         }
     }
