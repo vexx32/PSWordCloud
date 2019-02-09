@@ -38,13 +38,18 @@ namespace PSWordCloud
         [AllowEmptyString()]
         public PSObject InputObject { get; set; }
 
-        private string[] _resolvedPaths;
+        private string _resolvedPath;
         [Parameter(Mandatory = true, Position = 0, ParameterSetName = "ColorBackground")]
         [Parameter(Mandatory = true, Position = 0, ParameterSetName = "ColorBackground-Mono")]
         [Parameter(Mandatory = true, Position = 0, ParameterSetName = "FileBackground")]
         [Parameter(Mandatory = true, Position = 0, ParameterSetName = "FileBackground-Mono")]
         [Alias("OutFile", "ExportPath", "ImagePath")]
-        public string[] Path { get; set; }
+        public string Path
+        {
+            get => _resolvedPath;
+            set => _resolvedPath = SessionState.Path
+                .GetUnresolvedProviderPathFromPSPath(value, out ProviderInfo provider, out PSDriveInfo drive);
+        }
 
         private string _backgroundFullPath;
         [Parameter(Mandatory = true, ParameterSetName = "FileBackground")]
@@ -188,37 +193,14 @@ namespace PSWordCloud
 
         protected override void BeginProcessing()
         {
-            _random = MyInvocation.BoundParameters.ContainsKey("RandomSeed") ? new Random(RandomSeed) : new Random();
+            _random = MyInvocation.BoundParameters.ContainsKey(nameof(RandomSeed)) ? new Random(RandomSeed) : new Random();
             _progressID = Random.Next();
-
-            var targetPaths = new List<string>();
-
-            foreach (string path in Path)
-            {
-                var resolvedPaths = SessionState.Path.GetUnresolvedProviderPathFromPSPath(
-                    path, out ProviderInfo provider, out PSDriveInfo drive);
-                if (resolvedPaths != null)
-                {
-                    targetPaths.Add(resolvedPaths);
-                }
-            }
 
             if (ParameterSetName == "FileBackground" || ParameterSetName == "FileBackground-Mono")
             {
                 Environment.CurrentDirectory = SessionState.Path.CurrentFileSystemLocation.Path;
                 _backgroundFullPath = System.IO.Path.GetFullPath(BackgroundImage);
             }
-
-            if (targetPaths.Count == 0)
-            {
-                ThrowTerminatingError(new ErrorRecord(
-                    new ArgumentException("Unable to resolve any recognisable paths", "Path"),
-                    "PSWordCloud.BadPath",
-                    ErrorCategory.InvalidArgument,
-                    Path));
-            }
-
-            _resolvedPaths = targetPaths.ToArray();
 
             _colors = ProcessColorSet(ColorSet, BackgroundColor, MaxRenderedWords, Monochrome)
                 .OrderByDescending(x =>
@@ -227,8 +209,6 @@ namespace PSWordCloud
                         var rand = brightness * (RandomFloat - 0.5f) / (1 - saturation);
                         return brightness + rand;
                     });
-
-            Typeface = WCUtils.FontManager.MatchTypeface(Typeface, FontStyle);
         }
 
         protected override void ProcessRecord()
@@ -352,7 +332,7 @@ namespace PSWordCloud
 
                 var maxRadius = Math.Max(drawableBounds.Width, drawableBounds.Height) / 2f;
 
-                using (SKFileWStream outputStream = new SKFileWStream(_resolvedPaths[0]))
+                using (SKFileWStream outputStream = new SKFileWStream(_resolvedPath))
                 using (SKXmlStreamWriter xmlWriter = new SKXmlStreamWriter(outputStream))
                 using (SKCanvas canvas = SKSvgCanvas.Create(drawableBounds, xmlWriter))
                 using (SKPaint brush = new SKPaint())
@@ -368,7 +348,6 @@ namespace PSWordCloud
                     }
 
                     WordOrientation targetOrientation;
-
                     SKPoint targetPoint;
 
                     brush.IsAutohinted = true;
@@ -463,13 +442,15 @@ namespace PSWordCloud
                                     // No point checking more than a single point at the origin
                                     break;
                                 }
+
+                                radius += radialIncrement;
                             }
                         }
 
                     nextWord:
                         if (targetPoint != SKPoint.Empty)
                         {
-                            if (MyInvocation.BoundParameters.ContainsKey("StrokeWidth"))
+                            if (MyInvocation.BoundParameters.ContainsKey(nameof(StrokeWidth)))
                             {
                                 brush.Color = StrokeColor;
                                 brush.IsStroke = true;
@@ -486,22 +467,9 @@ namespace PSWordCloud
 
                     canvas.Flush();
                     outputStream.Flush();
-                    var file = InvokeProvider.Item.Get(_resolvedPaths[0]);
                     if (PassThru.IsPresent)
                     {
-                        WriteObject(file, true);
-                    }
-
-                    if (_resolvedPaths.Length > 1)
-                    {
-                        foreach (string path in _resolvedPaths)
-                        {
-                            if (path == _resolvedPaths[0]) continue;
-                            InvokeProvider.Item.Copy(
-                                _resolvedPaths[0], path, false,
-                                CopyContainers.CopyTargetContainer);
-                            WriteObject(InvokeProvider.Item.Get(path), true);
-                        }
+                        WriteObject(InvokeProvider.Item.Get(_resolvedPath), true);
                     }
                 }
             }
