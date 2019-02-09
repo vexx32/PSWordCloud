@@ -263,7 +263,7 @@ namespace PSWordCloud
 
             try
             {
-                if (ParameterSetName.StartsWith("FileBackground"))
+                if (MyInvocation.BoundParameters.ContainsKey(nameof(BackgroundImage)))
                 {
                     backgroundImage = SKBitmap.Decode(_backgroundFullPath);
                     drawableBounds = new SKRectI(0, 0, backgroundImage.Width, backgroundImage.Height);
