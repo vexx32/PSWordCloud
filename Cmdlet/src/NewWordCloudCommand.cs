@@ -278,7 +278,7 @@ namespace PSWordCloud
                 clipRegion.SetRect(drawableBounds);
 
                 _fontScale = SetFontScale(
-                    clipRegion,
+                    clipRegion.Bounds,
                     WordScale,
                     wordScaleDictionary.Values.Average(),
                     Math.Min(wordScaleDictionary.Count, MaxRenderedWords));
@@ -557,9 +557,9 @@ namespace PSWordCloud
             }
         }
 
-        private static float SetFontScale(SKRegion space, float baseScale, float averageWordFrequency, int wordCount)
+        private static float SetFontScale(SKRect space, float baseScale, float averageWordFrequency, int wordCount)
         {
-            return baseScale * (space.Bounds.Height + space.Bounds.Width)
+            return baseScale * (space.Height + space.Width)
                 / (1.5f * averageWordFrequency * wordCount);
         }
 
