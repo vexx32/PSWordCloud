@@ -193,7 +193,9 @@ namespace PSWordCloud
 
         protected override void BeginProcessing()
         {
-            _random = MyInvocation.BoundParameters.ContainsKey(nameof(RandomSeed)) ? new Random(RandomSeed) : new Random();
+            _random = MyInvocation.BoundParameters.ContainsKey(nameof(RandomSeed))
+                ? new Random(RandomSeed)
+                : new Random();
             _progressID = Random.Next();
 
             if (ParameterSetName == "FileBackground" || ParameterSetName == "FileBackground-Mono")
@@ -220,11 +222,7 @@ namespace PSWordCloud
             }
             else
             {
-                text = InputObject.BaseObject as string[];
-                if (text == null)
-                {
-                    text = new[] { InputObject.BaseObject as string };
-                }
+                text = InputObject.BaseObject as string[] ?? new[] { InputObject.BaseObject as string };
             }
 
             if (_wordProcessingTasks == null)
@@ -234,7 +232,7 @@ namespace PSWordCloud
 
             foreach (var line in text)
             {
-                _wordProcessingTasks.Add(ProcessLineAsync(line));
+                _wordProcessingTasks.Add(ProcessInputAsync(line));
             }
         }
 
@@ -261,7 +259,7 @@ namespace PSWordCloud
             // All words counted and in the dictionary.
             var highestWordFreq = wordScaleDictionary.Values.Max();
 
-            if (FocusWord != null)
+            if (MyInvocation.BoundParameters.ContainsKey(nameof(FocusWord)))
             {
                 wordScaleDictionary[FocusWord] = highestWordFreq = highestWordFreq * FOCUS_WORD_SCALE;
             }
@@ -586,7 +584,7 @@ namespace PSWordCloud
 
         private static IEnumerable<string> SortWordList(IDictionary<string, float> dictionary, int maxWords)
         {
-            return dictionary.Keys.OrderByDescending(size => dictionary[size])
+            return dictionary.Keys.OrderByDescending(word => dictionary[word])
                 .Take(maxWords == 0 ? int.MaxValue : maxWords);
         }
 
@@ -641,7 +639,7 @@ namespace PSWordCloud
             } while (clockwise ? angle <= maxAngle : angle >= maxAngle);
         }
 
-        private async Task<IEnumerable<string>> ProcessLineAsync(string line)
+        private async Task<IEnumerable<string>> ProcessInputAsync(string line)
         {
             return await Task.Run<IEnumerable<string>>(
                 () =>
