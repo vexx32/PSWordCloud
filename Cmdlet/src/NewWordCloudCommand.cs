@@ -297,8 +297,8 @@ namespace PSWordCloud
                         {
                             var adjustedWordSize = ScaleWordSize(wordScaleDictionary[word], _fontScale, wordScaleDictionary);
 
-                            brush.TextSize = adjustedWordSize;
-                            var adjustedTextWidth = brush.MeasureText(word) + Padding;
+                            brush.NextWord(adjustedWordSize, StrokeWidth);
+                            var adjustedTextWidth = brush.MeasureText(word) + Padding * scaledWordSizes[word] * 0.03f;
 
                             if ((DisableRotation.IsPresent && adjustedTextWidth > drawableBounds.Width)
                                 || adjustedTextWidth > Math.Max(drawableBounds.Width, drawableBounds.Height))
