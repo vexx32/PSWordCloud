@@ -64,9 +64,6 @@ namespace PSWordCloud
         public SKTypeface Typeface { get; set; } = WCUtils.FontManager.MatchFamily(
             "Consolas", SKFontStyle.Normal);
 
-        [Parameter]
-        public SKFontStyle FontStyle { get; set; } = SKFontStyle.Normal;
-
         [Parameter(ParameterSetName = "ColorBackground")]
         [Parameter(ParameterSetName = "ColorBackground-Mono")]
         [Alias("Backdrop", "CanvasColor")]
