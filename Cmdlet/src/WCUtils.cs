@@ -52,6 +52,9 @@ namespace PSWordCloud
                 || other.Right > bounds.Right;
         }
 
+        public static void NextWord(this SKPaint brush, float wordSize, float strokeWidth)
+            => brush.NextWord(wordSize, strokeWidth, SKColors.Black);
+
         public static void NextWord(this SKPaint brush, float wordSize, float strokeWidth, SKColor color)
         {
             brush.TextSize = wordSize;
