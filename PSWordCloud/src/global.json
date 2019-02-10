@@ -1,0 +1,23 @@
+{
+  "sdk": {
+    "version": "2.1.402"
+  },
+  "frameworks": {
+    "netstandard2.0": {
+      "dependencies": {
+        "SkiaSharp": {
+          "version": "1.68.0"
+        },
+        "SkiaSharp.NativeAssets.Linux": {
+          "version": "1.68.0"
+        }
+      }
+    }
+  },
+  "runtimes": {
+    "win-x86": {},
+    "win-x64": {},
+    "osx-x64": {},
+    "linux-x64": {}
+  }
+}
