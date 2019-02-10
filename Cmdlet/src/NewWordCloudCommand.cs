@@ -219,7 +219,7 @@ namespace PSWordCloud
                 _backgroundFullPath = System.IO.Path.GetFullPath(BackgroundImage);
             }
 
-            _colors = ProcessColorSet(ColorSet, BackgroundColor, MaxRenderedWords, Monochrome)
+            _colors = ProcessColorSet(ColorSet, BackgroundColor, StrokeColor, MaxRenderedWords, Monochrome)
                 .OrderByDescending(x => x.SortValue(RandomFloat))
                 .ToList();
         }
@@ -461,20 +461,7 @@ namespace PSWordCloud
                                 adjustedPoint = point + baseOffset;
 
                                 SKMatrix rotation;
-                                switch (orientation)
-                                {
-                                    case WordOrientation.Vertical:
-                                        rotation = SKMatrix.MakeRotationDegrees(90, point.X, point.Y);
-                                        break;
-
-                                    case WordOrientation.FlippedVertical:
-                                        rotation = SKMatrix.MakeRotationDegrees(270, point.X, point.Y);
-                                        break;
-
-                                    default:
-                                        rotation = SKMatrix.MakeIdentity();
-                                        break;
-                                }
+                                rotation = GetRotationMatrix(point, orientation);
 
                                 SKPath alteredPath = brush.GetTextPath(word, adjustedPoint.X, adjustedPoint.Y);
                                 alteredPath.Transform(rotation);
@@ -556,13 +543,28 @@ namespace PSWordCloud
             }
         }
 
+        private static SKMatrix GetRotationMatrix(SKPoint point, WordOrientation orientation)
+        {
+            switch (orientation)
+            {
+                case WordOrientation.Vertical:
+                    return SKMatrix.MakeRotationDegrees(90, point.X, point.Y);
+
+                case WordOrientation.FlippedVertical:
+                    return SKMatrix.MakeRotationDegrees(270, point.X, point.Y);
+
+                default:
+                    return SKMatrix.MakeIdentity();
+            }
+        }
+
         private static IEnumerable<SKColor> ProcessColorSet(
-            SKColor[] set, SKColor background, int maxCount, bool monochrome)
+            SKColor[] set, SKColor background, SKColor stroke, int maxCount, bool monochrome)
         {
             Random.Shuffle(set);
             background.ToHsv(out float bh, out float bs, out float backgroundBrightness);
 
-            foreach (var color in set.Take(maxCount))
+            foreach (var color in set.Where(x => x != stroke && x != background).Take(maxCount))
             {
                 if (!monochrome)
                 {
