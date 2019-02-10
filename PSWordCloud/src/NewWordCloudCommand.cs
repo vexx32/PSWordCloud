@@ -133,7 +133,7 @@ namespace PSWordCloud
         public int RandomSeed { get; set; }
 
         [Parameter]
-        [Alias()]
+        [Alias("DisableWordRotation")]
         public SwitchParameter DisableRotation { get; set; }
 
         [Parameter(Mandatory = true, ParameterSetName = "FileBackground-Mono")]
@@ -142,11 +142,15 @@ namespace PSWordCloud
         public SwitchParameter Monochrome { get; set; }
 
         [Parameter]
-        [Alias()]
+        [Alias("IgnoreStopWords")]
         public SwitchParameter AllowStopWords { get; set; }
 
         [Parameter]
         public SwitchParameter PassThru { get; set; }
+
+        [Parameter()]
+        [Alias("AllowBleed")]
+        public SwitchParameter AllowOverflow { get; set; }
 
         #endregion Parameters
 

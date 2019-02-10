@@ -1,22 +1,40 @@
-﻿$script:ModuleRoot = $PSScriptRoot
-Write-Verbose "PSWordCloud module root: $script:ModuleRoot"
+﻿${/} = [System.IO.Path]::DirectorySeparatorChar
 
-# PowerShell Core uses System.Drawing.Common assembly instead of System.Drawing
-if ($PSEdition -eq 'Core') {
-    Write-Verbose 'Importing necessary types.'
-    Add-Type -AssemblyName 'System.Drawing.Common'
+# Add library folders to necessary path vars
+Get-ChildItem -Path "$PSScriptRoot${/}bin${/}Debug${/}netstandard2.0${/}publish${/}runtimes" -Recurse -Directory -Filter 'native' |
+    ForEach-Object {
+    $Path = $_
+    switch ($true) {
+        ($IsWindows -or $PSVersionTable.PSVersion.Major -eq 5) {
+            $env:PATH = '{0}{1}{2}' -f @(
+                $Path.FullName
+                [System.IO.Path]::PathSeparator
+                $env:PATH
+            )
+        }
+        $IsLinux {
+            $env:LD_LIBRARY_PATH = '{0}{1}{2}' -f @(
+                $Path.FullName
+                [System.IO.Path]::PathSeparator
+                $env:LD_LIBRARY_PATH
+            )
+        }
+        $IsMacOS {
+            $env:DYLD_LIBRARY_PATH = '{0}{1}{2}' -f @(
+                $Path.FullName
+                [System.IO.Path]::PathSeparator
+                $env:DYLD_LIBRARY_PATH
+            )
+            $env:DYLD_PRINT_LIBRARIES = '{0}{1}{2}' -f @(
+                $Path.FullName
+                [System.IO.Path]::PathSeparator
+                $env:DYLD_PRINT_LIBRARIES
+            )
+        }
+    }
 }
-else {
-    Write-Verbose 'Importing necessary types.'
-    Add-Type -AssemblyName 'System.Drawing'
-}
 
-$PublicFunctions = Get-ChildItem "$script:ModuleRoot\Public"
-$PrivateFunctions = Get-ChildItem "$script:ModuleRoot\Private"
+Add-Type -Path "$PSScriptRoot${/}bin${/}Debug${/}netstandard2.0${/}publish${/}SkiaSharp.dll"
+Import-Module "$PSScriptRoot${/}bin${/}Debug${/}netstandard2.0${/}publish${/}PSWordCloudCmdlet.dll"
 
-foreach ($Function in @($PublicFunctions) + @($PrivateFunctions)) {
-    Write-Verbose "Importing functions from file: [$($Function.Name)]"
-    . $Function.Fullname
-}
-
-Export-ModuleMember -Function $PublicFunctions.BaseName
+Export-ModuleMember -Cmdlet 'New-WordCloud'
