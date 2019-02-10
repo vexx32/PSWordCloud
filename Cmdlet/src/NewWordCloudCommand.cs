@@ -20,7 +20,7 @@ namespace PSWordCloud
         private const float MIN_SATURATION_VALUE = 5f;
         private const float MIN_BRIGHTNESS_DISTANCE = 25f;
         private const float MAX_WORD_WIDTH_PERCENT = 0.85f;
-        private const float PADDING_BASE_SCALE = 0.05f;
+        private const float PADDING_BASE_SCALE = 0.025f;
 
         #endregion Constants
 
