@@ -165,13 +165,12 @@ namespace PSWordCloud
             IDictionary fakeBoundParameters)
         {
             string matchString = wordToComplete.TrimStart('"').TrimEnd('"');
-            var fontList = WCUtils.FontManager.FontFamilies;
-            foreach (string font in fontList)
+            foreach (string font in WCUtils.FontList)
             {
                 if (string.IsNullOrEmpty(wordToComplete) ||
                     font.StartsWith(matchString, StringComparison.OrdinalIgnoreCase))
                 {
-                    if (font.Contains(' ') || wordToComplete.StartsWith("\""))
+                    if (font.Contains(' ') || font.Contains('#') || wordToComplete.StartsWith("\""))
                     {
                         var result = string.Format("\"{0}\"", font);
                         yield return new CompletionResult(result, font, CompletionResultType.ParameterName, font);
