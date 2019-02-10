@@ -15,10 +15,12 @@ namespace PSWordCloud
 
         #region Constants
 
-        private const float FOCUS_WORD_SCALE = 1.5f;
+        private const float FOCUS_WORD_SCALE = 1.15f;
         private const float BLEED_AREA_SCALE = 1.15f;
         private const float MIN_SATURATION_VALUE = 5f;
         private const float MIN_BRIGHTNESS_DISTANCE = 25f;
+        private const float MAX_WORD_WIDTH_PERCENT = 0.85f;
+        private const float PADDING_BASE_SCALE = 0.05f;
 
         #endregion Constants
 
@@ -76,7 +78,7 @@ namespace PSWordCloud
         [TransformToSKColor]
         public SKColor BackgroundColor { get; set; } = SKColors.Black;
 
-        private IEnumerable<SKColor> _colors;
+        private List<SKColor> _colors;
         [Parameter]
         [TransformToSKColor]
         [ArgumentCompleter(typeof(SKColorCompleter))]
@@ -104,7 +106,7 @@ namespace PSWordCloud
 
         [Parameter]
         [Alias("Spacing")]
-        public float Padding { get; set; } = 5f;
+        public float Padding { get; set; } = 3.5f;
 
         [Parameter]
         [ValidateRange(1, 500)]
@@ -146,6 +148,8 @@ namespace PSWordCloud
 
         #endregion Parameters
 
+        #region staticMembers
+
         private static readonly string[] _stopWords = new[] {
             "a","about","above","after","again","against","all","am","an","and","any","are","aren't","as","at","be",
             "because","been","before","being","below","between","both","but","by","can't","cannot","could","couldn't",
@@ -159,36 +163,46 @@ namespace PSWordCloud
             "this","those","through","to","too","under","until","up","very","was","wasn't","we","we'd","we'll","we're",
             "we've","were","weren't","what","what's","when","when's","where","where's","which","while","who","who's",
             "whom","why","why's","with","won't","would","wouldn't","you","you'd","you'll","you're","you've","your",
-            "yours","yourself","yourselves",
-        };
+            "yours","yourself","yourselves" };
 
         private static readonly char[] _splitChars = new[] {
             ' ','\n','\t','\r','.',',',';','\\','/','|',
             ':','"','?','!','{','}','[',']',':','(',')',
             '<','>','“','”','*','#','%','^','&','+','=' };
 
-        private List<Task<IEnumerable<string>>> _wordProcessingTasks;
-        private float _fontScale;
         private static Random _random;
         private static Random Random { get => _random = _random ?? new Random(); }
         private static float RandomFloat { get => (float)Random.NextDouble(); }
+
+        #endregion staticMembers
+
+        #region privateVariables
+
+        private List<Task<IEnumerable<string>>> _wordProcessingTasks;
+        private float _fontScale;
         private int _progressID;
         private int _colorIndex = 0;
         private SKColor _nextColor
         {
             get
             {
-                if (_colorIndex >= _colors.Count())
+                if (_colorIndex == _colors.Count())
                 {
                     _colorIndex = 0;
                 }
 
-                var color = _colors.ElementAt(_colorIndex);
+                var color = _colors[_colorIndex];
                 _colorIndex++;
 
                 return color;
             }
         }
+        private float _paddingMultiplier
+        {
+            get => (StrokeWidth == 0 ? 1 : StrokeWidth) * Padding * PADDING_BASE_SCALE;
+        }
+
+        #endregion privateVariables
 
         protected override void BeginProcessing()
         {
@@ -204,7 +218,8 @@ namespace PSWordCloud
             }
 
             _colors = ProcessColorSet(ColorSet, BackgroundColor, MaxRenderedWords, Monochrome)
-                .OrderByDescending(x => x.SortValue(RandomFloat));
+                .OrderByDescending(x => x.SortValue(RandomFloat))
+                .ToList();
         }
 
 
@@ -239,7 +254,7 @@ namespace PSWordCloud
             var wordCount = 0;
             var wordScaleDictionary = new Dictionary<string, float>(StringComparer.OrdinalIgnoreCase);
             SKRect wordBounds = SKRect.Empty;
-            SKRectI drawableBounds;
+            SKRect drawableBounds;
             SKPath wordPath = null;
             SKRegion clipRegion = null;
             SKBitmap backgroundImage = null;
@@ -275,7 +290,7 @@ namespace PSWordCloud
 
                 wordPath = new SKPath();
                 clipRegion = new SKRegion();
-                clipRegion.SetRect(drawableBounds);
+                clipRegion.SetRect(SKRectI.Round(drawableBounds));
 
                 _fontScale = SetFontScale(
                     clipRegion.Bounds,
@@ -285,6 +300,7 @@ namespace PSWordCloud
 
                 var scaledWordSizes = new Dictionary<string, float>(
                     sortedWordList.Count, StringComparer.OrdinalIgnoreCase);
+                float maxWordWidth = Math.Max(drawableBounds.Width, drawableBounds.Height) * MAX_WORD_WIDTH_PERCENT;
 
                 bool retry;
                 using (SKPaint brush = new SKPaint())
@@ -295,13 +311,14 @@ namespace PSWordCloud
                         retry = false;
                         foreach (string word in sortedWordList)
                         {
-                            var adjustedWordSize = ScaleWordSize(wordScaleDictionary[word], _fontScale, wordScaleDictionary);
+                            var adjustedWordSize = ScaleWordSize(
+                                wordScaleDictionary[word], _fontScale, wordScaleDictionary);
 
                             brush.NextWord(adjustedWordSize, StrokeWidth);
-                            var adjustedTextWidth = brush.MeasureText(word) + Padding * scaledWordSizes[word] * 0.03f;
+                            var adjustedTextWidth = brush.MeasureText(word) * (1 + _paddingMultiplier);
 
                             if ((DisableRotation.IsPresent && adjustedTextWidth > drawableBounds.Width)
-                                || adjustedTextWidth > Math.Max(drawableBounds.Width, drawableBounds.Height))
+                                || adjustedTextWidth > maxWordWidth)
                             {
                                 retry = true;
                                 _fontScale *= 0.98f;
@@ -351,18 +368,23 @@ namespace PSWordCloud
                         "Starting...",
                         "Finding available space to draw...");
 
-                    float radius = 0;
                     foreach (string word in sortedWordList.OrderByDescending(x => scaledWordSizes[x]))
                     {
                         wordCount++;
-                        wordPath.Reset();
 
-                        inflationValue = StrokeWidth + Padding * scaledWordSizes[word] * 0.03f;
+                        inflationValue = scaledWordSizes[word] * _paddingMultiplier;
                         targetOrientation = WordOrientation.Horizontal;
                         targetPoint = SKPoint.Empty;
 
                         var wordColor = _nextColor;
                         brush.NextWord(scaledWordSizes[word], StrokeWidth, wordColor);
+
+                        wordPath.Reset();
+                        wordPath = brush.GetTextPath(word, 0, 0);
+                        wordBounds = wordPath.TightBounds;
+
+                        var wordWidth = wordBounds.Width;
+                        var wordHeight = wordBounds.Height;
 
                         progress.Activity = string.Format(
                             "Drawing '{0}' at {1:0} em ({2} of {3})",
@@ -370,62 +392,65 @@ namespace PSWordCloud
                         progress.PercentComplete = 100 * wordCount / scaledWordSizes.Count;
                         WriteProgress(progress);
 
-                        var radialIncrement = GetRadiusIncrement(scaledWordSizes[word], DistanceStep, Padding);
-                        for (radius /= 3; radius <= maxRadius; radius += radialIncrement)
+                        var radialIncrement = GetRadiusIncrement(
+                            scaledWordSizes[word], maxRadius, DistanceStep, inflationValue);
+                        for (float radius = 0; radius <= maxRadius; radius += radialIncrement)
                         {
-                            brush.MeasureText(word, ref wordBounds);
-                            wordBounds.Inflate(inflationValue, inflationValue);
                             SKPoint adjustedPoint, pointOffset;
 
                             foreach (var point in GetRadialPoints(centrePoint, radius, RadialStep, aspectRatio))
                             {
-                                if (!canvas.LocalClipBounds.Contains(point))
+                                if (!drawableBounds.Contains(point))
                                 {
                                     continue;
                                 }
 
-                                SKMatrix matrix = SKMatrix.MakeIdentity();
-                                foreach (var orientation in GetRotationModes(allowRotation: !DisableRotation))
+                                var orientation = _wordOrientation;
+                                SKMatrix rotation = SKMatrix.MakeIdentity();
+                                SKPath alteredPath = new SKPath(wordPath);
+                                switch (orientation)
                                 {
-                                    switch (orientation)
-                                    {
-                                        case WordOrientation.Vertical:
-                                            pointOffset = new SKPoint(
-                                                (wordBounds.Height / 2) + RandomFloat - 0.5f,
-                                                (wordBounds.Width / 2) + RandomFloat - 0.5f);
-                                            adjustedPoint = point - pointOffset;
-                                            SKMatrix.RotateDegrees(ref matrix, 90, adjustedPoint.X, adjustedPoint.Y);
-                                            break;
+                                    case WordOrientation.Vertical:
+                                        pointOffset = new SKPoint(
+                                            -(wordHeight / 2),
+                                            (wordWidth / 2));
+                                        adjustedPoint = point - pointOffset;
+                                        SKMatrix.RotateDegrees(ref rotation, 90, point.X, point.Y);
+                                        break;
 
-                                        case WordOrientation.VerticalFlipped:
-                                            pointOffset = new SKPoint(
-                                                (wordBounds.Height / 2) + RandomFloat - 0.5f,
-                                                (wordBounds.Width / 2) + RandomFloat - 0.5f);
-                                            adjustedPoint = point - pointOffset;
-                                            SKMatrix.RotateDegrees(ref matrix, -90, adjustedPoint.X, adjustedPoint.Y);
-                                            break;
+                                    case WordOrientation.VerticalFlipped:
+                                        pointOffset = new SKPoint(
+                                            -(wordHeight / 2),
+                                            (wordWidth / 2));
+                                        adjustedPoint = point - pointOffset;
+                                        SKMatrix.RotateDegrees(ref rotation, -90, point.X, point.Y);
+                                        break;
 
-                                        default:
-                                            pointOffset = new SKPoint(
-                                                (wordBounds.Width / 2) + RandomFloat - 0.5f,
-                                                (wordBounds.Height / 2) + RandomFloat - 0.5f);
-                                            adjustedPoint = point - pointOffset;
-                                            break;
-                                    }
+                                    default:
+                                        pointOffset = new SKPoint(
+                                            (wordWidth / 2),
+                                            -(wordHeight / 2));
+                                        adjustedPoint = point - pointOffset;
+                                        break;
+                                }
 
-                                    wordPath = brush.GetTextPath(word, adjustedPoint.X, adjustedPoint.Y);
-                                    wordPath.Transform(matrix);
-                                    wordPath.GetBounds(out wordBounds);
-                                    wordPath.FillType = SKPathFillType.Winding;
+                                alteredPath.Transform(SKMatrix.MakeTranslation(adjustedPoint.X, adjustedPoint.Y));
+                                alteredPath.Transform(rotation);
+                                alteredPath.GetBounds(out wordBounds);
 
-                                    wordBounds.Inflate(inflationValue, inflationValue);
-                                    if (!occupiedSpace.IntersectsRect(wordBounds)
-                                        && !wordBounds.FallsOutside(clipRegion))
-                                    {
-                                        targetPoint = adjustedPoint;
-                                        targetOrientation = orientation;
-                                        goto nextWord;
-                                    }
+                                wordBounds.Inflate(inflationValue * 2, inflationValue * 2);
+
+                                if (wordBounds.FallsOutside(clipRegion))
+                                {
+                                    continue;
+                                }
+
+                                if (!occupiedSpace.IntersectsRect(wordBounds))
+                                {
+                                    wordPath = alteredPath;
+                                    targetPoint = adjustedPoint;
+                                    targetOrientation = orientation;
+                                    goto nextWord;
                                 }
 
                                 if (radius == 0)
@@ -433,8 +458,6 @@ namespace PSWordCloud
                                     // No point checking more than a single point at the origin
                                     break;
                                 }
-
-                                radius += radialIncrement;
                             }
                         }
 
@@ -501,8 +524,9 @@ namespace PSWordCloud
             }
         }
 
-        private static float GetRadiusIncrement(float wordSize, float distanceStep, float padding)
-            => (2 * RandomFloat * wordSize * distanceStep) / Math.Max(1, 21 - padding * 2);
+        private static float GetRadiusIncrement(float wordSize, float maxRadius, float distanceStep, float padding)
+            => 5 * distanceStep * (wordSize + padding) / maxRadius;
+        //(2 * RandomFloat * distanceStep * wordSize) / Math.Max(1, 21 - padding * 2);
 
         private static void CountWords(IEnumerable<string> wordList, IDictionary<string, float> dictionary)
         {
@@ -531,29 +555,24 @@ namespace PSWordCloud
             }
         }
 
-        private static IEnumerable<WordOrientation> GetRotationModes(bool allowRotation)
+        private WordOrientation _wordOrientation
         {
-            if (allowRotation)
+            get
             {
-                if (RandomFloat > 0.5)
+                if (!DisableRotation)
                 {
-                    yield return WordOrientation.Horizontal;
-                    yield return RandomFloat > 0.5
-                        ? WordOrientation.Vertical
-                        : WordOrientation.VerticalFlipped;
+                    var num = RandomFloat;
+                    if (num > 0.75)
+                    {
+                        return WordOrientation.Vertical;
+                    }
+                    else if (num < 0.5)
+                    {
+                        return WordOrientation.VerticalFlipped;
+                    }
                 }
-                else
-                {
-                    yield return RandomFloat > 0.5
-                        ? WordOrientation.Vertical
-                        : WordOrientation.VerticalFlipped;
-                    yield return WordOrientation.Horizontal;
-                }
-            }
-            else
-            {
-                yield return WordOrientation.Horizontal;
-                yield break;
+
+                return WordOrientation.Horizontal;
             }
         }
 
