@@ -15,11 +15,14 @@ namespace PSWordCloud
     {
         Horizontal,
         Vertical,
-        VerticalFlipped,
+        FlippedVertical,
     }
 
     internal static class WCUtils
     {
+        public static SKPoint Multiply(this SKPoint point, float factor)
+            => new SKPoint(point.X * factor, point.Y * factor);
+
         public static float ToRadians(this float degrees)
         {
             return (float)(degrees * Math.PI / 180);
@@ -58,8 +61,9 @@ namespace PSWordCloud
         public static void NextWord(this SKPaint brush, float wordSize, float strokeWidth, SKColor color)
         {
             brush.TextSize = wordSize;
-            brush.StrokeWidth = wordSize * strokeWidth / 50;
             brush.IsStroke = false;
+            brush.Style = SKPaintStyle.StrokeAndFill;
+            brush.StrokeWidth = wordSize * strokeWidth * NewWordCloudCommand.STROKE_BASE_SCALE;
             brush.IsVerticalText = false;
             brush.Color = color;
         }
@@ -161,6 +165,9 @@ namespace PSWordCloud
         }
 
         public static SKFontManager FontManager = SKFontManager.Default;
+
+        public static IEnumerable<string> FontList = WCUtils.FontManager.FontFamilies
+            .OrderBy(name => name, StringComparer.OrdinalIgnoreCase);
 
         internal static ReadOnlyDictionary<string, (string Tooltip, SKSizeI Size)> StandardImageSizes =
             new ReadOnlyDictionary<string, (string, SKSizeI)>(new Dictionary<string, (string, SKSizeI)>() {
