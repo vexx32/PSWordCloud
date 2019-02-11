@@ -9,6 +9,12 @@ using SkiaSharp;
 
 namespace PSWordCloud
 {
+    /// <summary>
+    /// Defines the New-WordCloud cmdlet.
+    ///
+    /// This command can be used to input large amounts of text, and will generate a word cloud based on
+    /// the relative frequencies of the words in the input text.
+    /// </summary>
     [Cmdlet(VerbsCommon.New, "WordCloud", DefaultParameterSetName = "ColorBackground")]
     [Alias("wordcloud", "nwc", "wcloud")]
     public class NewWordCloudCommand : PSCmdlet
@@ -35,6 +41,12 @@ namespace PSWordCloud
 
         #region Parameters
 
+        /// <summary>
+        /// Gets or sets the input text to supply to the word cloud. All input is accepted, but will be treated
+        /// as string data regardless of the input type. If you are entering complex object input, ensure they
+        /// have a meaningful ToString() method override defined.
+        /// </summary>
+        /// <value>Accepts piped input or direct array input.</value>
         [Parameter(Mandatory = true, ValueFromPipeline = true, ParameterSetName = "ColorBackground")]
         [Parameter(Mandatory = true, ValueFromPipeline = true, ParameterSetName = "ColorBackground-Mono")]
         [Parameter(Mandatory = true, ValueFromPipeline = true, ParameterSetName = "FileBackground")]
@@ -44,6 +56,10 @@ namespace PSWordCloud
         public PSObject InputObject { get; set; }
 
         private string _resolvedPath;
+        /// <summary>
+        /// Gets or sets the output path to save the final SVG vector file to.
+        /// </summary>
+        /// <value>Accepts a single relative or absolute path as astring.</value>
         [Parameter(Mandatory = true, Position = 0, ParameterSetName = "ColorBackground")]
         [Parameter(Mandatory = true, Position = 0, ParameterSetName = "ColorBackground-Mono")]
         [Parameter(Mandatory = true, Position = 0, ParameterSetName = "FileBackground")]
@@ -57,6 +73,10 @@ namespace PSWordCloud
         }
 
         private string _backgroundFullPath;
+        /// <summary>
+        /// Gets or sets the path to the background image to be used as a base for the final word cloud image.
+        /// </summary>
+        /// <value>Accepts a single relative or absolute path as astring.</value>
         [Parameter(Mandatory = true, ParameterSetName = "FileBackground")]
         [Parameter(Mandatory = true, ParameterSetName = "FileBackground-Mono")]
         public string BackgroundImage
@@ -71,6 +91,28 @@ namespace PSWordCloud
 
         }
 
+        /// <summary>
+        /// Gets or sets the image size value for the word cloud image.
+        ///
+        /// Input can be passed either directly as a SkiaSharp.SKSizeI object, or in one of the following
+        /// string alternate forms:
+        ///
+        ///     - A predefined size string. One of:
+        ///         * 720p           (canvas size: 1280x720)
+        ///         * 1080p          (canvas size: 1920x1080)
+        ///         * 4K             (canvas size: 3840x2160)
+        ///         * A4             (canvas size: 816x1056)
+        ///         * Poster11x17    (canvas size: 1056x1632)
+        ///         * Poster18x24    (canvas size: 1728x2304)
+        ///         * Poster24x36    (canvas size: 2304x3456)
+        ///     - Single integer (e.g., -ImageSize 1024). This will be used as both the width and height of the
+        ///       image, creating a square canvas.
+        ///     - Any image size string (e.g., 1024x768). The first number will be used as the width, and the
+        ///       second number used as the height of the canvas.
+        ///     - A hashtable or custom object with keys or properties named "Width" and "Height" that contain
+        ///       integer values
+        /// </summary>
+        /// <value></value>
         [Parameter(ParameterSetName = "ColorBackground")]
         [Parameter(ParameterSetName = "ColorBackground-Mono")]
         [ArgumentCompleter(typeof(ImageSizeCompleter))]
