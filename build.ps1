@@ -27,27 +27,26 @@ Start-Process -NoNewWindow -Wait -FilePath 'dotnet' -ArgumentList @(
 )
 
 $SupportedPlatforms = "win-x64", "win-x86", "linux-x64", "osx"
-$ModulePath = Join-Path -Path $OutputPath "PSWordCloud"
+$ModulePath = "$OutputPath/PSWordCloud"
 New-Item -Path $ModulePath -ItemType Directory | Out-Null
 
 # Copy the main module DLL to final module directory
-Join-Path -Path $OutputPath -ChildPath "bin" "PSWordCloudCmdlet.dll" | Copy-Item -Destination $ModulePath
+Copy-Item -Path "$OutputPath/bin/PSWordCloudCmdlet.dll" -Destination $ModulePath
 
 # Get the main Skia DLL
-$SkiaDLL = Join-Path -Path $OutputPath -ChildPath "bin" "SkiaSharp.dll" | Get-Item
+$SkiaDLL = Get-Item -Path "$OutputPath/bin/SkiaSharp.dll"
 
 # Get platform-specific runtime library folders for Skia
-$RuntimeFolders = Join-Path -Path $OutputPath -ChildPath "bin" "runtimes" |
-    Get-ChildItem |
+$RuntimeFolders = Get-ChildItem -Path "$OutputPath/bin/runtimes" |
     Where-Object Name -in $SupportedPlatforms
 
 $RuntimeFolders | ForEach-Object {
-    $OutputDirectory = New-Item -ItemType Directory -Path (Join-Path -Path $ModulePath -ChildPath $_.Name)
+    $OutputDirectory = New-Item -ItemType Directory -Path "$ModulePath/$($_.Name)"
     Get-ChildItem -Path $_.FullName -Recurse -Include *.dylib, *.dll, *.so |
         Copy-Item -Destination $OutputDirectory.FullName -PassThru |
         ForEach-Object { Copy-Item -Path $SkiaDLL.FullName -Destination $OutputDirectory.FullName }
 }
 
-Split-Path -Path $ProjectPath -Parent |
+Split-Path -Path $ProjectFile -Parent |
     Get-ChildItem -Recurse -Include "*.ps*1" |
     Copy-Item -Destination $ModulePath
