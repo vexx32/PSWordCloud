@@ -591,9 +591,8 @@ namespace PSWordCloud
         {
             foreach (string word in wordList)
             {
-                var trimmedWord = System.Text.RegularExpressions.Regex.Replace(
-                    word, "s$", string.Empty, RegexOptions.IgnoreCase);
-                var pluralWord = String.Format("{0}s", word);
+                var trimmedWord = Regex.Replace(word, "s$", string.Empty, RegexOptions.IgnoreCase);
+                var pluralWord = string.Format("{0}s", word);
                 if (dictionary.ContainsKey(trimmedWord))
                 {
                     dictionary[trimmedWord]++;
@@ -603,13 +602,9 @@ namespace PSWordCloud
                     dictionary[word] = dictionary[pluralWord] + 1;
                     dictionary.Remove(pluralWord);
                 }
-                else if (dictionary.ContainsKey(word))
-                {
-                    dictionary[word]++;
-                }
                 else
                 {
-                    dictionary.Add(word, 1);
+                    dictionary[word] = dictionary.ContainsKey(word) ? dictionary[word] + 1 : 1;
                 }
             }
         }
