@@ -59,7 +59,17 @@ namespace PSWordCloud
         private string _backgroundFullPath;
         [Parameter(Mandatory = true, ParameterSetName = "FileBackground")]
         [Parameter(Mandatory = true, ParameterSetName = "FileBackground-Mono")]
-        public string BackgroundImage { get; set; }
+        public string BackgroundImage
+        {
+            get => _backgroundFullPath;
+            set
+            {
+                var previousDir = Environment.CurrentDirectory;
+                Environment.CurrentDirectory = SessionState.Path.CurrentFileSystemLocation.Path;
+                _backgroundFullPath = System.IO.Path.GetFullPath(value);
+            }
+
+        }
 
         [Parameter(ParameterSetName = "ColorBackground")]
         [Parameter(ParameterSetName = "ColorBackground-Mono")]
@@ -217,12 +227,6 @@ namespace PSWordCloud
                 ? new Random(RandomSeed)
                 : new Random();
             _progressID = Random.Next();
-
-            if (ParameterSetName == "FileBackground" || ParameterSetName == "FileBackground-Mono")
-            {
-                Environment.CurrentDirectory = SessionState.Path.CurrentFileSystemLocation.Path;
-                _backgroundFullPath = System.IO.Path.GetFullPath(BackgroundImage);
-            }
 
             _colors = ProcessColorSet(ColorSet, BackgroundColor, StrokeColor, MaxRenderedWords, Monochrome)
                 .OrderByDescending(x => x.SortValue(RandomFloat))
