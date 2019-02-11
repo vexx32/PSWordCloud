@@ -699,7 +699,7 @@ namespace PSWordCloud
 
             do
             {
-                point = Complex.FromPolarCoordinates(radius, angle);
+                point = Complex.FromPolarCoordinates(radius, angle.ToRadians());
                 yield return new SKPoint(centre.X + (float)point.Real * aspectRatio, centre.Y + (float)point.Imaginary);
 
                 angle += angleIncrement;
