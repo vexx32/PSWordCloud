@@ -10,6 +10,7 @@ using SkiaSharp;
 namespace PSWordCloud
 {
     [Cmdlet(VerbsCommon.New, "WordCloud", DefaultParameterSetName = "ColorBackground")]
+    [Alias("wordcloud", "nwc", "wcloud")]
     public class NewWordCloudCommand : PSCmdlet
     {
 
