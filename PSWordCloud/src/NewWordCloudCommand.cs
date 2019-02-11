@@ -716,9 +716,9 @@ namespace PSWordCloud
                 () =>
                 {
                     var words = new List<string>(line.Split(_splitChars, StringSplitOptions.RemoveEmptyEntries));
-                    words.RemoveAll(x =>
-                        (_stopWords.Contains(x, StringComparer.OrdinalIgnoreCase) && !AllowStopWords)
-                        || Regex.Replace(x, "[^a-z-]", string.Empty, RegexOptions.IgnoreCase).Length < 2);
+                    words.RemoveAll(
+                        x => (!AllowStopWords && _stopWords.Contains(x, StringComparer.OrdinalIgnoreCase))
+                            || Regex.Replace(x, "[^a-z-]", string.Empty, RegexOptions.IgnoreCase).Length < 2);
                     return words;
                 });
         }
