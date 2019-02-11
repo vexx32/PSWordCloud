@@ -93,8 +93,7 @@ namespace PSWordCloud
 
         /// <summary>
         /// <para>Gets or sets the image size value for the word cloud image.</para>
-        /// <para>Input can be passed either directly as a SkiaSharp.SKSizeI object, or in one of the following
-        /// string formats:</para>
+        /// <para>Input can be passed directly as a SkiaSharp.SKSizeI object, or in one of the following formats:</para>
         /// <para>1. A predefined size string. One of:
         ///      - 720p           (canvas size: 1280x720)
         ///      - 1080p          (canvas size: 1920x1080)
@@ -119,9 +118,19 @@ namespace PSWordCloud
         public SKSizeI ImageSize { get; set; } = new SKSizeI(4096, 2304);
 
         /// <summary>
-        /// Gets or sets
+        /// <para>Gets or sets the typeface to be used in the word cloud.</para>
+        /// <para>Input can be processed as a SkiaSharp.SKTypeface object, or one of the following formats:</para>
+        /// <para>1. String value matching a valid font name. These can be autocompleted by pressing [Tab].
+        /// An invalid value will cause the system default to be used.</para>
+        /// <para>2. A custom object or hashtable object containing the following keys or properties:
+        ///     - FamilyName: string value. If no font by this name is available, the system default will be used.
+        ///     - FontWeight: "Invisible", "ExtraLight", Light", "Thin", "Normal", "Medium", "SemiBold", "Bold",
+        ///       "ExtraBold", "Black", "ExtraBlack" (Default: "Normal")
+        ///     - FontSlant: "Upright", "Italic", "Oblique" (Default: "Upright")
+        ///     - FontWidth: "UltraCondensed", "ExtraCondensed", "Condensed", "SemiCondensed", "Normal", "SemiExpanded",
+        ///       "Expanded", "ExtraExpanded", "UltraExpanded" (Default: "Normal")</para>
         /// </summary>
-        /// <value></value>
+        /// <value>The SKTypeface value that determines the font family and styles used when drawing the words.</value>
         [Parameter]
         [Alias("FontFamily", "FontFace")]
         [ArgumentCompleter(typeof(FontFamilyCompleter))]
