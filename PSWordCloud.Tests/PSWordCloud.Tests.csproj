@@ -6,7 +6,7 @@
     <IsPackable>false</IsPackable>
   </PropertyGroup>
 <ItemGroup>
-  <ProjectReference Include="..\Cmdlet\PSWordCloudCmdlet.csproj" />
+  <ProjectReference Include="..\PSWordCloud\PSWordCloudCmdlet.csproj" />
 
 </ItemGroup>
 
