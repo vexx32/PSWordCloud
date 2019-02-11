@@ -92,33 +92,36 @@ namespace PSWordCloud
         }
 
         /// <summary>
-        /// Gets or sets the image size value for the word cloud image.
+        /// <para>Gets or sets the image size value for the word cloud image.</para>
+        /// <para>Input can be passed either directly as a SkiaSharp.SKSizeI object, or in one of the following
+        /// string formats:</para>
+        /// <para>1. A predefined size string. One of:
+        ///      - 720p           (canvas size: 1280x720)
+        ///      - 1080p          (canvas size: 1920x1080)
+        ///      - 4K             (canvas size: 3840x2160)
+        ///      - A4             (canvas size: 816x1056)
+        ///      - Poster11x17    (canvas size: 1056x1632)
+        ///      - Poster18x24    (canvas size: 1728x2304)
+        ///      - Poster24x36    (canvas size: 2304x3456)</para>
         ///
-        /// Input can be passed either directly as a SkiaSharp.SKSizeI object, or in one of the following
-        /// string alternate forms:
-        ///
-        ///     - A predefined size string. One of:
-        ///         * 720p           (canvas size: 1280x720)
-        ///         * 1080p          (canvas size: 1920x1080)
-        ///         * 4K             (canvas size: 3840x2160)
-        ///         * A4             (canvas size: 816x1056)
-        ///         * Poster11x17    (canvas size: 1056x1632)
-        ///         * Poster18x24    (canvas size: 1728x2304)
-        ///         * Poster24x36    (canvas size: 2304x3456)
-        ///     - Single integer (e.g., -ImageSize 1024). This will be used as both the width and height of the
-        ///       image, creating a square canvas.
-        ///     - Any image size string (e.g., 1024x768). The first number will be used as the width, and the
-        ///       second number used as the height of the canvas.
-        ///     - A hashtable or custom object with keys or properties named "Width" and "Height" that contain
-        ///       integer values
+        /// <para>2. Single integer (e.g., -ImageSize 1024). This will be used as both the width and height of the
+        /// image, creating a square canvas.</para>
+        /// <para>3. Any image size string (e.g., 1024x768). The first number will be used as the width, and the
+        /// second number used as the height of the canvas.</para>
+        /// <para>4. A hashtable or custom object with keys or properties named "Width" and "Height" that contain
+        /// integer values</para>
         /// </summary>
-        /// <value></value>
+        /// <value>The SKSizeI value to be used for the final canvas size.</value>
         [Parameter(ParameterSetName = "ColorBackground")]
         [Parameter(ParameterSetName = "ColorBackground-Mono")]
         [ArgumentCompleter(typeof(ImageSizeCompleter))]
         [TransformToSKSizeI]
         public SKSizeI ImageSize { get; set; } = new SKSizeI(4096, 2304);
 
+        /// <summary>
+        /// Gets or sets
+        /// </summary>
+        /// <value></value>
         [Parameter]
         [Alias("FontFamily", "FontFace")]
         [ArgumentCompleter(typeof(FontFamilyCompleter))]
