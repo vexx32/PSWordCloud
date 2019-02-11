@@ -9,31 +9,31 @@
 @{
 
     # Script module or binary module file associated with this manifest.
-    RootModule            = 'PSWordCloud.psm1'
+    RootModule           = 'PSWordCloud.psm1'
 
     # Version number of this module.
-    ModuleVersion         = '2.0.0'
+    ModuleVersion        = '2.0.0'
 
     # Supported PSEditions
-    CompatiblePSEditions  = @('Core')
+    CompatiblePSEditions = @('Core')
 
     # ID used to uniquely identify this module
-    GUID                  = 'c63b9cfe-cca8-40a6-9002-f19555c036b7'
+    GUID                 = 'c63b9cfe-cca8-40a6-9002-f19555c036b7'
 
     # Author of this module
-    Author                = 'Joel Sallow'
+    Author               = 'Joel Sallow'
 
     # Company or vendor of this module
-    CompanyName           = 'None'
+    CompanyName          = 'None'
 
     # Copyright statement for this module
-    Copyright             = '(c) 2019 Joel Sallow (/u/ta11ow, @vexx32). All rights reserved.'
+    Copyright            = '(c) 2019 Joel Sallow (/u/ta11ow, @vexx32). All rights reserved.'
 
     # Description of the functionality provided by this module
-    Description           = 'Turn your scripts and documents into pretty and practical word clouds!'
+    Description          = 'Turn your scripts and documents into pretty and practical word clouds!'
 
     # Minimum version of the Windows PowerShell engine required by this module
-    PowerShellVersion     = '6.1'
+    PowerShellVersion    = '6.1'
 
     # Name of the Windows PowerShell host required by this module
     # PowerShellHostName = ''
@@ -48,7 +48,7 @@
     # CLRVersion = ''
 
     # Processor architecture (None, X86, Amd64) required by this module
-    ProcessorArchitecture = 'x64'
+    # ProcessorArchitecture = @()
 
     # Modules that must be imported into the global environment prior to importing this module
     # RequiredModules       = @()
@@ -69,16 +69,16 @@
     # NestedModules = @()
 
     # Functions to export from this module, for best performance, do not use wildcards and do not delete the entry, use an empty array if there are no functions to export.
-    FunctionsToExport     = @()
+    FunctionsToExport    = @()
 
     # Cmdlets to export from this module, for best performance, do not use wildcards and do not delete the entry, use an empty array if there are no cmdlets to export.
-    CmdletsToExport       = @('New-WordCloud')
+    CmdletsToExport      = @('New-WordCloud')
 
     # Variables to export from this module
-    VariablesToExport     = '*'
+    VariablesToExport    = '*'
 
     # Aliases to export from this module, for best performance, do not use wildcards and do not delete the entry, use an empty array if there are no aliases to export.
-    AliasesToExport       = @('wordcloud', 'wcloud', "nwc")
+    AliasesToExport      = @('wordcloud', 'wcloud', "nwc")
 
     # DSC resources to export from this module
     # DscResourcesToExport = @()
@@ -87,7 +87,7 @@
     # ModuleList = @()
 
     # List of all files packaged with this module
-    FileList              = @(
+    FileList             = @(
         'Private/Get-ImageFormat.ps1'
         'Private/ConvertTo-Radians.ps1'
         'Public/New-WordCloud.ps1'
@@ -97,7 +97,7 @@
     )
 
     # Private data to pass to the module specified in RootModule/ModuleToProcess. This may also contain a PSData hashtable with additional module metadata used by PowerShell.
-    PrivateData           = @{
+    PrivateData          = @{
 
         PSData = @{
 
