@@ -48,6 +48,6 @@ $RuntimeFolders | ForEach-Object {
         ForEach-Object { Copy-Item -Path $SkiaDLL.FullName -Destination $OutputDirectory.FullName }
 }
 
-Join-Path -Path $PSScriptRoot -ChildPath "PSWordCloud" |
+Split-Path -Path $ProjectPath -Parent |
     Get-ChildItem -Recurse -Include "*.ps*1" |
     Copy-Item -Destination $ModulePath
