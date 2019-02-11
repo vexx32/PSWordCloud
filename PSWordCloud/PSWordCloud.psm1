@@ -1,40 +1,23 @@
-﻿${/} = [System.IO.Path]::DirectorySeparatorChar
-
-# Add library folders to necessary path vars
-Get-ChildItem -Path "$PSScriptRoot${/}bin${/}Debug${/}netstandard2.0${/}publish${/}runtimes" -Recurse -Directory -Filter 'native' |
-    ForEach-Object {
-    $Path = $_
-    switch ($true) {
-        ($IsWindows -or $PSVersionTable.PSVersion.Major -eq 5) {
-            $env:PATH = '{0}{1}{2}' -f @(
-                $Path.FullName
-                [System.IO.Path]::PathSeparator
-                $env:PATH
-            )
+﻿$PlatformFolder = switch ($true) {
+    $IsWindows {
+        if ([IntPtr]::Size -eq 8) {
+            "win-x64"
         }
-        $IsLinux {
-            $env:LD_LIBRARY_PATH = '{0}{1}{2}' -f @(
-                $Path.FullName
-                [System.IO.Path]::PathSeparator
-                $env:LD_LIBRARY_PATH
-            )
+        else {
+            "win-x86"
         }
-        $IsMacOS {
-            $env:DYLD_LIBRARY_PATH = '{0}{1}{2}' -f @(
-                $Path.FullName
-                [System.IO.Path]::PathSeparator
-                $env:DYLD_LIBRARY_PATH
-            )
-            $env:DYLD_PRINT_LIBRARIES = '{0}{1}{2}' -f @(
-                $Path.FullName
-                [System.IO.Path]::PathSeparator
-                $env:DYLD_PRINT_LIBRARIES
-            )
-        }
+    }
+    $IsMacOS {
+        "osx"
+    }
+    $IsLinux {
+        "linux-x64"
     }
 }
 
-Add-Type -Path "$PSScriptRoot${/}bin${/}Debug${/}netstandard2.0${/}publish${/}SkiaSharp.dll"
-Import-Module "$PSScriptRoot${/}bin${/}Debug${/}netstandard2.0${/}publish${/}PSWordCloudCmdlet.dll"
+$SkiaDllPath = Join-Path -Path $PSScriptRoot -ChildPath $PlatformFolder "SkiaSharp.dll"
 
-Export-ModuleMember -Cmdlet 'New-WordCloud'
+Add-Type -Path $SkiaDllPath
+Import-Module  "$PSScriptRoot\PSWordCloudCmdlet.dll"
+
+Export-ModuleMember -Cmdlet "New-WordCloud"
