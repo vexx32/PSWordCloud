@@ -670,8 +670,7 @@ namespace PSWordCloud
                                     (wordHeight / 2));
                                 adjustedPoint = point + baseOffset;
 
-                                SKMatrix rotation;
-                                rotation = GetRotationMatrix(point, orientation);
+                                SKMatrix rotation = GetRotationMatrix(point, orientation);
 
                                 SKPath alteredPath = brush.GetTextPath(word, adjustedPoint.X, adjustedPoint.Y);
                                 alteredPath.Transform(rotation);
