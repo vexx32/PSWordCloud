@@ -1,0 +1,31 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>netcoreapp2.1</TargetFramework>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <Compile Include="Utils.fs" />
+    <Compile Include="Attributes.fs" />
+    <Compile Include="NewWordCloudCommand.fs" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Reference Include="PSWordCloud" />
+    <Reference Include="System" />
+    <Reference Include="System.Collections.Generic" />
+    <Reference Include="System.Linq" />
+    <Reference Include="System.Management.Automation" />
+    <Reference Include="System.Numerics" />
+    <Reference Include="System.Text.RegularExpressions" />
+    <Reference Include="System.Threading.Tasks" />
+    <Reference Include="SkiaSharp" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.PowerShell.SDK" Version="6.1.2" PrivateAssets="All" />
+    <PackageReference Include="SkiaSharp" Version="1.68.0" />
+    <PackageReference Include="SkiaSharp.NativeAssets.Linux" Version="1.68.0" />
+  </ItemGroup>
+
+</Project>
