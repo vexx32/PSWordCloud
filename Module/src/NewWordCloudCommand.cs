@@ -22,7 +22,7 @@ namespace PSWordCloud
 
         #region Constants
 
-        private const float FOCUS_WORD_SCALE = 1.25f;
+        private const float FOCUS_WORD_SCALE = 1.3f;
         private const float BLEED_AREA_SCALE = 1.15f;
         private const float MIN_SATURATION_VALUE = 5f;
         private const float MIN_BRIGHTNESS_DISTANCE = 25f;
@@ -87,8 +87,8 @@ namespace PSWordCloud
                 var previousDir = Environment.CurrentDirectory;
                 Environment.CurrentDirectory = SessionState.Path.CurrentFileSystemLocation.Path;
                 _backgroundFullPath = System.IO.Path.GetFullPath(value);
+                Environment.CurrentDirectory = previousDir;
             }
-
         }
 
         /// <summary>
@@ -110,12 +110,12 @@ namespace PSWordCloud
         /// <para>4. A hashtable or custom object with keys or properties named "Width" and "Height" that contain
         /// integer values</para>
         /// </summary>
-        /// <value>The SKSizeI value to be used for the final canvas size.</value>
+        /// <value>The default value is a size of 3840x2160.</value>
         [Parameter(ParameterSetName = "ColorBackground")]
         [Parameter(ParameterSetName = "ColorBackground-Mono")]
         [ArgumentCompleter(typeof(ImageSizeCompleter))]
-        [TransformToSKSizeI]
-        public SKSizeI ImageSize { get; set; } = new SKSizeI(4096, 2304);
+        [TransformToSKSizeI()]
+        public SKSizeI ImageSize { get; set; } = new SKSizeI(3840, 2160);
 
         /// <summary>
         /// <para>Gets or sets the typeface to be used in the word cloud.</para>
@@ -447,6 +447,13 @@ namespace PSWordCloud
                 using (SKPaint brush = new SKPaint())
                 using (SKRegion occupiedSpace = new SKRegion())
                 {
+                    if (MyInvocation.BoundParameters.ContainsKey(nameof(AllowOverflow)))
+                    {
+                        drawableBounds.Inflate(
+                            drawableBounds.Width * BLEED_AREA_SCALE,
+                            drawableBounds.Height * BLEED_AREA_SCALE);
+                    }
+
                     if (ParameterSetName.StartsWith("FileBackground"))
                     {
                         canvas.DrawBitmap(backgroundImage, 0, 0);
