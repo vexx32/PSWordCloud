@@ -241,8 +241,18 @@ namespace PSWordCloud
             ':','"','?','!','{','}','[',']',':','(',')',
             '<','>','“','”','*','#','%','^','&','+','=' };
 
+        private static readonly object _randomLock = new object();
         private static Random _random;
-        private static Random Random { get => _random = _random ?? new Random(); }
+        private static Random Random
+        {
+            get
+            {
+                lock (_randomLock)
+                {
+                    return _random = _random ?? new Random();
+                }
+            }
+        }
         private static float RandomFloat { get => (float)Random.NextDouble(); }
 
         #endregion staticMembers
