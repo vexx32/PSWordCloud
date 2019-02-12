@@ -338,17 +338,7 @@ namespace PSWordCloud
 
         private static readonly object _randomLock = new object();
         private static Random _random;
-        private static Random Random
-        {
-            get
-            {
-                lock (_randomLock)
-                {
-                    return _random = _random ?? new Random();
-                }
-            }
-        }
-        private static float RandomFloat { get => (float)Random.NextDouble(); }
+        private static Random Random => _random = _random ?? new Random();
 
         #endregion staticMembers
 
@@ -362,7 +352,7 @@ namespace PSWordCloud
         {
             get
             {
-                if (_colorIndex == _colors.Count())
+                if (_colorIndex == _colors.Count)
                 {
                     _colorIndex = 0;
                 }
@@ -380,7 +370,7 @@ namespace PSWordCloud
             {
                 if (!DisableRotation)
                 {
-                    var num = RandomFloat;
+                    var num = RandomFloat();
                     if (num > 0.75)
                     {
                         return WordOrientation.Vertical;
@@ -415,7 +405,7 @@ namespace PSWordCloud
             _progressID = Random.Next();
 
             _colors = ProcessColorSet(ColorSet, BackgroundColor, StrokeColor, MaxRenderedWords, Monochrome)
-                .OrderByDescending(x => x.SortValue(RandomFloat))
+                .OrderByDescending(x => x.SortValue(RandomFloat()))
                 .ToList();
         }
 
@@ -670,8 +660,7 @@ namespace PSWordCloud
                                     (wordHeight / 2));
                                 adjustedPoint = point + baseOffset;
 
-                                SKMatrix rotation;
-                                rotation = GetRotationMatrix(point, orientation);
+                                SKMatrix rotation = GetRotationMatrix(point, orientation);
 
                                 SKPath alteredPath = brush.GetTextPath(word, adjustedPoint.X, adjustedPoint.Y);
                                 alteredPath.Transform(rotation);
@@ -863,7 +852,7 @@ namespace PSWordCloud
         private static float ScaleWordSize(
             float baseSize, float globalScale, IDictionary<string, float> scaleDictionary)
         {
-            return baseSize * globalScale * (2 * RandomFloat
+            return baseSize * globalScale * (2 * RandomFloat()
                 / (1 + scaleDictionary.Values.Max() - scaleDictionary.Values.Min()) + 0.9f);
         }
 
@@ -892,7 +881,7 @@ namespace PSWordCloud
         /// at that radius once again for available space.</returns>
         private static float GetRadiusIncrement(
             float wordSize, float distanceStep, float maxRadius, float padding, float percentComplete)
-            => (5 + RandomFloat * (2.5f + percentComplete / 10)) * distanceStep * wordSize * (1 + padding) / maxRadius;
+            => (5 + RandomFloat() * (2.5f + percentComplete / 10)) * distanceStep * wordSize * (1 + padding) / maxRadius;
 
         /// <summary>
         /// Scans in an ovoid pattern at a given radius to get a set of points to check for sufficient drawing space.
@@ -913,7 +902,7 @@ namespace PSWordCloud
 
             Complex point;
             float angle = 0, maxAngle = 0, angleIncrement = 360 / (radius / 6 + 1);
-            bool clockwise = RandomFloat > 0.5;
+            bool clockwise = RandomFloat() > 0.5;
 
             switch (Random.Next() % 4)
             {
@@ -951,6 +940,14 @@ namespace PSWordCloud
 
                 angle += angleIncrement;
             } while (clockwise ? angle <= maxAngle : angle >= maxAngle);
+        }
+
+        private static float RandomFloat()
+        {
+            lock (_randomLock)
+            {
+                return (float)Random.NextDouble();
+            }
         }
 
         /// <summary>
