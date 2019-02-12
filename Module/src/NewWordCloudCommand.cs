@@ -46,7 +46,6 @@ namespace PSWordCloud
         /// as string data regardless of the input type. If you are entering complex object input, ensure they
         /// have a meaningful ToString() method override defined.
         /// </summary>
-        /// <value>Accepts piped input or direct array input.</value>
         [Parameter(Mandatory = true, ValueFromPipeline = true, ParameterSetName = "ColorBackground")]
         [Parameter(Mandatory = true, ValueFromPipeline = true, ParameterSetName = "ColorBackground-Mono")]
         [Parameter(Mandatory = true, ValueFromPipeline = true, ParameterSetName = "FileBackground")]
@@ -59,7 +58,6 @@ namespace PSWordCloud
         /// <summary>
         /// Gets or sets the output path to save the final SVG vector file to.
         /// </summary>
-        /// <value>Accepts a single relative or absolute path as a string.</value>
         [Parameter(Mandatory = true, Position = 0, ParameterSetName = "ColorBackground")]
         [Parameter(Mandatory = true, Position = 0, ParameterSetName = "ColorBackground-Mono")]
         [Parameter(Mandatory = true, Position = 0, ParameterSetName = "FileBackground")]
@@ -76,7 +74,6 @@ namespace PSWordCloud
         /// <summary>
         /// Gets or sets the path to the background image to be used as a base for the final word cloud image.
         /// </summary>
-        /// <value>Accepts a single relative or absolute path as astring.</value>
         [Parameter(Mandatory = true, ParameterSetName = "FileBackground")]
         [Parameter(Mandatory = true, ParameterSetName = "FileBackground-Mono")]
         public string BackgroundImage
@@ -130,89 +127,187 @@ namespace PSWordCloud
         ///     - FontWidth: "UltraCondensed", "ExtraCondensed", "Condensed", "SemiCondensed", "Normal", "SemiExpanded",
         ///       "Expanded", "ExtraExpanded", "UltraExpanded" (Default: "Normal")</para>
         /// </summary>
-        /// <value>The SKTypeface value that determines the font family and styles used when drawing the words.</value>
-        [Parameter]
+        /// <value>The default value is the font "Consolas" with Normal styles.</value>
+        [Parameter()]
         [Alias("FontFamily", "FontFace")]
         [ArgumentCompleter(typeof(FontFamilyCompleter))]
-        [TransformToSKTypeface]
+        [TransformToSKTypeface()]
         public SKTypeface Typeface { get; set; } = WCUtils.FontManager.MatchFamily(
             "Consolas", SKFontStyle.Normal);
 
+        /// <summary>
+        /// <para>Gets or sets the SKColor value used as the background for the word cloud image.</para>
+        /// <para>Accepts input as a complete SKColor object, or one of the following formats:</para>
+        /// <para>1. A string color name matching one of the fields in SkiaSharp.SKColors. These values will be pulled
+        /// for tab-completion automatically.</para>
+        /// <para>2. A hexadecimal number string with or without the preceding #, in the form:
+        /// AARRGGBB, RRGGBB, ARGB, or RGB.</para>
+        /// <para>3. A hashtable or custom object with keys or properties named: "Red","Green","Blue", and/or "Alpha".
+        /// Values may range from 0-255. Omitted color values are assumed to be 0, but omitting alpha defaults it to
+        /// 255 (fully opaque).</para>
+        /// </summary>
+        /// <value>The default value is SKColors.Black.</value>
         [Parameter(ParameterSetName = "ColorBackground")]
         [Parameter(ParameterSetName = "ColorBackground-Mono")]
         [Alias("Backdrop", "CanvasColor")]
         [ArgumentCompleter(typeof(SKColorCompleter))]
-        [TransformToSKColor]
+        [TransformToSKColor()]
         public SKColor BackgroundColor { get; set; } = SKColors.Black;
 
         private List<SKColor> _colors;
-        [Parameter]
-        [TransformToSKColor]
+        /// <summary>
+        /// <para>Gets or sets the SKColor values used for the words in the cloud. Multiple values are accepted, and
+        /// each new word pulls the next color from the set. If the end of the set is reached, the next word will
+        /// reset the index to the start and retrieve the first color again.</para>
+        /// <para>Accepts input as a complete SKColor object, or one of the following formats:</para>
+        /// <para>1. A string color name matching one of the fields in SkiaSharp.SKColors. These values will be pulled
+        /// for tab-completion automatically. Names containing wildcards may be used, and all matching colors will be
+        /// included in the set.</para>
+        /// <para>2. A hexadecimal number string with or without the preceding #, in the form:
+        /// AARRGGBB, RRGGBB, ARGB, or RGB.</para>
+        /// <para>3. A hashtable or custom object with keys or properties named: "Red","Green","Blue", and/or "Alpha".
+        /// Values may range from 0-255. Omitted color values are assumed to be 0, but omitting alpha defaults it to
+        /// 255 (fully opaque).</para>
+        /// </summary>
+        /// <value>The default value is all available named colors in SkiaSharp.SKColors.</value>
+        [Parameter()]
+        [SupportsWildcards()]
+        [TransformToSKColor()]
         [ArgumentCompleter(typeof(SKColorCompleter))]
         public SKColor[] ColorSet { get; set; } = WCUtils.StandardColors.ToArray();
 
-        [Parameter]
+        /// <summary>
+        /// Gets or sets the width of the word outline. Values from 0-10 are permitted. A zero value indicates the
+        /// special "Hairline" width, where the width of the stroke depends on the SVG viewing scale.
+        /// </summary>
+        [Parameter()]
         [Alias("OutlineWidth")]
         [ValidateRange(0, 10)]
-        public int StrokeWidth { get; set; } = 0;
+        public float StrokeWidth { get; set; }
 
-        [Parameter]
+        /// <summary>
+        /// <para>Gets or sets the SKColor value used as the stroke color for the words in the image.</para>
+        /// <para>Accepts input as a complete SKColor object, or one of the following formats:</para>
+        /// <para>1. A string color name matching one of the fields in SkiaSharp.SKColors. These values will be pulled
+        /// for tab-completion automatically.</para>
+        /// <para>2. A hexadecimal number string with or without the preceding #, in the form:
+        /// AARRGGBB, RRGGBB, ARGB, or RGB.</para>
+        /// <para>3. A hashtable or custom object with keys or properties named: "Red","Green","Blue", and/or "Alpha".
+        /// Values may range from 0-255. Omitted color values are assumed to be 0, but omitting alpha defaults it to
+        /// 255 (fully opaque).</para>
+        /// </summary>
+        /// <value>The default value is SKColors.Black.</value>
+        [Parameter()]
         [Alias("OutlineColor")]
-        [TransformToSKColor]
+        [TransformToSKColor()]
         [ArgumentCompleter(typeof(SKColorCompleter))]
         public SKColor StrokeColor { get; set; } = SKColors.Black;
 
-        [Parameter]
+        /// <summary>
+        /// Gets or sets the focus word string to be used in the word cloud. This string will typically appear in the
+        /// centre of the cloud, larger than all the other words.
+        /// </summary>
+        [Parameter()]
         [Alias("Title")]
         public string FocusWord { get; set; }
 
-        [Parameter]
+        /// <summary>
+        /// Gets or sets the float value to scale the base word size by. By default, the word cloud is scaled to fill
+        /// most of the canvas. A value of 0.5 should result in the cloud covering approximately half of the canvas,
+        /// clustered around the center.
+        /// </summary>
+        /// <value>The default value is 1.</value>
+        [Parameter()]
         [Alias("ScaleFactor")]
         [ValidateRange(0.01, 20)]
         public float WordScale { get; set; } = 1;
 
-        [Parameter]
+        /// <summary>
+        /// Gets or sets the float value to scale the padding space around the words by.
+        /// </summary>
+        /// <value>The default value is 5.</value>
+        [Parameter()]
         [Alias("Spacing")]
         public float Padding { get; set; } = 5;
 
-        [Parameter]
+        /// <summary>
+        /// Gets or sets the value to scale the distance step by. Larger numbers will result in more radially spaced
+        /// out clouds.
+        /// </summary>
+        /// <value>The default value is 5.</value>
+        [Parameter()]
         [ValidateRange(1, 500)]
         public float DistanceStep { get; set; } = 5;
 
-        [Parameter]
+        /// <summary>
+        /// Gets or sets the value to scale the radial arc step by.
+        /// </summary>
+        /// <value>The default value is 15.</value>
+        [Parameter()]
         [ValidateRange(1, 50)]
         public float RadialStep { get; set; } = 15;
 
-        [Parameter]
+        /// <summary>
+        /// Gets or sets the maximum number of words to render as part of the cloud.
+        /// </summary>
+        /// <value>The default value is 100.</value>
+        [Parameter()]
         [Alias("MaxWords")]
         [ValidateRange(0, int.MaxValue)]
         public int MaxRenderedWords { get; set; } = 100;
 
-        [Parameter]
+        /// <summary>
+        /// Gets or sets the maximum number of colors to use from the values contained in the ColorSet parameter.
+        /// The values in the ColorSet parameter are shuffled before being trimmed down here.
+        /// </summary>
+        /// <value>The default value is int.MaxValue.</value>
+        [Parameter()]
         [Alias("MaxColours")]
         [ValidateRange(1, int.MaxValue)]
         public int MaxColors { get; set; } = int.MaxValue;
 
-        [Parameter]
+        /// <summary>
+        /// Gets or sets the seed value for the random numbers used to vary the position and placement patterns.
+        /// </summary>
+        [Parameter()]
         [Alias("SeedValue")]
         public int RandomSeed { get; set; }
 
-        [Parameter]
+        /// <summary>
+        /// Gets or sets whether or not to disable rotation of words. Selecting this option will result in a more
+        /// uniform cloud, where all words are drawn horizontally.
+        /// </summary>
+        [Parameter()]
         [Alias("DisableWordRotation")]
         public SwitchParameter DisableRotation { get; set; }
 
+        /// <summary>
+        /// Gets or sets whether to draw the cloud in monochrome (greyscale).
+        /// </summary>
         [Parameter(Mandatory = true, ParameterSetName = "FileBackground-Mono")]
         [Parameter(Mandatory = true, ParameterSetName = "ColorBackground-Mono")]
         [Alias("BlackAndWhite", "Greyscale")]
         public SwitchParameter Monochrome { get; set; }
 
-        [Parameter]
+        /// <summary>
+        /// Gets or sets whether to allow the "banned" words. The StopWords list is comprised of very commonly-used
+        /// words, conjunctions, articles, etc., that would otherwise dominate the cloud without adding any real value.
+        /// </summary>
+        [Parameter()]
         [Alias("IgnoreStopWords")]
         public SwitchParameter AllowStopWords { get; set; }
 
-        [Parameter]
+        /// <summary>
+        /// Gets or sets the value that determines whether or not to retrieve and output the FileInfo object that
+        /// represents the completed word cloud when processing is completed.
+        /// </summary>
+        [Parameter()]
         public SwitchParameter PassThru { get; set; }
 
+        /// <summary>
+        /// Gets or sets whether or not to allow words to overflow the base canvas.
+        /// </summary>
+        /// <value></value>
         [Parameter()]
         [Alias("AllowBleed")]
         public SwitchParameter AllowOverflow { get; set; }
