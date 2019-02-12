@@ -22,7 +22,7 @@ namespace PSWordCloud
 
         #region Constants
 
-        private const float FOCUS_WORD_SCALE = 1.15f;
+        private const float FOCUS_WORD_SCALE = 1.25f;
         private const float BLEED_AREA_SCALE = 1.15f;
         private const float MIN_SATURATION_VALUE = 5f;
         private const float MIN_BRIGHTNESS_DISTANCE = 25f;
@@ -59,7 +59,7 @@ namespace PSWordCloud
         /// <summary>
         /// Gets or sets the output path to save the final SVG vector file to.
         /// </summary>
-        /// <value>Accepts a single relative or absolute path as astring.</value>
+        /// <value>Accepts a single relative or absolute path as a string.</value>
         [Parameter(Mandatory = true, Position = 0, ParameterSetName = "ColorBackground")]
         [Parameter(Mandatory = true, Position = 0, ParameterSetName = "ColorBackground-Mono")]
         [Parameter(Mandatory = true, Position = 0, ParameterSetName = "FileBackground")]
@@ -484,9 +484,9 @@ namespace PSWordCloud
                         var wordColor = _nextColor;
                         brush.NextWord(scaledWordSizes[word], StrokeWidth, wordColor);
 
-                        wordPath.Reset();
-                        wordBounds = SKRect.Empty;
-                        brush.MeasureText(word, ref wordBounds);
+                        wordPath.Dispose();
+                        wordPath = brush.GetTextPath(word, 0, 0);
+                        wordBounds = wordPath.ComputeTightBounds();
 
                         var wordWidth = wordBounds.Width;
                         var wordHeight = wordBounds.Height;
@@ -547,7 +547,7 @@ namespace PSWordCloud
                                     continue;
                                 }
 
-                                if (word == FocusWord || !occupiedSpace.IntersectsRect(wordBounds))
+                                if (!occupiedSpace.IntersectsRect(wordBounds))
                                 {
                                     wordPath = alteredPath;
                                     targetPoint = adjustedPoint;
@@ -555,7 +555,7 @@ namespace PSWordCloud
                                     goto nextWord;
                                 }
 
-                                if (radius == 0)
+                                if (point == centrePoint)
                                 {
                                     // No point checking more than a single point at the origin
                                     break;
@@ -624,7 +624,7 @@ namespace PSWordCloud
                     return SKMatrix.MakeRotationDegrees(90, point.X, point.Y);
 
                 case WordOrientation.FlippedVertical:
-                    return SKMatrix.MakeRotationDegrees(270, point.X, point.Y);
+                    return SKMatrix.MakeRotationDegrees(-90, point.X, point.Y);
 
                 default:
                     return SKMatrix.MakeIdentity();
