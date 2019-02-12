@@ -19,12 +19,14 @@ if (Test-Path -Path $OutputPath) {
     Remove-Item -Recurse -Path $OutputPath
 }
 
-Start-Process -NoNewWindow -Wait -FilePath 'dotnet' -ArgumentList @(
+$Dotnet = Start-Process -NoNewWindow -PassThru -FilePath 'dotnet' -ArgumentList @(
     'publish'
     "-c $Channel"
     "-o $(Join-Path -Path $OutputPath -ChildPath "bin")"
     $ProjectFile
 )
+
+$Dotnet.WaitForExit()
 
 $SupportedPlatforms = "win-x64", "win-x86", "linux-x64", "osx"
 $ModulePath = "$OutputPath/PSWordCloud"
