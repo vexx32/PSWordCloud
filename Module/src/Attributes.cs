@@ -342,7 +342,7 @@ namespace PSWordCloud
                 byte blue = properties.GetValue("blue") == null ?
                     (byte)0 : (byte)LanguagePrimitives.ConvertTo<byte>(properties.GetValue("blue"));
                 byte alpha = properties.GetValue("alpha") == null ?
-                    (byte)0 : (byte)LanguagePrimitives.ConvertTo<byte>(properties.GetValue("alpha"));
+                    (byte)255 : (byte)LanguagePrimitives.ConvertTo<byte>(properties.GetValue("alpha"));
 
                 yield return new SKColor(red, green, blue, alpha);
             }
