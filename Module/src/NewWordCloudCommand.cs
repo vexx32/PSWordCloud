@@ -373,6 +373,29 @@ namespace PSWordCloud
                 return color;
             }
         }
+
+        private WordOrientation _wordOrientation
+        {
+            get
+            {
+                if (!DisableRotation)
+                {
+                    var num = RandomFloat;
+                    if (num > 0.75)
+                    {
+                        return WordOrientation.Vertical;
+                    }
+
+                    if (num > 0.5)
+                    {
+                        return WordOrientation.FlippedVertical;
+                    }
+                }
+
+                return WordOrientation.Horizontal;
+            }
+        }
+
         private float _paddingMultiplier
         {
             get => Padding * PADDING_BASE_SCALE;
@@ -380,6 +403,10 @@ namespace PSWordCloud
 
         #endregion privateVariables
 
+        /// <summary>
+        /// Implements the BeginProcessing method for New-WordCloud.
+        /// Instantiates the random number generator, and organises the base color set for the cloud.
+        /// </summary>
         protected override void BeginProcessing()
         {
             _random = MyInvocation.BoundParameters.ContainsKey(nameof(RandomSeed))
@@ -392,7 +419,11 @@ namespace PSWordCloud
                 .ToList();
         }
 
-
+        /// <summary>
+        /// Implements the ProcessRecord method for PSWordCloud.
+        /// Spins up a Task&lt;IEnumerable&lt;string&gt;&gt; for each input text string to split them all
+        /// asynchronously.
+        /// </summary>
         protected override void ProcessRecord()
         {
             string[] text;
@@ -416,6 +447,10 @@ namespace PSWordCloud
             }
         }
 
+        /// <summary>
+        /// Implements the EndProcessing method for New-WordCloud.
+        /// The majority of the word cloud drawing occurs here.
+        /// </summary>
         protected override void EndProcessing()
         {
             var lineStrings = Task.WhenAll<IEnumerable<string>>(_wordProcessingTasks);
@@ -718,6 +753,14 @@ namespace PSWordCloud
             }
         }
 
+        #region HelperMethods
+
+        /// <summary>
+        /// Creates a matrix to rotate drawing objects around the given point, according to the orientation specified.
+        /// </summary>
+        /// <param name="point">The "centre" point for the rotation.</param>
+        /// <param name="orientation">The target word orientation the rotation should result in.</param>
+        /// <returns>A matrix that defines the correct rotation for the given WordOrientation.</returns>
         private static SKMatrix GetRotationMatrix(SKPoint point, WordOrientation orientation)
         {
             switch (orientation)
@@ -733,6 +776,17 @@ namespace PSWordCloud
             }
         }
 
+        /// <summary>
+        /// Processes the color set to ensure no colors identical to the background or stroke colors are re-used,
+        /// and picks out a random selection of colors to use up to the maximum count.
+        /// </summary>
+        /// <param name="set">The base set of colors to operate on.</param>
+        /// <param name="background">The background color, which will be excluded from the final set.</param>
+        /// <param name="stroke">The stroke color, which will be excluded from the final set.</param>
+        /// <param name="maxCount">The maximum number of colors to return.</param>
+        /// <param name="monochrome">If true, indicates to translate all colors to greyscale according to their overall
+        /// brightness values.</param>
+        /// <returns></returns>
         private static IEnumerable<SKColor> ProcessColorSet(
             SKColor[] set, SKColor background, SKColor stroke, int maxCount, bool monochrome)
         {
@@ -758,6 +812,11 @@ namespace PSWordCloud
             }
         }
 
+        /// <summary>
+        /// Counts all given words in the list, and tallies the counts in the given dictionary.
+        /// </summary>
+        /// <param name="wordList">The input list of words.</param>
+        /// <param name="dictionary">The dictionary to tally the counts in.</param>
         private static void CountWords(IEnumerable<string> wordList, IDictionary<string, float> dictionary)
         {
             foreach (string word in wordList)
@@ -780,34 +839,27 @@ namespace PSWordCloud
             }
         }
 
-        private WordOrientation _wordOrientation
-        {
-            get
-            {
-                if (!DisableRotation)
-                {
-                    var num = RandomFloat;
-                    if (num > 0.75)
-                    {
-                        return WordOrientation.Vertical;
-                    }
-
-                    if (num > 0.5)
-                    {
-                        return WordOrientation.FlippedVertical;
-                    }
-                }
-
-                return WordOrientation.Horizontal;
-            }
-        }
-
+        /// <summary>
+        /// Determines the base font scale for the word cloud.
+        /// </summary>
+        /// <param name="space">The total available drawing space.</param>
+        /// <param name="baseScale">The base scale value.</param>
+        /// <param name="averageWordFrequency">The average frequency of words.</param>
+        /// <param name="wordCount">The total number of words to account for.</param>
+        /// <returns>Returns a float value representing a conservative scaling value to apply to each word.</returns>
         private static float FontScale(SKRect space, float baseScale, float averageWordFrequency, int wordCount)
         {
             return baseScale * (space.Height + space.Width)
                 / (8 * averageWordFrequency * wordCount);
         }
 
+        /// <summary>
+        /// Scale each word by the base word scale value and determine its final font size.
+        /// </summary>
+        /// <param name="baseSize">The base size for the font.</param>
+        /// <param name="globalScale">The global scaling factor.</param>
+        /// <param name="scaleDictionary">The dictionary of word scales containing their base sizes.</param>
+        /// <returns></returns>
         private static float ScaleWordSize(
             float baseSize, float globalScale, IDictionary<string, float> scaleDictionary)
         {
@@ -815,16 +867,41 @@ namespace PSWordCloud
                 / (1 + scaleDictionary.Values.Max() - scaleDictionary.Values.Min()) + 0.9f);
         }
 
+        /// <summary>
+        /// Sorts the word list by the frequency of words, in descending order.
+        /// </summary>
+        /// <param name="dictionary">The dictionary containing words and their relative frequencies.</param>
+        /// <param name="maxWords">The total number of words to consider.</param>
+        /// <returns>An enumerable string list of words in order from most used to least.</returns>
         private static IEnumerable<string> SortWordList(IDictionary<string, float> dictionary, int maxWords)
         {
             return dictionary.Keys.OrderByDescending(word => dictionary[word])
                 .Take(maxWords == 0 ? int.MaxValue : maxWords);
         }
 
+        /// <summary>
+        /// Calculates the radius increment to use when scanning for available space to draw.
+        /// </summary>
+        /// <param name="wordSize">The size of the word currently being drawn.</param>
+        /// <param name="distanceStep">The base distance step value.</param>
+        /// <param name="maxRadius">The maximum radial distance to scan from the center.</param>
+        /// <param name="padding">The padding amount to take into account.</param>
+        /// <param name="percentComplete">How close to completion of the cloud we are, and thus how likely it is that
+        /// spaces close to the center of the cloud are already filled.</param>
+        /// <returns>Returns a float value indicating how far to step along the radius before scanning in a circle
+        /// at that radius once again for available space.</returns>
         private static float GetRadiusIncrement(
             float wordSize, float distanceStep, float maxRadius, float padding, float percentComplete)
             => (5 + RandomFloat * (2.5f + percentComplete / 10)) * distanceStep * wordSize * (1 + padding) / maxRadius;
 
+        /// <summary>
+        /// Scans in an ovoid pattern at a given radius to get a set of points to check for sufficient drawing space.
+        /// </summary>
+        /// <param name="centre">The centre point of the image.</param>
+        /// <param name="radius">The current radius we're scanning at.</param>
+        /// <param name="radialStep">The current radial stepping value.</param>
+        /// <param name="aspectRatio">The aspect ratio of the canvas.</param>
+        /// <returns></returns>
         private static IEnumerable<SKPoint> GetRadialPoints(
             SKPoint centre, float radius, float radialStep, float aspectRatio = 1)
         {
@@ -876,6 +953,11 @@ namespace PSWordCloud
             } while (clockwise ? angle <= maxAngle : angle >= maxAngle);
         }
 
+        /// <summary>
+        /// Asynchronous method used to quickly process large amounts of text input into words.
+        /// </summary>
+        /// <param name="line">The text to split and process.</param>
+        /// <returns>An enumerable string collection of all words in the input, with stopwords stripped out.</returns>
         private async Task<IEnumerable<string>> ProcessInputAsync(string line)
         {
             return await Task.Run<IEnumerable<string>>(
@@ -888,5 +970,7 @@ namespace PSWordCloud
                     return words;
                 });
         }
+
+        #endregion HelperMethods
     }
 }
