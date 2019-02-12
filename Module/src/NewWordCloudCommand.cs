@@ -59,7 +59,7 @@ namespace PSWordCloud
         /// <summary>
         /// Gets or sets the output path to save the final SVG vector file to.
         /// </summary>
-        /// <value>Accepts a single relative or absolute path as astring.</value>
+        /// <value>Accepts a single relative or absolute path as a string.</value>
         [Parameter(Mandatory = true, Position = 0, ParameterSetName = "ColorBackground")]
         [Parameter(Mandatory = true, Position = 0, ParameterSetName = "ColorBackground-Mono")]
         [Parameter(Mandatory = true, Position = 0, ParameterSetName = "FileBackground")]
