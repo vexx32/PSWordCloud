@@ -10,6 +10,7 @@ open System.Reflection
 open System.Runtime.CompilerServices
 open SkiaSharp
 open System.Management.Automation
+open System.Collections.Generic
 
 module Operators =
     let inline (!>) (x:^a) : ^b = ((^a or ^b) : (static member op_Implicit : ^a -> ^b) x)
@@ -39,13 +40,9 @@ module Utils =
         |> Seq.map (fun field -> (field.Name, field.GetValue(null) :?> SKColor))
         |> Map.ofSeq
 
-    let ColorNames =
-        ColorLibrary
-        |> Seq.map (fun item -> item.Key)
+    let ColorNames = ColorLibrary |> Seq.map (fun item -> item.Key)
 
-    let StandardColors =
-        ColorLibrary
-        |> Seq.map (fun item -> item.Value)
+    let StandardColors = ColorLibrary |> Seq.map (fun item -> item.Value)
 
     let NamedColor color = ColorLibrary.[color]
 
@@ -62,6 +59,14 @@ module Utils =
             ("Poster24x36", ("2304x3456", SKSizeI(2304, 3456)))
         ] |> Map.ofSeq
 
+    let ValueFrom (dict : IEnumerable) key =
+        match dict with
+        | :? IDictionary as d -> d.[key]
+        | :? PSMemberInfoCollection<PSMemberInfo> as p -> p.[key].Value
+        | _ -> raise (ArgumentTransformationMetadataException())
+
+    let As<'T> value = LanguagePrimitives.ConvertTo<'T>(value)
+
 module Extensions =
     type SKPoint with
         member self.Multiply factor = SKPoint(self.X * factor, self.Y * factor)
@@ -70,14 +75,8 @@ module Extensions =
         member self.ToRadians() = self * (single Math.PI) / 180.0f
 
     type Random with
-        member self.Shuffle<'T> (array : 'T[]) =
-            let mutable n : int = array.Length
-            while (n > 1) do
-                let k = self.Next(n)
-                n <- n - 1
-                let temp = array.[n]
-                array.[n] <- array.[k]
-                array.[k] <- temp
+        member self.Shuffle<'T> (items : 'T list) =
+            List.permute (fun x -> self.Next(x)) items
 
     type SKRect with
         member self.FallsOutside (region : SKRegion) =
@@ -112,7 +111,7 @@ module Extensions =
 
         member self.Intersects(rect : SKRect) =
             match self.Bounds.IsEmpty with
-            | true ->
+            | false ->
                 use region = new SKRegion()
                 region.SetRect(SKRectI.Round(rect)) |> ignore
                 self.Intersects(region)
@@ -120,18 +119,8 @@ module Extensions =
 
         member self.Intersects(path : SKPath) =
             match self.Bounds.IsEmpty with
-            | true ->
+            | false ->
                 use region = new SKRegion()
                 region.SetPath(path) |> ignore
                 self.Intersects(region)
             | x -> x
-
-    type IEnumerable<'T> with
-        member self.GetValue key =
-            match self with
-            | :? PSMemberInfoCollection<PSPropertyInfo> as prop -> prop.[key].Value
-            | :? IDictionary as dict -> dict.[key]
-            | _ ->
-                let memberType = typeof<PSMemberInfoCollection<PSPropertyInfo>>
-                let dictType = typeof<IDictionary<_, _>>
-                raise (ArgumentException(String.Format("GetValue method only accepts {0} or {1}", memberType, dictType)))

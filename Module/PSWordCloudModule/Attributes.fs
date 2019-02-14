@@ -12,7 +12,7 @@ open PSWordCloud.Utils
 open SkiaSharp
 open System.Management.Automation
 
-type ImageSizeCompleter() =
+type SKSizeICompleter() =
     interface IArgumentCompleter with
         member self.CompleteArgument(commandName, parameterName, wordToComplete, commandAst, fakeBoundParameters) =
             seq {
@@ -26,145 +26,142 @@ type ImageSizeCompleter() =
 type TransformToSKSizeIAttribute() =
     inherit ArgumentTransformationAttribute()
 
-    override self.Transform(intrinsics, inputData) =
+    override self.Transform(intrinsics, input) =
         let sideLength = 0
-        match inputData with
-        | :? SKSize as sz -> sz :> _
-        | :? SKSizeI as szI -> szI :> _
-        | :? string as s
-            ->
+        match input with
+        | :? SKSize as sz -> sz :> obj
+        | :? SKSizeI as szI -> szI :> obj
+        | :? string as s ->
             if StandardImageSizes.ContainsKey(s) then
-                StandardImageSizes.[s] :> _
+                StandardImageSizes.[s] :> obj
             else
                 let sizePattern = @"^(?<Width>[\d\.,]+)x(?<Height>[\d\.,]+)(px)?$"
                 let numberPattern = @"^(?<SideLength>[\d\.,]+)(px)?$"
-
                 let matchSize = Regex.Match(s, sizePattern)
                 if matchSize.Success then
-                    SKSizeI(int matchSize.Groups.["Width"], int matchSize.Groups.["Height"])
+                    SKSizeI(int matchSize.Groups.["Width"].Value, int matchSize.Groups.["Height"].Value) :> obj
                 else
                     let matchNumber = Regex.Match(s, numberPattern)
                     if matchNumber.Success then
-                        let x = int matchNumber.Groups.["SideLength"]
-                        SKSizeI(x, x)
-
-        | :? array as arr ->
-
-        | _ ->
-
-(*public override object Transform(EngineIntrinsics engineIntrinsics, object inputData)
-        {
-            int sideLength = 0;
-            switch (inputData)
-            {
-                case SKSize sk:
-                    return sk;
-                case short sh:
-                    sideLength = sh;
-                    break;
-                case ushort us:
-                    sideLength = us;
-                    break;
-                case int i:
-                    sideLength = i;
-                    break;
-                case uint u:
-                    if (u <= int.MaxValue)
-                    {
-                        sideLength = (int)u;
-                    }
-
-                    break;
-                case long l:
-                    if (l <= int.MaxValue)
-                    {
-                        sideLength = (int)l;
-                    }
-
-                    break;
-                case ulong ul:
-                    if (ul <= int.MaxValue)
-                    {
-                        sideLength = (int)ul;
-                    }
-                    break;
-                case decimal d:
-                    if (d <= int.MaxValue)
-                    {
-                        sideLength = (int)Math.Round(d);
-                    }
-                    break;
-                case float f:
-                    if (f <= int.MaxValue)
-                    {
-                        sideLength = (int)Math.Round(f);
-                    }
-                    break;
-                case double d:
-                    if (d <= int.MaxValue)
-                    {
-                        sideLength = (int)Math.Round(d);
-                    }
-                    break;
-                case string s:
-                    if (WCUtils.StandardImageSizes.ContainsKey(s))
-                    {
-                        return WCUtils.StandardImageSizes[s].Size;
-                    }
+                        let x = int matchNumber.Groups.["SideLength"].Value
+                        SKSizeI(x, x) :> obj
                     else
-                    {
-                        var matchWH = Regex.Match(s, @"^(?<Width>[\d\.,]+)x(?<Height>[\d\.,]+)(px)?$");
-                        if (matchWH.Success)
-                        {
-                            try
-                            {
-                                var width = int.Parse(matchWH.Groups["Width"].Value);
-                                var height = int.Parse(matchWH.Groups["Height"].Value);
+                        raise (ArgumentTransformationMetadataException())
+        | x ->
+            let properties =
+                match x with
+                | :? IDictionary as x -> x :> IEnumerable
+                | x -> PSObject.AsPSObject(x).Properties :> IEnumerable
 
-                                return new SKSizeI(width, height);
-                            }
-                            catch (Exception e)
-                            {
-                                throw new ArgumentTransformationMetadataException(
-                                    "Could not parse input string as a float value", e);
-                            }
-                        }
+            SKSizeI(ValueFrom properties "Width" |> As<int>, ValueFrom properties "Width" |> As<int>) :> obj
 
-                        var matchSide = Regex.Match(s, @"^(?<SideLength>[\d\.,]+)(px)?$");
-                        if (matchSide.Success)
-                        {
-                            sideLength = int.Parse(matchSide.Groups["SideLength"].Value);
-                        }
-                    }
-
-                    break;
-                case object o:
-                    IEnumerable properties = null;
-                    if (o is Hashtable ht)
-                    {
-                        properties = ht;
-                    }
-                    else
-                    {
-                        properties = PSObject.AsPSObject(o).Properties;
-                    }
-
-                    if (properties.GetValue("Width") != null && properties.GetValue("Height") != null)
-                    {
-                        // If these conversions fail, the exception will cause the transform to fail.
-                        var width = LanguagePrimitives.ConvertTo<int>(properties.GetValue("Width"));
-                        var height = LanguagePrimitives.ConvertTo<int>(properties.GetValue("Height"));
-
-                        return new SKSizeI(width, height);
-                    }
-
-                    break;
+type TypefaceCompleter() =
+    interface IArgumentCompleter with
+        member self.CompleteArgument(commandName, parameterName, wordToComplete, commandAst, fakeBoundParameters) =
+            seq {
+                let target = wordToComplete.TrimStart('"').TrimEnd('"')
+                for item in FontList do
+                    if String.IsNullOrEmpty(wordToComplete)
+                        || item.StartsWith(target, StringComparison.OrdinalIgnoreCase)
+                    then
+                        if item.Contains ' '
+                            || item.Contains '#'
+                            || wordToComplete.StartsWith '"'
+                        then
+                            let result = String.Format("\"{0}\"", item)
+                            yield CompletionResult(result, item, CompletionResultType.ParameterValue, item)
+                        else
+                            yield CompletionResult(item, item, CompletionResultType.ParameterValue, item)
             }
 
-            if (sideLength > 0)
-            {
-                return new SKSizeI(sideLength, sideLength);
+type TransformToSKTypefaceAttribute() =
+    inherit ArgumentTransformationAttribute()
+
+    override self.Transform(intrinsics, input) =
+        match input with
+        | :? SKTypeface as x -> x :> obj
+        | :? string as s -> FontManager.MatchFamily(s, SKFontStyle.Normal) :> obj
+        | x ->
+            let properties =
+                match x with
+                | :? IDictionary as d -> d :> IEnumerable
+                | p -> PSObject.AsPSObject(p).Properties :> IEnumerable
+
+            let style =
+                let weight = ValueFrom properties "Weight"
+                let width = ValueFrom properties "Width"
+                let slant = ValueFrom properties "Slant"
+                if isNull weight && isNull width && isNull slant then
+                    ValueFrom properties "Style" |> As<SKFontStyle>
+                else
+                    let convWeight = if isNull weight then SKFontStyleWeight.Normal else weight |> As<SKFontStyleWeight>
+                    let convWidth = if isNull width then SKFontStyleWidth.Normal else width |> As<SKFontStyleWidth>
+                    let convSlant = if isNull slant then SKFontStyleSlant.Upright else slant |> As<SKFontStyleSlant>
+                    new SKFontStyle(convWeight, convWidth, convSlant)
+
+            let familyName = ValueFrom properties "FamilyName" |> As<string>
+            FontManager.MatchFamily(familyName, style) :> obj
+
+type SKColorCompleter() =
+    interface IArgumentCompleter with
+        member self.CompleteArgument(commandName, parameterName, wordToComplete, commandAst, fakeBoundParameters) =
+            seq {
+                for color in ColorNames do
+                    if String.IsNullOrEmpty(wordToComplete)
+                        || color.StartsWith(wordToComplete, StringComparison.OrdinalIgnoreCase)
+                    then
+                        let colorValue = ColorLibrary.[color]
+                        let tooltip = String.Format("{0} (R: {1}, G: {2}, B: {3}, A: {4})", color, colorValue.Red, colorValue.Green, colorValue.Blue, colorValue.Alpha)
+                        yield CompletionResult(color, color, CompletionResultType.ParameterValue, tooltip)
             }
 
-            throw new ArgumentTransformationMetadataException();
-        }*)
+type TransformToSKColorAttribute() =
+    inherit ArgumentTransformationAttribute()
+
+    let matchColor name =
+        seq {
+            match name with
+            | knownColor when ColorNames.Contains(knownColor) -> yield ColorLibrary.[knownColor]
+            | clear when String.Equals(clear, "transparent", StringComparison.OrdinalIgnoreCase) -> yield SKColor.Empty
+            | patternString when WildcardPattern.ContainsWildcardCharacters(patternString) ->
+                let pattern = WildcardPattern(patternString, WildcardOptions.IgnoreCase)
+                for color in ColorNames do
+                    if pattern.IsMatch(color) then yield ColorLibrary.[color]
+            | x ->
+                let (success, color) = SKColor.TryParse(x)
+                if success then yield color
+        }
+
+    let transformObject (input : obj) =
+        let values =
+            match input with
+            | :? Array as arr -> arr
+            | x -> Seq.toArray [ x ] :> Array
+        seq {
+            for item in values do
+                match item with
+                | :? string as s -> for color in matchColor s do yield color
+                | x ->
+                    let properties =
+                        match x with
+                        | :? IDictionary as d -> d :> IEnumerable
+                        | p -> PSObject.AsPSObject(p).Properties :> IEnumerable
+                    let red = if isNull (ValueFrom properties "Red") then 0uy else ValueFrom properties "Red" |> As<byte>
+                    let green = if isNull (ValueFrom properties "Green") then 0uy else ValueFrom properties "Green" |> As<byte>
+                    let blue = if isNull (ValueFrom properties "Blue") then 0uy else ValueFrom properties "Blue" |> As<byte>
+                    let alpha = if isNull (ValueFrom properties "Alpha") then 255uy else ValueFrom properties "Alpha" |> As<byte>
+
+                    yield SKColor(red, green, blue, alpha)
+        }
+
+    override self.Transform(intrinsics, data) =
+        let results =
+            match data with
+            | :? SKColor as c -> seq { yield c }
+            | :? string as s -> matchColor s
+            | x -> transformObject x
+            |> Seq.toList
+
+        match results with
+        | unit when unit.Length = 1 -> unit.[0] :> obj
+        | x -> x :> obj
