@@ -20,6 +20,8 @@ type NewWordCloudCommand() =
     let mutable _resolvedBackgroundPath = String.Empty
     let mutable _colors : SKColor list = []
 
+    //#region Parameters
+
     [<Parameter(Mandatory = true, ValueFromPipeline = true, ParameterSetName = "ColorBackground")>]
     [<Parameter(Mandatory = true, ValueFromPipeline = true, ParameterSetName = "ColorBackground-Mono")>]
     [<Parameter(Mandatory = true, ValueFromPipeline = true, ParameterSetName = "FileBackground")>]
@@ -89,3 +91,73 @@ type NewWordCloudCommand() =
     [<ArgumentCompleter(typeof<SKColorCompleter>)>]
     member val public StrokeColor = SKColors.Black
         with get, set
+
+    [<Parameter>]
+    [<Alias("Title")>]
+    member val public FocusWord = String.Empty
+        with get, set
+
+    [<Parameter>]
+    [<Alias("ScaleFactor")>]
+    [<ValidateRange(0.01, 20)>]
+    member val public WordScale = 1.0f
+        with get, set
+
+    [<Parameter>]
+    [<Alias("Spacing")>]
+    member val public Padding = 3.0f
+        with get, set
+
+    [<Parameter>]
+    [<ValidateRange(1, 500)>]
+    member val public DistanceStep = 5.0f
+        with get, set
+
+    [<Parameter>]
+    [<ValidateRange(1, 50)>]
+    member val public RadialStep = 15.0f
+        with get, set
+
+    [<Parameter>]
+    [<Alias("MaxWords")>]
+    [<ValidateRange(0, Int32.MaxValue)>]
+    member val public MaxRenderedWords = 100
+        with get, set
+
+    [<Parameter>]
+    [<Alias("MaxColours")>]
+    [<ValidateRange(1, Int32.MaxValue)>]
+    member val public MaxColors = Int32.MaxValue
+        with get, set
+
+    [<Parameter>]
+    [<Alias("SeedValue")>]
+    member val public RandomSeed = 0
+        with get, set
+
+    [<Parameter>]
+    [<Alias("DisableWordRotation")>]
+    member val public DisableRotation : SwitchParameter = SwitchParameter(false)
+        with get, set
+
+    [<Parameter(Mandatory = true, ParameterSetName = "FileBackground-Mono")>]
+    [<Parameter(Mandatory = true, ParameterSetName = "ColorBackground-Mono")>]
+    [<Alias("Greyscale")>]
+    member val public Monochrome : SwitchParameter = SwitchParameter(false)
+        with get, set
+
+    [<Parameter>]
+    [<Alias("IgnoreStopWords")>]
+    member val public AllowStopWords : SwitchParameter = SwitchParameter(false)
+        with get, set
+
+    [<Parameter>]
+    member val public PassThru : SwitchParameter = SwitchParameter(false)
+        with get, set
+
+    [<Parameter>]
+    [<Alias("AllowBleed")>]
+    member val public AllowOverflow : SwitchParameter = SwitchParameter(false)
+        with get, set
+
+    //#endregion Parameters
