@@ -2,15 +2,11 @@ namespace PSWordCloud
 
 open System
 open System.Collections
-open System.Collections.Generic
-open System.Collections.ObjectModel
 open System.Linq
 open System.Management.Automation
 open System.Reflection
-open System.Runtime.CompilerServices
+open System.Threading
 open SkiaSharp
-open System.Management.Automation
-open System.Collections.Generic
 
 module Operators =
     let inline (!>) (x:^a) : ^b = ((^a or ^b) : (static member op_Implicit : ^a -> ^b) x)
@@ -66,6 +62,13 @@ module Utils =
         | _ -> raise (ArgumentTransformationMetadataException())
 
     let As<'T> value = LanguagePrimitives.ConvertTo<'T>(value)
+
+    let lock (padlock : obj) task =
+        Monitor.Enter padlock
+        try
+            task
+        finally
+            Monitor.Exit padlock
 
 module Extensions =
     type SKPoint with

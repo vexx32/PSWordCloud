@@ -16,11 +16,8 @@ open SkiaSharp
 type NewWordCloudCommand() =
     inherit PSCmdlet()
 
-    let mutable _resolvedPath = String.Empty
-    let mutable _resolvedBackgroundPath = String.Empty
-    let mutable _colors : SKColor list = []
+    //#region Static Members
 
-    //#region Static Parameters
     static let _stopWords = [
         "a";"about";"above";"after";"again";"against";"all";"am";"an";"and";"any";"are";"aren't";"as";"at";"be";
         "because";"been";"before";"being";"below";"between";"both";"but";"by";"can't";"cannot";"could";"couldn't";
@@ -48,7 +45,28 @@ type NewWordCloudCommand() =
     static let random =
         if isNull _random then _random <- Random()
         _random
-    //#endregion Static Parameters
+
+    //#endregion Static Members
+
+    let mutable _resolvedPath = String.Empty
+    let mutable _resolvedBackgroundPath = String.Empty
+
+    let mutable _colors : SKColor list = []
+
+    let mutable _fontScale = 1.0f
+
+    let mutable _wordProcessingTasks : Task<string list> list = []
+
+    let _progressId = random.Next()
+
+    (*
+
+
+        private float _paddingMultiplier
+        {
+            get => Padding * PADDING_BASE_SCALE;
+        }*)
+    //#endregion Static Members
 
     //#region Parameters
 
@@ -191,3 +209,33 @@ type NewWordCloudCommand() =
         with get, set
 
     //#endregion Parameters
+
+    member private self.RandomFloat
+        with get() =
+            _randomLock
+            |> lock <| random.NextDouble
+            |> As<single>
+            |> single
+
+    member private self.NextColor
+        with get() =
+            match _colors with
+            | head :: tail ->
+                _colors <- tail
+                head
+            | [] ->
+                match self.ColorSet with
+                | head :: tail ->
+                    _colors <- tail
+                    head
+                | [] -> SKColors.Red
+
+    member private self.NextOrientation
+        with get() =
+            if not self.DisableRotation.IsPresent then
+                match self.RandomFloat with
+                | x when x > 0.75f -> WordOrientation.Vertical
+                | x when x > 0.5f -> WordOrientation.FlippedVertical
+                | _ -> WordOrientation.Horizontal
+            else
+                WordOrientation.Horizontal
