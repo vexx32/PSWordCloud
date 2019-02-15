@@ -53,7 +53,7 @@ type TransformToSKSizeIAttribute() =
                 | :? IDictionary as x -> x :> IEnumerable
                 | x -> PSObject.AsPSObject(x).Properties :> IEnumerable
 
-            SKSizeI(ValueFrom properties "Width" |> As<int>, ValueFrom properties "Width" |> As<int>) :> obj
+            SKSizeI(ValueFrom properties "Width" |> To<int>, ValueFrom properties "Width" |> To<int>) :> obj
 
 type TypefaceCompleter() =
     interface IArgumentCompleter with
@@ -88,18 +88,21 @@ type TransformToSKTypefaceAttribute() =
                 | p -> PSObject.AsPSObject(p).Properties :> IEnumerable
 
             let style =
-                let weight = ValueFrom properties "Weight"
-                let width = ValueFrom properties "Width"
-                let slant = ValueFrom properties "Slant"
-                if isNull weight && isNull width && isNull slant then
-                    ValueFrom properties "Style" |> As<SKFontStyle>
-                else
-                    let convWeight = if isNull weight then SKFontStyleWeight.Normal else weight |> As<SKFontStyleWeight>
-                    let convWidth = if isNull width then SKFontStyleWidth.Normal else width |> As<SKFontStyleWidth>
-                    let convSlant = if isNull slant then SKFontStyleSlant.Upright else slant |> As<SKFontStyleSlant>
-                    new SKFontStyle(convWeight, convWidth, convSlant)
+                let weight = ValueFrom properties "Weight" |> As<SKFontStyleWeight>
+                let width = ValueFrom properties "Width" |> As<SKFontStyleWidth>
+                let slant = ValueFrom properties "Slant" |> As<SKFontStyleSlant>
 
-            let familyName = ValueFrom properties "FamilyName" |> As<string>
+                match (weight, width, slant) with
+                | (Some x, Some y, Some z) -> new SKFontStyle(x, y, z)
+                | (None, Some y, Some z) -> new SKFontStyle(SKFontStyleWeight.Normal, y, z)
+                | (Some x, None, Some z) -> new SKFontStyle(x, SKFontStyleWidth.Normal, z)
+                | (Some x, Some y, None) -> new SKFontStyle(x, y, SKFontStyleSlant.Upright)
+                | (Some x, None, None) -> new SKFontStyle(x, SKFontStyleWidth.Normal, SKFontStyleSlant.Upright)
+                | (None, Some y, None) -> new SKFontStyle(SKFontStyleWeight.Normal, y, SKFontStyleSlant.Upright)
+                | (None, None, Some z) -> new SKFontStyle(SKFontStyleWeight.Normal, SKFontStyleWidth.Normal, z)
+                | (None, None, None) -> SKFontStyle.Normal
+
+            let familyName = ValueFrom properties "FamilyName" |> To<string>
             FontManager.MatchFamily(familyName, style) :> obj
 
 type SKColorCompleter() =
@@ -146,12 +149,15 @@ type TransformToSKColorAttribute() =
                         match x with
                         | :? IDictionary as d -> d :> IEnumerable
                         | p -> PSObject.AsPSObject(p).Properties :> IEnumerable
-                    let red = if isNull (ValueFrom properties "Red") then 0uy else ValueFrom properties "Red" |> As<byte>
-                    let green = if isNull (ValueFrom properties "Green") then 0uy else ValueFrom properties "Green" |> As<byte>
-                    let blue = if isNull (ValueFrom properties "Blue") then 0uy else ValueFrom properties "Blue" |> As<byte>
-                    let alpha = if isNull (ValueFrom properties "Alpha") then 255uy else ValueFrom properties "Alpha" |> As<byte>
+                    let red = ValueFrom properties "Red" |> As<byte>
+                    let green = ValueFrom properties "Green" |> As<byte>
+                    let blue = ValueFrom properties "Blue" |> As<byte>
+                    let alpha = ValueFrom properties "Alpha" |> As<byte>
 
-                    yield SKColor(red, green, blue, alpha)
+                    yield
+                        match (red, green, blue, alpha) with
+                        | (None, None, None, None) -> SKColors.Transparent
+                        | _ -> SKColor(red |? 0uy, green |? 0uy, blue |? 0uy, alpha|? 255uy)
         }
 
     override self.Transform(intrinsics, data) =

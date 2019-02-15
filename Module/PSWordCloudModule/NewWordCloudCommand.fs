@@ -7,7 +7,11 @@ open System.Numerics
 open System.Text.RegularExpressions
 open System.Threading.Tasks
 open PSWordCloud.Extensions
+open PSWordCloud.NewWordCloudCommandHelper
+open PSWordCloud.Randomizer
 open PSWordCloud.Utils
+open SkiaSharp
+open SkiaSharp
 open SkiaSharp
 
 
@@ -16,57 +20,62 @@ open SkiaSharp
 type NewWordCloudCommand() =
     inherit PSCmdlet()
 
-    //#region Static Members
-
-    static let _stopWords = [
-        "a";"about";"above";"after";"again";"against";"all";"am";"an";"and";"any";"are";"aren't";"as";"at";"be";
-        "because";"been";"before";"being";"below";"between";"both";"but";"by";"can't";"cannot";"could";"couldn't";
-        "did";"didn't";"do";"does";"doesn't";"doing";"don't";"down";"during";"each";"few";"for";"from";"further";
-        "had";"hadn't";"has";"hasn't";"have";"haven't";"having";"he";"he'd";"he'll";"he's";"her";"here";"here's";
-        "hers";"herself";"him";"himself";"his";"how";"how's";"i";"i'd";"i'll";"i'm";"i've";"if";"in";"into";"is";
-        "isn't";"it";"it's";"its";"itself";"let's";"me";"more";"most";"mustn't";"my";"myself";"no";"nor";"not";"of";
-        "off";"on";"once";"only";"or";"other";"ought";"our";"ours";"ourselves";"out";"over";"own";"same";"shan't";
-        "she";"she'd";"she'll";"she's";"should";"shouldn't";"so";"some";"such";"than";"that";"that's";"the";"their";
-        "theirs";"them";"themselves";"then";"there";"there's";"these";"they";"they'd";"they'll";"they're";"they've";
-        "this";"those";"through";"to";"too";"under";"until";"up";"very";"was";"wasn't";"we";"we'd";"we'll";"we're";
-        "we've";"were";"weren't";"what";"what's";"when";"when's";"where";"where's";"which";"while";"who";"who's";
-        "whom";"why";"why's";"with";"won't";"would";"wouldn't";"you";"you'd";"you'll";"you're";"you've";"your";
-        "yours";"yourself";"yourselves"
-    ]
-
-    static let _splitChars = [
-        ' ';'\n';'\t';'\r';'.';';';';';'\\';'/';'|';
-        ':';'"';'?';'!';'{';'}';'[';']';':';'(';')';
-        '<';'>';'“';'”';'*';'#';'%';'^';'&';'+';'='
-    ]
-
-    static let _randomLock = obj();
-    static let mutable _random : Random = null
-    static let random =
-        if isNull _random then _random <- Random()
-        _random
-
-    //#endregion Static Members
-
     let mutable _resolvedPath = String.Empty
     let mutable _resolvedBackgroundPath = String.Empty
 
     let mutable _colors : SKColor list = []
-
     let mutable _fontScale = 1.0f
 
     let mutable _wordProcessingTasks : Task<string list> list = []
+    let _progressId = NextInt()
 
-    let _progressId = random.Next()
+    member private self.NextColor
+        with get() =
+            match _colors with
+            | head :: tail ->
+                _colors <- tail
+                head
+            | [] ->
+                match self.ColorSet with
+                | head :: tail ->
+                    _colors <- tail
+                    head
+                | [] -> SKColors.Red
 
-    (*
+    member private self.NextOrientation =
+        if not self.DisableRotation.IsPresent then
+            match Randomizer.NextSingle() with
+            | x when x > 0.75f -> WordOrientation.Vertical
+            | x when x > 0.5f -> WordOrientation.FlippedVertical
+            | _ -> WordOrientation.Horizontal
+        else
+            WordOrientation.Horizontal
 
+    member private self.PaddingMultiplier
+        with get() = self.Padding * PaddingBaseScale
 
-        private float _paddingMultiplier
-        {
-            get => Padding * PADDING_BASE_SCALE;
-        }*)
-    //#endregion Static Members
+    //#region Private Functions
+
+    member private self.ProcessInputAsync (stringLines : string list) =
+        seq {
+            for line in stringLines do
+                yield async {
+                    let words =
+                        line.Split(SplitChars |> List.toArray, StringSplitOptions.RemoveEmptyEntries)
+                        |> Array.toList
+                        |> List.choose(
+                            fun x ->
+                                if (not self.AllowStopWords.IsPresent && StopWords.Contains(x, StringComparer.OrdinalIgnoreCase))
+                                    || Regex.Replace(x, "[^a-z-]", String.Empty, RegexOptions.IgnoreCase).Length < 2
+                                then
+                                    Some x
+                                else
+                                    None)
+                    return words
+                }
+        } |> Seq.toList
+
+    //#endregion Private Functions
 
     //#region Parameters
 
@@ -210,32 +219,160 @@ type NewWordCloudCommand() =
 
     //#endregion Parameters
 
-    member private self.RandomFloat
-        with get() =
-            _randomLock
-            |> lock <| random.NextDouble
-            |> As<single>
-            |> single
+    //#region Overrides
 
-    member private self.NextColor
-        with get() =
-            match _colors with
-            | head :: tail ->
-                _colors <- tail
-                head
-            | [] ->
-                match self.ColorSet with
-                | head :: tail ->
-                    _colors <- tail
-                    head
-                | [] -> SKColors.Red
+    override self.BeginProcessing() =
+        if self.MyInvocation.BoundParameters.ContainsKey("RandomSeed") then SetSeed self.RandomSeed
 
-    member private self.NextOrientation
-        with get() =
-            if not self.DisableRotation.IsPresent then
-                match self.RandomFloat with
-                | x when x > 0.75f -> WordOrientation.Vertical
-                | x when x > 0.5f -> WordOrientation.FlippedVertical
-                | _ -> WordOrientation.Horizontal
+        _colors <- PrepareColorSet self.ColorSet self.BackgroundColor self.StrokeColor self.MaxRenderedWords self.Monochrome.IsPresent
+            |> Seq.sortByDescending (fun x -> x.SortValue(NextSingle()))
+            |> Seq.toList
+
+    override self.ProcessRecord() =
+        let text =
+            if self.MyInvocation.ExpectingInput then [ self.InputObject.BaseObject |> To<string> ]
             else
-                WordOrientation.Horizontal
+                match self.InputObject.BaseObject with
+                | :? (string []) as arr -> arr |> Array.toList
+                | :? (Object []) as objArr ->
+                    objArr
+                    |> Array.toList |> List.map (fun x -> x |> To<string>)
+                | x -> [ x.ToString() ]
+
+        _wordProcessingTasks <-
+            self.ProcessInputAsync text
+            |> List.map Async.StartAsTask
+            |> List.append _wordProcessingTasks
+
+    override self.EndProcessing() =
+        let allTasks = _wordProcessingTasks |> Task.WhenAll
+        let wordScaleDictionary = Dictionary<string, single>(StringComparer.OrdinalIgnoreCase)
+
+        let mutable wordCount = 0
+        let mutable background : SKBitmap = null
+
+
+        allTasks.Wait()
+        for lineWords in allTasks.Result do
+            CountWords lineWords wordScaleDictionary
+
+        let highestFrequency =
+            if self.MyInvocation.BoundParameters.ContainsKey("FocusWord") then
+                let maxFreq = wordScaleDictionary.Values.Max() * FocusWordScale
+                wordScaleDictionary.[self.FocusWord] <- maxFreq
+                maxFreq
+            else
+                wordScaleDictionary.Values.Max()
+
+        let sortedWords =
+            wordScaleDictionary
+            |> SortWordList <| self.MaxRenderedWords
+            |> Seq.toList
+
+        try
+            let cloudBounds =
+                if self.MyInvocation.BoundParameters.ContainsKey("BackgroundImage") then
+                    background <- SKBitmap.Decode(_resolvedBackgroundPath)
+                    SKRectI(0, 0, background.Width, background.Height)
+                else
+                    SKRectI(0, 0, self.ImageSize.Width, self.ImageSize.Height)
+                |> To<SKRect>
+
+            use mutable wordPath = new SKPath()
+            use clipRegion = new SKRegion()
+
+            SKRectI.Ceiling(cloudBounds)
+            |> clipRegion.SetRect
+            |> ignore
+
+            _fontScale <-
+                clipRegion.Bounds
+                |> To<SKRect>
+                |> AdjustFontScale <| wordScaleDictionary.Values.Average()
+                                   <| sortedWords.Length
+
+            let scaledWordSizes = Dictionary<string, single>(sortedWords.Length, StringComparer.OrdinalIgnoreCase)
+            let maxWordWidth =
+                if self.DisableRotation.IsPresent then
+                    single cloudBounds.Width * MaxPercentWidth
+                else
+                    MaxPercentWidth * (Math.Max(cloudBounds.Width, cloudBounds.Height) |> single)
+
+            let mutable retry = false
+            let cloudMaxArea = cloudBounds.Width * cloudBounds.Height |> To<single>
+            use brush = new SKPaint()
+            brush.Typeface <- self.Typeface
+
+            // Pre-test word sizes to scale to image size
+            while retry do
+                retry <- false
+                let size = wordScaleDictionary.[sortedWords.[0]]
+                           |> AdjustWordSize <| _fontScale
+                                             <| wordScaleDictionary
+                brush.DefaultWord size self.StrokeWidth |> ignore
+
+                let mutable wordRect = SKRect.Empty
+                brush.MeasureText(sortedWords.[0], ref wordRect) |> ignore
+                if wordRect.Width * wordRect.Height * 8.0f < cloudMaxArea * 0.75f then
+                    retry <- true
+                    _fontScale <- _fontScale * 1.05f
+
+            // Apply user-selected scaling
+            _fontScale <- self.WordScale * _fontScale
+            retry <- true
+
+            while retry do
+                retry <- false
+                for word in sortedWords do
+                    if not retry then
+                        let size = wordScaleDictionary.[sortedWords.[0]]
+                                   |> AdjustWordSize <| _fontScale
+                                                     <| wordScaleDictionary
+                        brush.DefaultWord size self.StrokeWidth |> ignore
+
+                        let mutable wordRect = SKRect.Empty
+                        brush.MeasureText(word, ref wordRect) |> ignore
+
+                        if wordRect.Width > maxWordWidth
+                            || wordRect.Width * wordRect.Height * 8.0f > cloudMaxArea * 0.75f
+                        then
+                            retry <- true
+                            _fontScale <- _fontScale * 0.98f
+                            scaledWordSizes.Clear()
+
+            let aspectRatio = (single cloudBounds.Width) / (single cloudBounds.Height)
+            let centre = SKPoint(single cloudBounds.MidX, single cloudBounds.MidY)
+
+            let maxRadius = 0.5f * Math.Max(single cloudBounds.Width, single cloudBounds.Height)
+
+            use writeStream = new SKFileWStream(_resolvedPath)
+            use xmlWriter = new SKXmlStreamWriter(writeStream)
+            use canvas = SKSvgCanvas.Create(cloudBounds, xmlWriter)
+            use filledSpace = new SKRegion()
+
+            if self.AllowOverflow.IsPresent then
+                (cloudBounds.Width * BleedAreaScale, cloudBounds.Height * BleedAreaScale)
+                |> cloudBounds.Inflate
+
+            if self.ParameterSetName.StartsWith("FileBackground") then
+                canvas.DrawBitmap(background, 0.0f, 0.0f)
+            elif (self.BackgroundColor <> SKColors.Transparent) then
+                canvas.Clear(self.BackgroundColor)
+
+            brush.IsAutohinted <- true
+            brush.IsAntialias <- true
+            brush.Typeface <- self.Typeface
+
+            let wordProgress = ProgressRecord(_progressId, "Drawing word cloud...", "Finding space for word...")
+            let pointProgress = ProgressRecord(_progressId + 1, "Scanning available space...", "Scanning radial points...")
+            pointProgress.ParentActivityId <- _progressId
+
+            for word in sortedWords do
+
+            ()
+        with
+        | e ->
+            ErrorRecord(e, "PSWordCloud.GenericError", ErrorCategory.NotSpecified, null)
+            |> self.ThrowTerminatingError
+
+    //#endregion Overrides
