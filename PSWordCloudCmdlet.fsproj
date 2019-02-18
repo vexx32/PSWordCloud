@@ -11,23 +11,7 @@
     <PackageReference Include="Microsoft.PowerShell.SDK" Version="6.1.2" PrivateAssets="All" />
     <PackageReference Include="SkiaSharp" Version="1.68.0" />
     <PackageReference Include="SkiaSharp.NativeAssets.Linux" Version="1.68.0" />
-    <Reference Include="System" />
-    <Reference Include="System.Collections" />
-    <Reference Include="System.Collections.Generic" />
-    <Reference Include="System.Collections.ObjectModel" />
-    <Reference Include="System.Linq" />
     <Reference Include="System.Management.Automation" />
-    <Reference Include="System.Management.Automation.Language" />
-    <Reference Include="System.Numerics" />
-    <Reference Include="System.Reflection" />
-    <Reference Include="System.Text.RegularExpressions" />
-    <Reference Include="System.Threading" />
-    <Reference Include="System.Threading.Tasks" />
-    <Reference Include="PSWordCloud" />
-    <Reference Include="PSWordCloud.Extensions" />
-    <Reference Include="PSWordCloud.NewWordCloudCommandHelper" />
-    <Reference Include="PSWordCloud.Randomizer" />
-    <Reference Include="PSWordCloud.Utils" />
     <Reference Include="SkiaSharp" />
   </ItemGroup>
 </Project>
