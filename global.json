@@ -1,6 +1,6 @@
 {
   "frameworks": {
-    "netstandard2.0": {
+    "netcoreapp2.1": {
       "dependencies": {
         "SkiaSharp": {
           "version": "1.68.0"

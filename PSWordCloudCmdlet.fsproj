@@ -1,16 +1,16 @@
 <Project Sdk="Microsoft.NET.Sdk">
-
   <PropertyGroup>
     <TargetFramework>netcoreapp2.1</TargetFramework>
   </PropertyGroup>
-
   <ItemGroup>
-    <Compile Include="Utils.fs" />
-    <Compile Include="Attributes.fs" />
-    <Compile Include="NewWordCloudCommand.fs" />
+    <Compile Include="Module/src/Utils.fs" />
+    <Compile Include="Module/src/Attributes.fs" />
+    <Compile Include="Module/src/NewWordCloudCommand.fs" />
   </ItemGroup>
-
   <ItemGroup>
+    <PackageReference Include="Microsoft.PowerShell.SDK" Version="6.1.2" PrivateAssets="All" />
+    <PackageReference Include="SkiaSharp" Version="1.68.0" />
+    <PackageReference Include="SkiaSharp.NativeAssets.Linux" Version="1.68.0" />
     <Reference Include="System" />
     <Reference Include="System.Collections" />
     <Reference Include="System.Collections.Generic" />
@@ -30,11 +30,4 @@
     <Reference Include="PSWordCloud.Utils" />
     <Reference Include="SkiaSharp" />
   </ItemGroup>
-
-  <ItemGroup>
-    <PackageReference Include="Microsoft.PowerShell.SDK" Version="6.1.2" PrivateAssets="All" />
-    <PackageReference Include="SkiaSharp" Version="1.68.0" />
-    <PackageReference Include="SkiaSharp.NativeAssets.Linux" Version="1.68.0" />
-  </ItemGroup>
-
 </Project>
