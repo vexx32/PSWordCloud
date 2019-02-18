@@ -51,5 +51,5 @@ $RuntimeFolders | ForEach-Object {
 }
 
 Split-Path -Path $ProjectFile -Parent |
-    Get-ChildItem -Recurse -Include "*.ps*1" |
+    Get-ChildItem -Recurse -Include "*.ps*1" -Exclude "build.ps1" |
     Copy-Item -Destination $ModulePath
