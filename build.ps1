@@ -12,7 +12,7 @@ param(
 
     [Parameter()]
     [string]
-    $ProjectFile = (Join-Path -Path $PSScriptRoot -ChildPath "Module" "PSWordCloudCmdlet.csproj")
+    $ProjectFile = (Join-Path -Path $PSScriptRoot -ChildPath "PSWordCloudCmdlet.fsproj")
 )
 
 if (Test-Path -Path $OutputPath) {
