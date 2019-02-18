@@ -269,110 +269,201 @@ type NewWordCloudCommand() =
             |> SortWordList <| self.MaxRenderedWords
             |> Seq.toList
 
+        let wordProgress = ProgressRecord(_progressId, "Drawing word cloud...", "Finding space for word...")
+        let pointProgress = ProgressRecord(_progressId + 1, "Scanning available space...", "Scanning radial points...")
+        pointProgress.ParentActivityId <- _progressId
+
         try
-            let cloudBounds =
-                if self.MyInvocation.BoundParameters.ContainsKey("BackgroundImage") then
-                    background <- SKBitmap.Decode(_resolvedBackgroundPath)
-                    SKRectI(0, 0, background.Width, background.Height)
-                else
-                    SKRectI(0, 0, self.ImageSize.Width, self.ImageSize.Height)
-                |> To<SKRect>
+            try
+                let cloudBounds =
+                    if self.MyInvocation.BoundParameters.ContainsKey("BackgroundImage") then
+                        background <- SKBitmap.Decode(_resolvedBackgroundPath)
+                        SKRectI(0, 0, background.Width, background.Height)
+                    else
+                        SKRectI(0, 0, self.ImageSize.Width, self.ImageSize.Height)
+                    |> To<SKRect>
 
-            use mutable wordPath = new SKPath()
-            use clipRegion = new SKRegion()
+                use mutable wordPath = new SKPath()
+                use clipRegion = new SKRegion()
 
-            SKRectI.Ceiling(cloudBounds)
-            |> clipRegion.SetRect
-            |> ignore
+                SKRectI.Ceiling(cloudBounds)
+                |> clipRegion.SetRect
+                |> ignore
 
-            _fontScale <-
-                clipRegion.Bounds
-                |> To<SKRect>
-                |> AdjustFontScale <| wordScaleDictionary.Values.Average()
-                                   <| sortedWords.Length
+                _fontScale <-
+                    clipRegion.Bounds
+                    |> To<SKRect>
+                    |> AdjustFontScale <| wordScaleDictionary.Values.Average()
+                                       <| sortedWords.Length
 
-            let scaledWordSizes = Dictionary<string, single>(sortedWords.Length, StringComparer.OrdinalIgnoreCase)
-            let maxWordWidth =
-                if self.DisableRotation.IsPresent then
-                    single cloudBounds.Width * MaxPercentWidth
-                else
-                    MaxPercentWidth * (Math.Max(cloudBounds.Width, cloudBounds.Height) |> single)
+                let scaledWordSizes = Dictionary<string, single>(sortedWords.Length, StringComparer.OrdinalIgnoreCase)
+                let maxWordWidth =
+                    if self.DisableRotation.IsPresent then
+                        single cloudBounds.Width * MaxPercentWidth
+                    else
+                        MaxPercentWidth * (Math.Max(cloudBounds.Width, cloudBounds.Height) |> single)
 
-            let mutable retry = false
-            let cloudMaxArea = cloudBounds.Width * cloudBounds.Height |> To<single>
-            use brush = new SKPaint()
-            brush.Typeface <- self.Typeface
+                let mutable retry = false
+                let cloudMaxArea = cloudBounds.Width * cloudBounds.Height |> To<single>
+                use brush = new SKPaint()
+                brush.Typeface <- self.Typeface
 
-            // Pre-test word sizes to scale to image size
-            while retry do
-                retry <- false
-                let size = wordScaleDictionary.[sortedWords.[0]]
-                           |> AdjustWordSize <| _fontScale
-                                             <| wordScaleDictionary
-                brush.DefaultWord size self.StrokeWidth |> ignore
+                // Pre-test word sizes to scale to image size
+                while retry do
+                    retry <- false
+                    let size = wordScaleDictionary.[sortedWords.[0]]
+                               |> AdjustWordSize <| _fontScale
+                                                 <| wordScaleDictionary
+                    brush.DefaultWord size self.StrokeWidth |> ignore
 
-                let mutable wordRect = SKRect.Empty
-                brush.MeasureText(sortedWords.[0], ref wordRect) |> ignore
-                if wordRect.Width * wordRect.Height * 8.0f < cloudMaxArea * 0.75f then
-                    retry <- true
-                    _fontScale <- _fontScale * 1.05f
+                    let mutable wordRect = SKRect.Empty
+                    brush.MeasureText(sortedWords.[0], ref wordRect) |> ignore
+                    if wordRect.Width * wordRect.Height * 8.0f < cloudMaxArea * 0.75f then
+                        retry <- true
+                        _fontScale <- _fontScale * 1.05f
 
-            // Apply user-selected scaling
-            _fontScale <- self.WordScale * _fontScale
-            retry <- true
+                // Apply user-selected scaling
+                _fontScale <- self.WordScale * _fontScale
+                retry <- true
 
-            while retry do
-                retry <- false
+                while retry do
+                    retry <- false
+                    for word in sortedWords do
+                        if not retry then
+                            let size = wordScaleDictionary.[sortedWords.[0]]
+                                       |> AdjustWordSize <| _fontScale
+                                                         <| wordScaleDictionary
+                            brush.DefaultWord size self.StrokeWidth |> ignore
+
+                            let mutable wordRect = SKRect.Empty
+                            brush.MeasureText(word, ref wordRect) |> ignore
+
+                            if wordRect.Width > maxWordWidth
+                                || wordRect.Width * wordRect.Height * 8.0f > cloudMaxArea * 0.75f
+                            then
+                                retry <- true
+                                _fontScale <- _fontScale * 0.98f
+                                scaledWordSizes.Clear()
+
+                let aspectRatio = (single cloudBounds.Width) / (single cloudBounds.Height)
+                let centre = SKPoint(single cloudBounds.MidX, single cloudBounds.MidY)
+
+                let maxRadius = 0.5f * Math.Max(single cloudBounds.Width, single cloudBounds.Height)
+
+                use writeStream = new SKFileWStream(_resolvedPath)
+                use xmlWriter = new SKXmlStreamWriter(writeStream)
+                use canvas = SKSvgCanvas.Create(cloudBounds, xmlWriter)
+                use filledSpace = new SKRegion()
+
+                if self.AllowOverflow.IsPresent then
+                    (cloudBounds.Width * BleedAreaScale, cloudBounds.Height * BleedAreaScale)
+                    |> cloudBounds.Inflate
+
+                if self.ParameterSetName.StartsWith("FileBackground") then
+                    canvas.DrawBitmap(background, 0.0f, 0.0f)
+                elif (self.BackgroundColor <> SKColors.Transparent) then
+                    canvas.Clear(self.BackgroundColor)
+
+                brush.IsAutohinted <- true
+                brush.IsAntialias <- true
+                brush.Typeface <- self.Typeface
+
+                let statusString = "Draw: \"{0}\" [Size: {1:0}] ({2} of {3})"
+                let pointActivity = "Finding available space to draw with orientation: {0}"
+                let pointStatus = "Checking [Point:{0,8:N2}, {1,8:N2}] ({2,4} / {3,4}) at [Radius: {4,8:N2}]"
+
+                let totalWords = scaledWordSizes.Count
+
                 for word in sortedWords do
-                    if not retry then
-                        let size = wordScaleDictionary.[sortedWords.[0]]
-                                   |> AdjustWordSize <| _fontScale
-                                                     <| wordScaleDictionary
-                        brush.DefaultWord size self.StrokeWidth |> ignore
+                    incr <| ref wordCount
+                    let inflationValue = scaledWordSizes.[word] * (self.PaddingMultiplier + self.StrokeWidth * StrokeBaseScale)
+                    let wordColor = self.NextColor
+                    brush.NextWord wordColor scaledWordSizes.[word] self.StrokeWidth |> ignore
 
-                        let mutable wordRect = SKRect.Empty
-                        brush.MeasureText(word, ref wordRect) |> ignore
+                    wordPath <- brush.GetTextPath(word, 0.0f, 0.0f)
+                    let wordBounds = wordPath.ComputeTightBounds()
 
-                        if wordRect.Width > maxWordWidth
-                            || wordRect.Width * wordRect.Height * 8.0f > cloudMaxArea * 0.75f
-                        then
-                            retry <- true
-                            _fontScale <- _fontScale * 0.98f
-                            scaledWordSizes.Clear()
+                    let wordWidth = wordBounds.Width
+                    let wordHeight = wordBounds.Height
 
-            let aspectRatio = (single cloudBounds.Width) / (single cloudBounds.Height)
-            let centre = SKPoint(single cloudBounds.MidX, single cloudBounds.MidY)
+                    let mutable targetPoint : SKPoint option = None
+                    let mutable orientation = WordOrientation.Horizontal
 
-            let maxRadius = 0.5f * Math.Max(single cloudBounds.Width, single cloudBounds.Height)
+                    let percentComplete = 100.0f * (single wordCount) / (single totalWords)
+                    wordProgress.StatusDescription <-
+                        (statusString, word, brush.TextSize, wordCount, totalWords)
+                        |> String.Format
+                    wordProgress.PercentComplete <- int <| Math.Round(double percentComplete)
+                    self.WriteProgress(wordProgress)
 
-            use writeStream = new SKFileWStream(_resolvedPath)
-            use xmlWriter = new SKXmlStreamWriter(writeStream)
-            use canvas = SKSvgCanvas.Create(cloudBounds, xmlWriter)
-            use filledSpace = new SKRegion()
+                    let increment = GetRadiusIncrement scaledWordSizes.[word] self.DistanceStep maxRadius inflationValue percentComplete
 
-            if self.AllowOverflow.IsPresent then
-                (cloudBounds.Width * BleedAreaScale, cloudBounds.Height * BleedAreaScale)
-                |> cloudBounds.Inflate
+                    for radius in 0.0f..increment..maxRadius do
+                        let radialPoints = GetRadialPoints centre radius self.RadialStep aspectRatio
+                        let totalPoints = radialPoints.Count()
+                        let mutable pointCount = 0
 
-            if self.ParameterSetName.StartsWith("FileBackground") then
-                canvas.DrawBitmap(background, 0.0f, 0.0f)
-            elif (self.BackgroundColor <> SKColors.Transparent) then
-                canvas.Clear(self.BackgroundColor)
+                        if targetPoint = None then
+                            for point in radialPoints do
+                                incr <| ref pointCount
+                                if
+                                    cloudBounds.Contains(point) || wordCount = 1
+                                    && targetPoint = None
+                                then
+                                    orientation <- self.NextOrientation
 
-            brush.IsAutohinted <- true
-            brush.IsAntialias <- true
-            brush.Typeface <- self.Typeface
+                                    pointProgress.Activity <-
+                                        String.Format(pointActivity, orientation)
+                                    pointProgress.StatusDescription <-
+                                        String.Format(pointStatus, point.X, point.Y, pointCount, totalPoints, radius)
+                                    self.WriteProgress(pointProgress)
 
-            let wordProgress = ProgressRecord(_progressId, "Drawing word cloud...", "Finding space for word...")
-            let pointProgress = ProgressRecord(_progressId + 1, "Scanning available space...", "Scanning radial points...")
-            pointProgress.ParentActivityId <- _progressId
+                                    let baseOffset = SKPoint(-wordWidth / 2.0f, wordHeight / 2.0f)
+                                    let adjustedPoint = point + baseOffset
 
-            for word in sortedWords do
+                                    let rotation = orientation |> ToRotationMatrix point
+                                    let alteredPath = brush.GetTextPath(word, adjustedPoint.x, adjustedPoint.y)
+                                    alteredPath.Transform(rotation)
+                                    alteredPath.GetTightBounds(ref wordBounds) |> ignore
 
-            ()
-        with
-        | e ->
-            ErrorRecord(e, "PSWordCloud.GenericError", ErrorCategory.NotSpecified, null)
-            |> self.ThrowTerminatingError
+                                    wordBounds.Inflate(inflationValue, inflationValue)
+
+                                    if
+                                        not (wordBounds.FallsOutside clipRegion)
+                                        && not (filledSpace.Intersects wordBounds)
+                                    then
+                                        wordPath <- alteredPath
+                                        targetPoint <- Some adjustedPoint
+
+                    if targetPoint.IsSome then
+                        wordPath.FillType <- SKPathFillType.EvenOdd
+
+                        if self.MyInvocation.BoundParameters.ContainsKey("StrokeWidth") then
+                            brush.Color <- self.StrokeColor
+                            brush.IsStroke <- true
+                            brush.Style <- SKPaintStyle.Stroke
+                            canvas.DrawPath(wordPath, brush)
+
+                        brush.IsStroke <- false
+                        brush.Color <- wordColor
+                        brush.Style <- SKPaintStyle.Fill
+                        canvas.DrawPath(wordPath, brush)
+                        filledSpace.Op(wordPath, SKRegionOperation.Union) |> ignore
+
+                canvas.Flush()
+                writeStream.Flush()
+
+                if self.PassThru.IsPresent then
+                    let item = self.InvokeProvider.Item.Get(_resolvedPath)
+                    self.WriteObject(item, true)
+            with
+            | e ->
+                ErrorRecord(e, "PSWordCloud.GenericError", ErrorCategory.NotSpecified, null)
+                |> self.ThrowTerminatingError
+        finally
+            wordProgress.RecordType <- ProgressRecordType.Completed
+            wordProgress.RecordType <- ProgressRecordType.Completed
+            self.WriteProgress(wordProgress)
+            self.WriteProgress(pointProgress)
 
     //#endregion Overrides
