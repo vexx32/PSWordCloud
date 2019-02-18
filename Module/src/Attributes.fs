@@ -10,7 +10,6 @@ open System.Management.Automation.Language
 open System.Text.RegularExpressions
 open PSWordCloud.Utils
 open SkiaSharp
-open System.Management.Automation
 
 type SKSizeICompleter() =
     interface IArgumentCompleter with
