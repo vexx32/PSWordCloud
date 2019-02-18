@@ -34,6 +34,7 @@ New-Item -Path $ModulePath -ItemType Directory | Out-Null
 
 # Copy the main module DLL to final module directory
 Copy-Item -Path "$OutputPath/bin/PSWordCloudCmdlet.dll" -Destination $ModulePath
+Copy-Item -Path "$OutputPath/bin/FSharp.Core.dll" -Destination $ModulePath
 
 # Get the main Skia DLL
 $SkiaDLL = Get-Item -Path "$OutputPath/bin/SkiaSharp.dll"
