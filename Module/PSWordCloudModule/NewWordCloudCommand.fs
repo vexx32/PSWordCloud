@@ -3,15 +3,12 @@ open System
 open System.Collections.Generic
 open System.Linq
 open System.Management.Automation
-open System.Numerics
 open System.Text.RegularExpressions
 open System.Threading.Tasks
 open PSWordCloud.Extensions
 open PSWordCloud.NewWordCloudCommandHelper
 open PSWordCloud.Randomizer
 open PSWordCloud.Utils
-open SkiaSharp
-open SkiaSharp
 open SkiaSharp
 
 
