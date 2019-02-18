@@ -419,7 +419,7 @@ type NewWordCloudCommand() =
                                     let adjustedPoint = point + baseOffset
 
                                     let rotation = orientation |> ToRotationMatrix point
-                                    let alteredPath = brush.GetTextPath(word, adjustedPoint.x, adjustedPoint.y)
+                                    let alteredPath = brush.GetTextPath(word, adjustedPoint.X, adjustedPoint.Y)
                                     alteredPath.Transform(rotation)
                                     alteredPath.GetTightBounds(ref wordBounds) |> ignore
 
