@@ -336,7 +336,11 @@ type NewWordCloudCommand() =
                     else
                         MaxPercentWidth * (Math.Max(cloudBounds.Width, cloudBounds.Height) |> single)
 
-                let cloudMaxArea = cloudBounds.Width * cloudBounds.Height |> To<single>
+                let cloudMaxArea =
+                    if not self.AllowOverflow.IsPresent then
+                        cloudBounds.Width * cloudBounds.Height
+                    else
+                        cloudBounds.Width * cloudBounds.Height * 1.5f
                 let aspectRatio = (single cloudBounds.Width) / (single cloudBounds.Height)
                 use brush = new SKPaint()
                 brush.Typeface <- self.Typeface
