@@ -26,6 +26,42 @@ type NewWordCloudCommand() =
     let mutable _wordProcessingTasks : Task<string list> list = []
     let _progressId = NextInt()
 
+    let rec setBaseFontScale (dictionary : Dictionary<string, single>) largestWord strokeWidth maxArea =
+        use brush = new SKPaint()
+        let size = dictionary.[largestWord]
+                   |> AdjustWordSize <| _fontScale
+                                     <| dictionary
+        brush.DefaultWord size strokeWidth |> ignore
+
+        let mutable wordRect = SKRect.Empty
+        brush.MeasureText(largestWord, ref wordRect) |> ignore
+        if wordRect.Width * wordRect.Height * 8.0f < maxArea * 0.75f then
+            _fontScale <- _fontScale * 1.05f
+            setBaseFontScale dictionary largestWord strokeWidth maxArea
+
+    let rec scaleWords (wordScales : Dictionary<string,single>) (wordSizes : Dictionary<string,single>) (wordList : string list) maxWidth aspect strokeWidth overflow =
+        use brush = new SKPaint()
+        let maxArea = maxWidth * maxWidth * (if aspect > 1.0f then 1.0f / aspect else aspect)
+        for word in wordList do
+            let size = wordScales.[wordList.[0]]
+                       |> AdjustWordSize <| _fontScale
+                                         <| wordScales
+            brush.DefaultWord size strokeWidth |> ignore
+
+            let mutable wordRect = SKRect.Empty
+            brush.MeasureText(word, ref wordRect) |> ignore
+
+            if (wordRect.Width > maxWidth
+                || wordRect.Width * wordRect.Height * 8.0f > maxArea * 0.75f)
+                && not overflow
+            then
+                _fontScale <- _fontScale * 0.98f
+                wordSizes.Clear()
+                scaleWords wordScales wordSizes wordList maxWidth aspect strokeWidth overflow
+            else
+                wordSizes.[word] <- size
+
+
     member private self.NextColor
         with get() =
             match _colors with
@@ -306,21 +342,11 @@ type NewWordCloudCommand() =
                 brush.Typeface <- self.Typeface
 
                 // Pre-test word sizes to scale to image size
-                while retry do
-                    retry <- false
-                    let size = wordScaleDictionary.[sortedWords.[0]]
-                               |> AdjustWordSize <| _fontScale
-                                                 <| wordScaleDictionary
-                    brush.DefaultWord size self.StrokeWidth |> ignore
-
-                    let mutable wordRect = SKRect.Empty
-                    brush.MeasureText(sortedWords.[0], ref wordRect) |> ignore
-                    if wordRect.Width * wordRect.Height * 8.0f < cloudMaxArea * 0.75f then
-                        retry <- true
-                        _fontScale <- _fontScale * 1.05f
+                setBaseFontScale wordScaleDictionary sortedWords.[0] self.StrokeWidth cloudMaxArea
 
                 // Apply user-selected scaling
                 _fontScale <- self.WordScale * _fontScale
+
                 retry <- true
 
                 while retry do
@@ -333,7 +359,7 @@ type NewWordCloudCommand() =
                             brush.DefaultWord size self.StrokeWidth |> ignore
 
                             let mutable wordRect = SKRect.Empty
-                            brush.MeasureText(word, ref wordRect) |> ignore
+                            scaledWordSizes.[word] <- brush.MeasureText(word, ref wordRect)
 
                             if wordRect.Width > maxWordWidth
                                 || wordRect.Width * wordRect.Height * 8.0f > cloudMaxArea * 0.75f
