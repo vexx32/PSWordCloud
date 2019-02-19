@@ -101,6 +101,7 @@ module internal Randomizer =
             for index in items.Length-1..-1..0 do
                 let swapIndex = _random.Next(index)
                 let holder = items.[index]
+
                 items.[index] <- items.[swapIndex]
                 items.[swapIndex] <- holder)
 
@@ -184,34 +185,40 @@ module internal NewWordCloudCommandHelper =
     ]
 
     let ToRotationMatrix (point : SKPoint) orientation =
-            match orientation with
-            | WordOrientation.Vertical -> SKMatrix.MakeRotationDegrees(90.0f, point.X, point.Y)
-            | WordOrientation.FlippedVertical -> SKMatrix.MakeRotationDegrees(-90.0f, point.X, point.Y)
-            | WordOrientation.Horizontal -> SKMatrix.MakeIdentity()
-            | _ -> raise (ArgumentException("Unknown orientation value."))
+        match orientation with
+        | WordOrientation.Vertical -> SKMatrix.MakeRotationDegrees(90.0f, point.X, point.Y)
+        | WordOrientation.FlippedVertical -> SKMatrix.MakeRotationDegrees(-90.0f, point.X, point.Y)
+        | WordOrientation.Horizontal -> SKMatrix.MakeIdentity()
+        | _ -> raise (ArgumentException("Unknown orientation value."))
 
     let PrepareColorSet (set : SKColor []) (background : SKColor) (stroke : SKColor) max monochrome =
         Randomizer.Shuffle set
+
         let (_, _, bkgVal) = background.ToHsv()
+        let filteredSet = set |> Array.choose (fun color ->
+            if color <> stroke && color <> background then
+                Some color
+            else None)
+
         seq {
-            for color in Array.choose (fun color ->
-                if color <> stroke && color <> background then
-                    Some color
-                else None) set do
-                    let (_, s, v) = color.ToHsv()
-                    if not monochrome then
-                        if s >= MinSaturation
-                            && Math.Abs(v - bkgVal : single) > MinBrightnessDifference then
-                            yield color
-                    else
-                        let level = byte (Math.Floor 255.0 * (float v) / 100.0)
-                        yield SKColor(level, level, level)
-        }
+            for color in filteredSet do
+                let (_, s, v) = color.ToHsv()
+
+                if monochrome then
+                    let level = byte (Math.Floor 255.0 * (float v) / 100.0)
+                    yield SKColor(level, level, level)
+                elif
+                    s >= MinSaturation
+                    && Math.Abs(v - bkgVal) > MinBrightnessDifference
+                then
+                    yield color
+        } |> Seq.take max
 
     let CountWords (wordList : seq<string>) (wordCounts : IDictionary<string, single>) =
         for word in wordList do
             let trimmedWord = Regex.Replace(word, "s$", String.Empty, RegexOptions.IgnoreCase)
             let pluralWord = String.Format("{0}s", word)
+
             if wordCounts.ContainsKey(trimmedWord) then
                 wordCounts.[trimmedWord] <- wordCounts.[trimmedWord] + 1.0f
             else if wordCounts.ContainsKey(pluralWord) then
@@ -248,9 +255,10 @@ module internal NewWordCloudCommandHelper =
             let clockwise = NextSingle() > 0.5f
             let maxAngle = if clockwise then angle + 360.0f else angle - 360.0f
             let angleIncrement = radialStep * 360.0f / (15.0f * (radius / 6.0f + 1.0f)) * (if clockwise then 1.0f else -1.0f)
+            let condition() = if clockwise then angle <= maxAngle else angle >= maxAngle
 
             seq {
-                while (if clockwise then angle <= maxAngle else angle >= maxAngle) do
+                while (condition()) do
                     point <- Complex.FromPolarCoordinates(float radius, angle.ToRadians() |> float)
                     yield SKPoint(centre.X + single point.Real * aspectRatio, centre.Y + single point.Imaginary)
 
