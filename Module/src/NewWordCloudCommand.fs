@@ -336,8 +336,8 @@ type NewWordCloudCommand() =
                     else
                         MaxPercentWidth * (Math.Max(cloudBounds.Width, cloudBounds.Height) |> single)
 
-                let mutable retry = false
                 let cloudMaxArea = cloudBounds.Width * cloudBounds.Height |> To<single>
+                let aspectRatio = (single cloudBounds.Width) / (single cloudBounds.Height)
                 use brush = new SKPaint()
                 brush.Typeface <- self.Typeface
 
@@ -347,28 +347,8 @@ type NewWordCloudCommand() =
                 // Apply user-selected scaling
                 _fontScale <- self.WordScale * _fontScale
 
-                retry <- true
+                scaleWords wordScaleDictionary scaledWordSizes sortedWords maxWordWidth aspectRatio self.StrokeWidth self.AllowOverflow.IsPresent
 
-                while retry do
-                    retry <- false
-                    for word in sortedWords do
-                        if not retry then
-                            let size = wordScaleDictionary.[sortedWords.[0]]
-                                       |> AdjustWordSize <| _fontScale
-                                                         <| wordScaleDictionary
-                            brush.DefaultWord size self.StrokeWidth |> ignore
-
-                            let mutable wordRect = SKRect.Empty
-                            scaledWordSizes.[word] <- brush.MeasureText(word, ref wordRect)
-
-                            if wordRect.Width > maxWordWidth
-                                || wordRect.Width * wordRect.Height * 8.0f > cloudMaxArea * 0.75f
-                            then
-                                retry <- true
-                                _fontScale <- _fontScale * 0.98f
-                                scaledWordSizes.Clear()
-
-                let aspectRatio = (single cloudBounds.Width) / (single cloudBounds.Height)
                 let centre = SKPoint(single cloudBounds.MidX, single cloudBounds.MidY)
 
                 let maxRadius = 0.5f * Math.Max(single cloudBounds.Width, single cloudBounds.Height)
