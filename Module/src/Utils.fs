@@ -178,11 +178,11 @@ module internal NewWordCloudCommandHelper =
         "yours";"yourself";"yourselves"
     ]
 
-    let SplitChars = [
+    let SplitChars = [|
         ' ';'\n';'\t';'\r';'.';';';';';'\\';'/';'|';
         ':';'"';'?';'!';'{';'}';'[';']';':';'(';')';
         '<';'>';'“';'”';'*';'#';'%';'^';'&';'+';'='
-    ]
+    |]
 
     let ToRotationMatrix (point : SKPoint) orientation =
         match orientation with

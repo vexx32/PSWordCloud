@@ -58,16 +58,16 @@ type NewWordCloudCommand() =
             for line in stringLines do
                 yield async {
                     let words =
-                        line.Split(SplitChars |> List.toArray, StringSplitOptions.RemoveEmptyEntries)
+                        line.Split(SplitChars, StringSplitOptions.RemoveEmptyEntries)
                         |> Array.toList
-                        |> List.choose(
-                            fun x ->
-                                if (not self.AllowStopWords.IsPresent && StopWords.Contains(x, StringComparer.OrdinalIgnoreCase))
-                                    || Regex.Replace(x, "[^a-z-]", String.Empty, RegexOptions.IgnoreCase).Length < 2
-                                then
-                                    Some x
-                                else
-                                    None)
+                        |> List.choose (fun x ->
+                            if
+                                (not self.AllowStopWords.IsPresent && StopWords.Contains(x, StringComparer.OrdinalIgnoreCase))
+                                || Regex.Replace(x, "[^a-z-]", String.Empty, RegexOptions.IgnoreCase).Length < 2
+                            then
+                                Some x
+                            else
+                                None)
                     return words
                 }
         } |> Seq.toList
