@@ -33,7 +33,7 @@ type NewWordCloudCommand() =
                 _colors <- tail
                 head
             | [] ->
-                match self.ColorSet with
+                match self.ColorSet |> Array.toList with
                 | head :: tail ->
                     _colors <- tail
                     head
@@ -130,7 +130,7 @@ type NewWordCloudCommand() =
     [<SupportsWildcards>]
     [<TransformToSKColorAttribute>]
     [<ArgumentCompleter(typeof<SKColorCompleter>)>]
-    member val public ColorSet = StandardColors |> Seq.toList
+    member val public ColorSet = StandardColors |> Seq.toArray
         with get, set
 
     [<Parameter>]
