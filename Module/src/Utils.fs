@@ -71,7 +71,7 @@ module internal Utils =
     let lock (padlock : obj) task =
         Monitor.Enter padlock
         try
-            task
+            task()
         finally
             Monitor.Exit padlock
 
@@ -90,14 +90,19 @@ module internal Randomizer =
         _random <- Random(seed)
 
     let NextSingle() =
-        lock _randomLock <| random().NextDouble()
+        lock _randomLock <| random().NextDouble
         |> single
 
     let NextInt() =
-        lock _randomLock <| random().Next()
+        lock _randomLock <| random().Next
 
-    let Shuffle<'T> (items : 'T list) =
-        lock _randomLock <| List.permute (fun x -> random().Next(x)) items
+    let Shuffle<'T> (items : 'T []) =
+        lock _randomLock (fun () ->
+            for index in items.Length-1..-1..0 do
+                let swapIndex = _random.Next(index)
+                let holder = items.[index]
+                items.[index] <- items.[swapIndex]
+                items.[swapIndex] <- holder)
 
 module internal Extensions =
     type SKPoint with
@@ -185,14 +190,14 @@ module internal NewWordCloudCommandHelper =
             | WordOrientation.Horizontal -> SKMatrix.MakeIdentity()
             | _ -> raise (ArgumentException("Unknown orientation value."))
 
-    let PrepareColorSet (set : SKColor list) (background : SKColor) (stroke : SKColor) max monochrome =
-        let shuffledSet = Randomizer.Shuffle set
+    let PrepareColorSet (set : SKColor []) (background : SKColor) (stroke : SKColor) max monochrome =
+        Randomizer.Shuffle set
         let (_, _, bkgVal) = background.ToHsv()
         seq {
-            for color in List.choose (fun color ->
+            for color in Array.choose (fun color ->
                 if color <> stroke && color <> background then
                     Some color
-                else None) shuffledSet do
+                else None) set do
                     let (_, s, v) = color.ToHsv()
                     if not monochrome then
                         if s >= MinSaturation
