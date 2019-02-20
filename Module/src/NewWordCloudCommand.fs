@@ -21,73 +21,9 @@ type NewWordCloudCommand() =
     let mutable _resolvedBackgroundPath = String.Empty
 
     let mutable _colors : SKColor list = []
-    let mutable _fontScale = 1.0f
 
     let mutable _wordProcessingTasks : Task<string list> list = []
     let _progressId = NextInt()
-
-    let rec setBaseFontScale
-        (dictionary : Dictionary<string, single>)
-        largestWord
-        strokeWidth
-        maxArea =
-
-        use brush = new SKPaint()
-        let size = dictionary.[largestWord]
-                   |> AdjustWordSize <| _fontScale
-                                     <| dictionary
-        brush.DefaultWord size strokeWidth |> ignore
-
-        let mutable wordRect = SKRect.Empty
-        brush.MeasureText(largestWord, &wordRect) |> ignore
-        if wordRect.Width * wordRect.Height * 8.0f < maxArea * 0.75f then
-            _fontScale <- _fontScale * 1.05f
-            setBaseFontScale dictionary largestWord strokeWidth maxArea
-
-    let rec scaleWords
-        (wordScales : Dictionary<string,single>)
-        (wordSizes : Dictionary<string,single>)
-        (wordList : string list)
-        maxWidth
-        aspect
-        strokeWidth
-        overflow =
-
-        use brush = new SKPaint()
-        let maxArea = maxWidth * maxWidth * (if aspect > 1.0f then 1.0f / aspect else aspect)
-
-        match wordList with
-        | [] -> wordSizes
-        | head :: tail ->
-            let size = wordScales.[head]
-                       |> AdjustWordSize <| _fontScale
-                                         <| wordScales
-            brush.DefaultWord size strokeWidth |> ignore
-
-            let mutable wordRect = SKRect.Empty
-            brush.MeasureText(head, &wordRect) |> ignore
-
-            if (wordRect.Width > maxWidth
-                || wordRect.Width * wordRect.Height * 8.0f > maxArea * 0.75f)
-                && not overflow
-            then
-                _fontScale <- _fontScale * 0.98f
-                wordSizes.Clear()
-                scaleWords wordScales wordSizes wordList maxWidth aspect strokeWidth overflow
-            else
-                wordSizes.[head] <- size
-                scaleWords wordScales wordSizes tail maxWidth aspect strokeWidth overflow
-
-    let getWordScaleDictionary
-        (wordScales : Dictionary<string,single>)
-        (wordList : string list)
-        maxWidth
-        aspect
-        strokeWidth
-        overflow =
-
-        let dictionary = Dictionary<string, single>(wordList.Length, StringComparer.OrdinalIgnoreCase)
-        scaleWords wordScales dictionary wordList maxWidth aspect strokeWidth overflow
 
     member private self.NextColor
         with get() =
@@ -350,7 +286,7 @@ type NewWordCloudCommand() =
                 |> clipRegion.SetRect
                 |> ignore
 
-                _fontScale <-
+                FontScale <-
                     clipRegion.Bounds
                     |> To<SKRect>
                     |> AdjustFontScale <| wordScaleDictionary.Values.Average()
@@ -373,7 +309,7 @@ type NewWordCloudCommand() =
                 setBaseFontScale wordScaleDictionary sortedWords.[0] self.StrokeWidth cloudMaxArea
 
                 // Apply user-selected scaling
-                _fontScale <- self.WordScale * _fontScale
+                FontScale <- self.WordScale * FontScale
 
                 let wordSizes = getWordScaleDictionary wordScaleDictionary sortedWords maxWordWidth aspectRatio self.StrokeWidth self.AllowOverflow.IsPresent
 

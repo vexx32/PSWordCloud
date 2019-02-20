@@ -184,6 +184,8 @@ module internal NewWordCloudCommandHelper =
         '<';'>';'“';'”';'*';'#';'%';'^';'&';'+';'='
     |]
 
+    let mutable FontScale = 1.0f
+
     let ToRotationMatrix (point : SKPoint) orientation =
         match orientation with
         | WordOrientation.Vertical -> SKMatrix.MakeRotationDegrees(90.0f, point.X, point.Y)
@@ -191,7 +193,13 @@ module internal NewWordCloudCommandHelper =
         | WordOrientation.Horizontal -> SKMatrix.MakeIdentity()
         | _ -> raise (ArgumentException("Unknown orientation value."))
 
-    let PrepareColorSet (set : SKColor []) (background : SKColor) (stroke : SKColor) max monochrome =
+    let PrepareColorSet
+        (set : SKColor [])
+        (background : SKColor)
+        (stroke : SKColor)
+        max
+        monochrome =
+
         Randomizer.Shuffle set
 
         let (_, _, bkgVal) = background.ToHsv()
@@ -214,7 +222,10 @@ module internal NewWordCloudCommandHelper =
                     yield color
         } |> Seq.take max
 
-    let CountWords (wordList : seq<string>) (wordCounts : IDictionary<string, single>) =
+    let CountWords
+        (wordList : seq<string>)
+        (wordCounts : IDictionary<string, single>) =
+
         for word in wordList do
             let trimmedWord = Regex.Replace(word, "s$", String.Empty, RegexOptions.IgnoreCase)
             let pluralWord = String.Format("{0}s", word)
@@ -230,17 +241,95 @@ module internal NewWordCloudCommandHelper =
     let AdjustFontScale (space : SKRect) averageWordFrequency wordCount =
         (space.Height + space.Width) / (8.0f * averageWordFrequency * single wordCount)
 
-    let AdjustWordSize baseSize globalScale (scaleDictionary : IDictionary<string, single>) =
+    let AdjustWordSize
+        baseSize
+        globalScale
+        (scaleDictionary : IDictionary<string, single>) =
+
         baseSize * globalScale * (2.0f * NextSingle() / (1.0f + scaleDictionary.Values.Max() - scaleDictionary.Values.Min()) + 0.9f)
 
     let SortWordList (dictionary : IDictionary<string, single>) maxWords =
             dictionary.Keys.OrderByDescending(fun word -> dictionary.[word])
             |> Seq.take(if maxWords = 0 then Int32.MaxValue else maxWords)
 
-    let GetRadiusIncrement wordSize distanceStep maxRadius padding percentComplete =
+    let rec setBaseFontScale
+        (dictionary : Dictionary<string, single>)
+        largestWord
+        strokeWidth
+        maxArea =
+
+        use brush = new SKPaint()
+        let size = dictionary.[largestWord]
+                   |> AdjustWordSize <| FontScale
+                                     <| dictionary
+        brush.DefaultWord size strokeWidth |> ignore
+
+        let mutable wordRect = SKRect.Empty
+        brush.MeasureText(largestWord, &wordRect) |> ignore
+        if wordRect.Width * wordRect.Height * 8.0f < maxArea * 0.75f then
+            FontScale <- FontScale * 1.05f
+            setBaseFontScale dictionary largestWord strokeWidth maxArea
+
+    let rec scaleWords
+        (wordScales : Dictionary<string,single>)
+        (wordSizes : Dictionary<string,single>)
+        (wordList : string list)
+        maxWidth
+        aspect
+        strokeWidth
+        overflow =
+
+        use brush = new SKPaint()
+        let maxArea = maxWidth * maxWidth * (if aspect > 1.0f then 1.0f / aspect else aspect)
+
+        match wordList with
+        | [] -> wordSizes
+        | head :: tail ->
+            let size = wordScales.[head]
+                       |> AdjustWordSize <| FontScale
+                                         <| wordScales
+            brush.DefaultWord size strokeWidth |> ignore
+
+            let mutable wordRect = SKRect.Empty
+            brush.MeasureText(head, &wordRect) |> ignore
+
+            if (wordRect.Width > maxWidth
+                || wordRect.Width * wordRect.Height * 8.0f > maxArea * 0.75f)
+                && not overflow
+            then
+                FontScale <- FontScale * 0.98f
+                wordSizes.Clear()
+                scaleWords wordScales wordSizes wordList maxWidth aspect strokeWidth overflow
+            else
+                wordSizes.[head] <- size
+                scaleWords wordScales wordSizes tail maxWidth aspect strokeWidth overflow
+
+    let getWordScaleDictionary
+        (wordScales : Dictionary<string,single>)
+        (wordList : string list)
+        maxWidth
+        aspect
+        strokeWidth
+        overflow =
+
+        let dictionary = Dictionary<string, single>(wordList.Length, StringComparer.OrdinalIgnoreCase)
+        scaleWords wordScales dictionary wordList maxWidth aspect strokeWidth overflow
+
+    let GetRadiusIncrement
+        wordSize
+        distanceStep
+        maxRadius
+        padding
+        percentComplete =
+
         (5.0f + NextSingle() * (2.5f + percentComplete / 10.0f)) * distanceStep * wordSize * (1.0f + padding) / maxRadius
 
-    let GetRadialPoints (centre : SKPoint) radius radialStep aspectRatio =
+    let GetRadialPoints
+        (centre : SKPoint)
+        radius
+        radialStep
+        aspectRatio =
+
         if radius = 0.0f then
             seq { yield centre }
         else
