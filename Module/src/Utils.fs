@@ -242,11 +242,10 @@ module internal NewWordCloudCommandHelper =
         (space.Height + space.Width) / (8.0f * averageWordFrequency * single wordCount)
 
     let AdjustWordSize
-        baseSize
-        globalScale
-        (scaleDictionary : IDictionary<string, single>) =
+        (scaleDictionary : IDictionary<string, single>)
+        baseSize =
 
-        baseSize * globalScale * (2.0f * NextSingle() / (1.0f + scaleDictionary.Values.Max() - scaleDictionary.Values.Min()) + 0.9f)
+        baseSize * FontScale * (2.0f * NextSingle() / (1.0f + scaleDictionary.Values.Max() - scaleDictionary.Values.Min()) + 0.9f)
 
     let SortWordList maxWords (dictionary : IDictionary<string, single>) =
             dictionary.Keys.OrderByDescending(fun word -> dictionary.[word])
@@ -259,9 +258,7 @@ module internal NewWordCloudCommandHelper =
         maxArea =
 
         use brush = new SKPaint()
-        let size = dictionary.[largestWord]
-                   |> AdjustWordSize <| FontScale
-                                     <| dictionary
+        let size = dictionary.[largestWord] |> AdjustWordSize dictionary
         brush.DefaultWord size strokeWidth |> ignore
 
         let mutable wordRect = SKRect.Empty
@@ -285,9 +282,7 @@ module internal NewWordCloudCommandHelper =
         match wordList with
         | [] -> wordSizes
         | head :: tail ->
-            let size = wordScales.[head]
-                       |> AdjustWordSize <| FontScale
-                                         <| wordScales
+            let size = wordScales.[head] |> AdjustWordSize wordScales
             brush.DefaultWord size strokeWidth |> ignore
 
             let mutable wordRect = SKRect.Empty
