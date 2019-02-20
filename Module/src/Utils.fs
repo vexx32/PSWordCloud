@@ -224,8 +224,8 @@ module internal NewWordCloudCommandHelper =
         } |> Seq.take max
 
     let CountWords
-        (wordList : seq<string>)
-        (wordCounts : IDictionary<string, single>) =
+        (wordCounts : IDictionary<string, single>)
+        (wordList : seq<string>) =
 
         for word in wordList do
             let trimmedWord = Regex.Replace(word, "s$", String.Empty, RegexOptions.IgnoreCase)

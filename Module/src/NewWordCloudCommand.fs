@@ -233,7 +233,8 @@ type NewWordCloudCommand() =
                 | :? (string []) as arr -> arr |> Array.toList
                 | :? (Object []) as objArr ->
                     objArr
-                    |> Array.toList |> List.map (fun x -> x |> To<string>)
+                    |> Array.toList
+                    |> List.map (fun x -> x |> To<string>)
                 | x -> [ x.ToString() ]
 
         _wordProcessingTasks <-
@@ -250,7 +251,7 @@ type NewWordCloudCommand() =
 
         allTasks.Wait()
         for lineWords in allTasks.Result do
-            CountWords lineWords wordScaleDictionary
+            lineWords |> CountWords wordScaleDictionary
 
         let highestFrequency =
             if self.MyInvocation.BoundParameters.ContainsKey("FocusWord") then
