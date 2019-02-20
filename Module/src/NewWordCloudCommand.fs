@@ -26,7 +26,12 @@ type NewWordCloudCommand() =
     let mutable _wordProcessingTasks : Task<string list> list = []
     let _progressId = NextInt()
 
-    let rec setBaseFontScale (dictionary : Dictionary<string, single>) largestWord strokeWidth maxArea =
+    let rec setBaseFontScale
+        (dictionary : Dictionary<string, single>)
+        largestWord
+        strokeWidth
+        maxArea =
+
         use brush = new SKPaint()
         let size = dictionary.[largestWord]
                    |> AdjustWordSize <| _fontScale
@@ -39,7 +44,15 @@ type NewWordCloudCommand() =
             _fontScale <- _fontScale * 1.05f
             setBaseFontScale dictionary largestWord strokeWidth maxArea
 
-    let rec scaleWords (wordScales : Dictionary<string,single>) (wordSizes : Dictionary<string,single>) (wordList : string list) maxWidth aspect strokeWidth overflow =
+    let rec scaleWords
+        (wordScales : Dictionary<string,single>)
+        (wordSizes : Dictionary<string,single>)
+        (wordList : string list)
+        maxWidth
+        aspect
+        strokeWidth
+        overflow =
+
         use brush = new SKPaint()
         let maxArea = maxWidth * maxWidth * (if aspect > 1.0f then 1.0f / aspect else aspect)
 
@@ -65,7 +78,14 @@ type NewWordCloudCommand() =
                 wordSizes.[head] <- size
                 scaleWords wordScales wordSizes tail maxWidth aspect strokeWidth overflow
 
-    let getWordScaleDictionary (wordScales : Dictionary<string,single>) (wordList : string list) maxWidth aspect strokeWidth overflow =
+    let getWordScaleDictionary
+        (wordScales : Dictionary<string,single>)
+        (wordList : string list)
+        maxWidth
+        aspect
+        strokeWidth
+        overflow =
+
         let dictionary = Dictionary<string, single>(wordList.Length, StringComparer.OrdinalIgnoreCase)
         scaleWords wordScales dictionary wordList maxWidth aspect strokeWidth overflow
 
@@ -96,7 +116,7 @@ type NewWordCloudCommand() =
 
     //#region Private Functions
 
-    member private self.ProcessInputAsync (stringLines : string list) =
+    member private self.ProcessInputAsync (stringLines : seq<string>) =
         seq {
             for line in stringLines do
                 yield async {
