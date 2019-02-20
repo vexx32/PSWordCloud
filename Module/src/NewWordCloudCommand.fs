@@ -34,7 +34,7 @@ type NewWordCloudCommand() =
         brush.DefaultWord size strokeWidth |> ignore
 
         let mutable wordRect = SKRect.Empty
-        brush.MeasureText(largestWord, ref wordRect) |> ignore
+        brush.MeasureText(largestWord, &wordRect) |> ignore
         if wordRect.Width * wordRect.Height * 8.0f < maxArea * 0.75f then
             _fontScale <- _fontScale * 1.05f
             setBaseFontScale dictionary largestWord strokeWidth maxArea
@@ -52,7 +52,7 @@ type NewWordCloudCommand() =
             brush.DefaultWord size strokeWidth |> ignore
 
             let mutable wordRect = SKRect.Empty
-            brush.MeasureText(head, ref wordRect) |> ignore
+            brush.MeasureText(head, &wordRect) |> ignore
 
             if (wordRect.Width > maxWidth
                 || wordRect.Width * wordRect.Height * 8.0f > maxArea * 0.75f)
@@ -288,7 +288,7 @@ type NewWordCloudCommand() =
         let allTasks = _wordProcessingTasks |> Task.WhenAll
         let wordScaleDictionary = Dictionary<string, single>(StringComparer.OrdinalIgnoreCase)
 
-        let mutable wordCount = 0
+        let mutable wordCount = ref 0
         let mutable background : SKBitmap = null
 
 
@@ -368,8 +368,7 @@ type NewWordCloudCommand() =
                 use brush = new SKPaint()
 
                 if self.AllowOverflow.IsPresent then
-                    (cloudBounds.Width * BleedAreaScale, cloudBounds.Height * BleedAreaScale)
-                    |> cloudBounds.Inflate
+                    cloudBounds.Inflate(cloudBounds.Width * BleedAreaScale, cloudBounds.Height * BleedAreaScale)
 
                 if self.ParameterSetName.StartsWith("FileBackground") then
                     canvas.DrawBitmap(background, 0.0f, 0.0f)
@@ -387,24 +386,22 @@ type NewWordCloudCommand() =
                 let totalWords = wordSizes.Count
 
                 for word in sortedWords do
-                    incr <| ref wordCount
+                    incr wordCount
                     let inflationValue = wordSizes.[word] * (self.PaddingMultiplier + self.StrokeWidth * StrokeBaseScale)
                     let wordColor = self.NextColor
                     brush.NextWord wordColor wordSizes.[word] self.StrokeWidth |> ignore
 
                     wordPath <- brush.GetTextPath(word, 0.0f, 0.0f)
-                    let wordBounds = wordPath.ComputeTightBounds()
+                    let wordBounds = ref <| wordPath.ComputeTightBounds()
 
-                    let wordWidth = wordBounds.Width
-                    let wordHeight = wordBounds.Height
+                    let wordWidth = wordBounds.Value.Width
+                    let wordHeight = wordBounds.Value.Height
 
                     let mutable targetPoint : SKPoint option = None
                     let mutable orientation = WordOrientation.Horizontal
 
-                    let percentComplete = 100.0f * (single wordCount) / (single totalWords)
-                    wordProgress.StatusDescription <-
-                        (statusString, word, brush.TextSize, wordCount, totalWords)
-                        |> String.Format
+                    let percentComplete = 100.0f * (single wordCount.Value) / (single totalWords)
+                    wordProgress.StatusDescription <- String.Format(statusString, word, brush.TextSize, wordCount.Value, totalWords)
                     wordProgress.PercentComplete <- int <| Math.Round(double percentComplete)
                     self.WriteProgress(wordProgress)
 
@@ -413,21 +410,19 @@ type NewWordCloudCommand() =
                     for radius in 0.0f..increment..maxRadius do
                         let radialPoints = GetRadialPoints centre radius self.RadialStep aspectRatio
                         let totalPoints = radialPoints.Count()
-                        let mutable pointCount = 0
+                        let mutable pointCount = ref 0
 
                         if targetPoint = None then
                             for point in radialPoints do
-                                incr <| ref pointCount
+                                incr pointCount
                                 if
-                                    cloudBounds.Contains(point) || wordCount = 1
+                                    cloudBounds.Contains(point) || wordCount.Value = 1
                                     && targetPoint = None
                                 then
                                     orientation <- self.NextOrientation
 
-                                    pointProgress.Activity <-
-                                        String.Format(pointActivity, orientation)
-                                    pointProgress.StatusDescription <-
-                                        String.Format(pointStatus, point.X, point.Y, pointCount, totalPoints, radius)
+                                    pointProgress.Activity <- String.Format(pointActivity, orientation)
+                                    pointProgress.StatusDescription <- String.Format(pointStatus, point.X, point.Y, pointCount.Value, totalPoints, radius)
                                     self.WriteProgress(pointProgress)
 
                                     let baseOffset = SKPoint(-wordWidth / 2.0f, wordHeight / 2.0f)
@@ -436,13 +431,13 @@ type NewWordCloudCommand() =
                                     let rotation = orientation |> ToRotationMatrix point
                                     let alteredPath = brush.GetTextPath(word, adjustedPoint.X, adjustedPoint.Y)
                                     alteredPath.Transform(rotation)
-                                    alteredPath.GetTightBounds(ref wordBounds) |> ignore
+                                    alteredPath.GetTightBounds(wordBounds) |> ignore
 
-                                    wordBounds.Inflate(inflationValue, inflationValue)
+                                    wordBounds.Value.Inflate(inflationValue, inflationValue)
 
                                     if
-                                        not (wordBounds.FallsOutside clipRegion)
-                                        && not (filledSpace.Intersects wordBounds)
+                                        not (wordBounds.Value.FallsOutside clipRegion)
+                                        && not (filledSpace.Intersects wordBounds.Value)
                                     then
                                         wordPath <- alteredPath
                                         targetPoint <- Some adjustedPoint
