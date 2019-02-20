@@ -42,14 +42,17 @@ type NewWordCloudCommand() =
     let rec scaleWords (wordScales : Dictionary<string,single>) (wordSizes : Dictionary<string,single>) (wordList : string list) maxWidth aspect strokeWidth overflow =
         use brush = new SKPaint()
         let maxArea = maxWidth * maxWidth * (if aspect > 1.0f then 1.0f / aspect else aspect)
-        for word in wordList do
-            let size = wordScales.[wordList.[0]]
+
+        match wordList with
+        | [] -> ()
+        | head :: tail ->
+            let size = wordScales.[head]
                        |> AdjustWordSize <| _fontScale
                                          <| wordScales
             brush.DefaultWord size strokeWidth |> ignore
 
             let mutable wordRect = SKRect.Empty
-            brush.MeasureText(word, ref wordRect) |> ignore
+            brush.MeasureText(head, ref wordRect) |> ignore
 
             if (wordRect.Width > maxWidth
                 || wordRect.Width * wordRect.Height * 8.0f > maxArea * 0.75f)
@@ -59,7 +62,8 @@ type NewWordCloudCommand() =
                 wordSizes.Clear()
                 scaleWords wordScales wordSizes wordList maxWidth aspect strokeWidth overflow
             else
-                wordSizes.[word] <- size
+                wordSizes.[head] <- size
+                scaleWords wordScales wordSizes tail maxWidth aspect strokeWidth overflow
 
 
     member private self.NextColor
