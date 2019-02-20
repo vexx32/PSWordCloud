@@ -44,7 +44,7 @@ type NewWordCloudCommand() =
         let maxArea = maxWidth * maxWidth * (if aspect > 1.0f then 1.0f / aspect else aspect)
 
         match wordList with
-        | [] -> ()
+        | [] -> wordSizes
         | head :: tail ->
             let size = wordScales.[head]
                        |> AdjustWordSize <| _fontScale
@@ -65,6 +65,9 @@ type NewWordCloudCommand() =
                 wordSizes.[head] <- size
                 scaleWords wordScales wordSizes tail maxWidth aspect strokeWidth overflow
 
+    let getWordScaleDictionary (wordScales : Dictionary<string,single>) (wordList : string list) maxWidth aspect strokeWidth overflow =
+        let dictionary = Dictionary<string, single>(wordList.Length, StringComparer.OrdinalIgnoreCase)
+        scaleWords wordScales dictionary wordList maxWidth aspect strokeWidth overflow
 
     member private self.NextColor
         with get() =
@@ -333,7 +336,6 @@ type NewWordCloudCommand() =
                     |> AdjustFontScale <| wordScaleDictionary.Values.Average()
                                        <| sortedWords.Length
 
-                let scaledWordSizes = Dictionary<string, single>(sortedWords.Length, StringComparer.OrdinalIgnoreCase)
                 let maxWordWidth =
                     if self.DisableRotation.IsPresent then
                         single cloudBounds.Width * MaxPercentWidth
@@ -346,8 +348,6 @@ type NewWordCloudCommand() =
                     else
                         cloudBounds.Width * cloudBounds.Height * 1.5f
                 let aspectRatio = (single cloudBounds.Width) / (single cloudBounds.Height)
-                use brush = new SKPaint()
-                brush.Typeface <- self.Typeface
 
                 // Pre-test word sizes to scale to image size
                 setBaseFontScale wordScaleDictionary sortedWords.[0] self.StrokeWidth cloudMaxArea
@@ -355,7 +355,7 @@ type NewWordCloudCommand() =
                 // Apply user-selected scaling
                 _fontScale <- self.WordScale * _fontScale
 
-                scaleWords wordScaleDictionary scaledWordSizes sortedWords maxWordWidth aspectRatio self.StrokeWidth self.AllowOverflow.IsPresent
+                let wordSizes = getWordScaleDictionary wordScaleDictionary sortedWords maxWordWidth aspectRatio self.StrokeWidth self.AllowOverflow.IsPresent
 
                 let centre = SKPoint(single cloudBounds.MidX, single cloudBounds.MidY)
 
@@ -365,6 +365,7 @@ type NewWordCloudCommand() =
                 use xmlWriter = new SKXmlStreamWriter(writeStream)
                 use canvas = SKSvgCanvas.Create(cloudBounds, xmlWriter)
                 use filledSpace = new SKRegion()
+                use brush = new SKPaint()
 
                 if self.AllowOverflow.IsPresent then
                     (cloudBounds.Width * BleedAreaScale, cloudBounds.Height * BleedAreaScale)
@@ -383,13 +384,13 @@ type NewWordCloudCommand() =
                 let pointActivity = "Finding available space to draw with orientation: {0}"
                 let pointStatus = "Checking [Point:{0,8:N2}, {1,8:N2}] ({2,4} / {3,4}) at [Radius: {4,8:N2}]"
 
-                let totalWords = scaledWordSizes.Count
+                let totalWords = wordSizes.Count
 
                 for word in sortedWords do
                     incr <| ref wordCount
-                    let inflationValue = scaledWordSizes.[word] * (self.PaddingMultiplier + self.StrokeWidth * StrokeBaseScale)
+                    let inflationValue = wordSizes.[word] * (self.PaddingMultiplier + self.StrokeWidth * StrokeBaseScale)
                     let wordColor = self.NextColor
-                    brush.NextWord wordColor scaledWordSizes.[word] self.StrokeWidth |> ignore
+                    brush.NextWord wordColor wordSizes.[word] self.StrokeWidth |> ignore
 
                     wordPath <- brush.GetTextPath(word, 0.0f, 0.0f)
                     let wordBounds = wordPath.ComputeTightBounds()
@@ -407,7 +408,7 @@ type NewWordCloudCommand() =
                     wordProgress.PercentComplete <- int <| Math.Round(double percentComplete)
                     self.WriteProgress(wordProgress)
 
-                    let increment = GetRadiusIncrement scaledWordSizes.[word] self.DistanceStep maxRadius inflationValue percentComplete
+                    let increment = GetRadiusIncrement wordSizes.[word] self.DistanceStep maxRadius inflationValue percentComplete
 
                     for radius in 0.0f..increment..maxRadius do
                         let radialPoints = GetRadialPoints centre radius self.RadialStep aspectRatio
