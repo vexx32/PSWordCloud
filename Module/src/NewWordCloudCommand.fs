@@ -38,14 +38,15 @@ type NewWordCloudCommand() =
                     head
                 | [] -> SKColors.Red
 
-    member private self.NextOrientation =
-        if not self.DisableRotation.IsPresent then
-            match Randomizer.NextSingle() with
-            | x when x > 0.75f -> WordOrientation.Vertical
-            | x when x > 0.5f -> WordOrientation.FlippedVertical
-            | _ -> WordOrientation.Horizontal
-        else
-            WordOrientation.Horizontal
+    member private self.NextOrientation
+        with get() =
+            if not self.DisableRotation.IsPresent then
+                match Randomizer.NextSingle() with
+                | x when x > 0.75f -> WordOrientation.Vertical
+                | x when x > 0.5f -> WordOrientation.FlippedVertical
+                | _ -> WordOrientation.Horizontal
+            else
+                WordOrientation.Horizontal
 
     member private self.PaddingMultiplier
         with get() = self.Padding * PaddingBaseScale
