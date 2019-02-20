@@ -288,7 +288,7 @@ type NewWordCloudCommand() =
         let allTasks = _wordProcessingTasks |> Task.WhenAll
         let wordScaleDictionary = Dictionary<string, single>(StringComparer.OrdinalIgnoreCase)
 
-        let mutable wordCount = ref 0
+        let wordCount = ref 0
         let mutable background : SKBitmap = null
 
 
@@ -410,7 +410,7 @@ type NewWordCloudCommand() =
                     for radius in 0.0f..increment..maxRadius do
                         let radialPoints = GetRadialPoints centre radius self.RadialStep aspectRatio
                         let totalPoints = radialPoints.Count()
-                        let mutable pointCount = ref 0
+                        let pointCount = ref 0
 
                         if targetPoint = None then
                             for point in radialPoints do
