@@ -248,7 +248,7 @@ module internal NewWordCloudCommandHelper =
 
         baseSize * globalScale * (2.0f * NextSingle() / (1.0f + scaleDictionary.Values.Max() - scaleDictionary.Values.Min()) + 0.9f)
 
-    let SortWordList (dictionary : IDictionary<string, single>) maxWords =
+    let SortWordList maxWords (dictionary : IDictionary<string, single>) =
             dictionary.Keys.OrderByDescending(fun word -> dictionary.[word])
             |> Seq.take(if maxWords = 0 then Int32.MaxValue else maxWords)
 

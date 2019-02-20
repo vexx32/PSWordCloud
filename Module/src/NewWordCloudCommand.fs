@@ -248,7 +248,6 @@ type NewWordCloudCommand() =
         let wordCount = ref 0
         let mutable background : SKBitmap = null
 
-
         allTasks.Wait()
         for lineWords in allTasks.Result do
             CountWords lineWords wordScaleDictionary
@@ -263,7 +262,7 @@ type NewWordCloudCommand() =
 
         let sortedWords =
             wordScaleDictionary
-            |> SortWordList <| self.MaxRenderedWords
+            |> SortWordList self.MaxRenderedWords
             |> Seq.toList
 
         let wordProgress = ProgressRecord(_progressId, "Drawing word cloud...", "Finding space for word...")
