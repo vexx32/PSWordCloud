@@ -53,9 +53,9 @@ type NewWordCloudCommand() =
 
     //#region Private Functions
 
-    member private self.ProcessInputAsync (stringLines : seq<string>) =
+    member private self.ProcessInputAsync stringLines =
         seq {
-            for line in stringLines do
+            for (line : string) in stringLines do
                 yield async {
                     let words =
                         line.Split(SplitChars, StringSplitOptions.RemoveEmptyEntries)
