@@ -86,20 +86,12 @@ type TransformToSKTypefaceAttribute() =
                 | :? IDictionary as d -> d :> IEnumerable
                 | p -> PSObject.AsPSObject(p).Properties :> IEnumerable
 
-            let style =
+            use style =
                 let weight = ValueFrom properties "Weight" |> As<SKFontStyleWeight>
                 let width = ValueFrom properties "Width" |> As<SKFontStyleWidth>
                 let slant = ValueFrom properties "Slant" |> As<SKFontStyleSlant>
 
-                match (weight, width, slant) with
-                | (Some x, Some y, Some z) -> new SKFontStyle(x, y, z)
-                | (None, Some y, Some z) -> new SKFontStyle(SKFontStyleWeight.Normal, y, z)
-                | (Some x, None, Some z) -> new SKFontStyle(x, SKFontStyleWidth.Normal, z)
-                | (Some x, Some y, None) -> new SKFontStyle(x, y, SKFontStyleSlant.Upright)
-                | (Some x, None, None) -> new SKFontStyle(x, SKFontStyleWidth.Normal, SKFontStyleSlant.Upright)
-                | (None, Some y, None) -> new SKFontStyle(SKFontStyleWeight.Normal, y, SKFontStyleSlant.Upright)
-                | (None, None, Some z) -> new SKFontStyle(SKFontStyleWeight.Normal, SKFontStyleWidth.Normal, z)
-                | (None, None, None) -> SKFontStyle.Normal
+                new SKFontStyle(weight |? SKFontStyleWeight.Normal, width |? SKFontStyleWidth.Normal, slant |? SKFontStyleSlant.Upright)
 
             let familyName = ValueFrom properties "FamilyName" |> To<string>
             FontManager.MatchFamily(familyName, style) :> obj

@@ -161,6 +161,7 @@ module internal Extensions =
 
 open Randomizer
 open Extensions
+
 module internal NewWordCloudCommandHelper =
     let StopWords = [
         "a";"about";"above";"after";"again";"against";"all";"am";"an";"and";"any";"are";"aren't";"as";"at";"be";
