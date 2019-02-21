@@ -371,22 +371,12 @@ type NewWordCloudCommand() =
                                     pointProgress.StatusDescription <- String.Format(pointStatus, point.X, point.Y, !pointCount, totalPoints, radius)
                                     self.WriteProgress(pointProgress)
 
-                                    let baseOffset = SKPoint(-wordWidth / 2.0f, wordHeight / 2.0f)
-                                    let adjustedPoint = point + baseOffset
-
-                                    let rotation = orientation |> ToRotationMatrix point
-                                    let alteredPath = brush.GetTextPath(word, adjustedPoint.X, adjustedPoint.Y)
-                                    alteredPath.Transform(rotation)
-                                    alteredPath.GetTightBounds(wordBounds) |> ignore
-
-                                    (!wordBounds).Inflate(inflationValue, inflationValue)
-
-                                    if
-                                        not <| (!wordBounds).FallsOutside clipRegion
-                                        && not (filledSpace.Intersects !wordBounds)
-                                    then
-                                        wordPath <- alteredPath
-                                        targetPoint <- Some adjustedPoint
+                                    let result = point |> VerifyPoint word !wordBounds brush clipRegion filledSpace orientation inflationValue
+                                    match result with
+                                    | Some (path, point) ->
+                                        targetPoint <- Some point
+                                        wordPath <- path
+                                    | None -> ()
 
                     if targetPoint.IsSome then
                         wordPath.FillType <- SKPathFillType.EvenOdd

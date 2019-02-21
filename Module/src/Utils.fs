@@ -358,3 +358,32 @@ module internal NewWordCloudCommandHelper =
             | _ -> WordOrientation.Horizontal
         else
             WordOrientation.Horizontal
+
+    let VerifyPoint
+        (word : string)
+        (wordRect : SKRect)
+        (brush : SKPaint)
+        (clipRegion : SKRegion)
+        (filledSpace : SKRegion)
+        orientation
+        padding
+        (point : SKPoint) =
+
+        let wordBounds = ref wordRect
+        let baseOffset = SKPoint(-wordRect.Width / 2.0f, wordRect.Height / 2.0f)
+        let adjustedPoint = point + baseOffset
+
+        let rotation = orientation |> ToRotationMatrix point
+        let alteredPath = brush.GetTextPath(word, adjustedPoint.X, adjustedPoint.Y)
+        alteredPath.Transform(rotation)
+        alteredPath.GetTightBounds(wordBounds) |> ignore
+
+        (!wordBounds).Inflate(padding, padding)
+
+        if
+            not <| (!wordBounds).FallsOutside clipRegion
+            && not (filledSpace.Intersects !wordBounds)
+        then
+            Some (alteredPath, adjustedPoint)
+        else
+            None
