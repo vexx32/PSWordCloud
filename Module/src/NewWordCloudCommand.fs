@@ -38,16 +38,6 @@ type NewWordCloudCommand() =
                     head
                 | [] -> SKColors.Red
 
-    member private self.NextOrientation
-        with get() =
-            if not self.DisableRotation.IsPresent then
-                match Randomizer.NextSingle() with
-                | x when x > 0.75f -> WordOrientation.Vertical
-                | x when x > 0.5f -> WordOrientation.FlippedVertical
-                | _ -> WordOrientation.Horizontal
-            else
-                WordOrientation.Horizontal
-
     member private self.PaddingMultiplier
         with get() = self.Padding * PaddingBaseScale
 
@@ -290,8 +280,7 @@ type NewWordCloudCommand() =
                 FontScale <-
                     clipRegion.Bounds
                     |> To<SKRect>
-                    |> AdjustFontScale <| wordScaleDictionary.Values.Average()
-                                       <| sortedWords.Length
+                    |> AdjustFontScale sortedWords.Length (wordScaleDictionary.Values.Average())
 
                 let maxWordWidth =
                     if self.DisableRotation.IsPresent then
@@ -303,8 +292,8 @@ type NewWordCloudCommand() =
                     if not self.AllowOverflow.IsPresent then
                         cloudBounds.Width * cloudBounds.Height
                     else
-                        cloudBounds.Width * cloudBounds.Height * 1.5f
-                let aspectRatio = (single cloudBounds.Width) / (single cloudBounds.Height)
+                        cloudBounds.Width * cloudBounds.Height * BleedAreaScale
+                let aspectRatio = cloudBounds.Width / cloudBounds.Height
 
                 // Pre-test word sizes to scale to image size
                 setBaseFontScale wordScaleDictionary sortedWords.[0] self.StrokeWidth cloudMaxArea
@@ -312,7 +301,9 @@ type NewWordCloudCommand() =
                 // Apply user-selected scaling
                 FontScale <- self.WordScale * FontScale
 
-                let wordSizes = getWordScaleDictionary wordScaleDictionary sortedWords maxWordWidth aspectRatio self.StrokeWidth self.AllowOverflow.IsPresent
+                let wordSizes =
+                    wordScaleDictionary
+                    |> getWordScaleDictionary sortedWords maxWordWidth aspectRatio self.StrokeWidth self.AllowOverflow.IsPresent
 
                 let centre = SKPoint(single cloudBounds.MidX, single cloudBounds.MidY)
 
@@ -357,8 +348,8 @@ type NewWordCloudCommand() =
                     let mutable targetPoint : SKPoint option = None
                     let mutable orientation = WordOrientation.Horizontal
 
-                    let percentComplete = 100.0f * (single wordCount.Value) / (single totalWords)
-                    wordProgress.StatusDescription <- String.Format(statusString, word, brush.TextSize, wordCount.Value, totalWords)
+                    let percentComplete = 100.0f * (single !wordCount) / (single totalWords)
+                    wordProgress.StatusDescription <- String.Format(statusString, word, brush.TextSize, !wordCount, totalWords)
                     wordProgress.PercentComplete <- int <| Math.Round(double percentComplete)
                     self.WriteProgress(wordProgress)
 
@@ -373,13 +364,13 @@ type NewWordCloudCommand() =
                             for point in radialPoints do
                                 incr pointCount
                                 if
-                                    cloudBounds.Contains(point) || wordCount.Value = 1
+                                    cloudBounds.Contains(point) || !wordCount = 1
                                     && targetPoint = None
                                 then
-                                    orientation <- self.NextOrientation
+                                    orientation <- NextOrientation <| not self.DisableRotation.IsPresent
 
                                     pointProgress.Activity <- String.Format(pointActivity, orientation)
-                                    pointProgress.StatusDescription <- String.Format(pointStatus, point.X, point.Y, pointCount.Value, totalPoints, radius)
+                                    pointProgress.StatusDescription <- String.Format(pointStatus, point.X, point.Y, !pointCount, totalPoints, radius)
                                     self.WriteProgress(pointProgress)
 
                                     let baseOffset = SKPoint(-wordWidth / 2.0f, wordHeight / 2.0f)
@@ -390,11 +381,11 @@ type NewWordCloudCommand() =
                                     alteredPath.Transform(rotation)
                                     alteredPath.GetTightBounds(wordBounds) |> ignore
 
-                                    wordBounds.Value.Inflate(inflationValue, inflationValue)
+                                    (!wordBounds).Inflate(inflationValue, inflationValue)
 
                                     if
-                                        not (wordBounds.Value.FallsOutside clipRegion)
-                                        && not (filledSpace.Intersects wordBounds.Value)
+                                        not <| (!wordBounds).FallsOutside clipRegion
+                                        && not (filledSpace.Intersects !wordBounds)
                                     then
                                         wordPath <- alteredPath
                                         targetPoint <- Some adjustedPoint
