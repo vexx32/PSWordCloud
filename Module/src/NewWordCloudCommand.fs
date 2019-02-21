@@ -19,9 +19,7 @@ type NewWordCloudCommand() =
 
     let mutable _resolvedPath = String.Empty
     let mutable _resolvedBackgroundPath = String.Empty
-
     let mutable _colors : SKColor list = []
-
     let mutable _wordProcessingTasks : Task<string list> list = []
     let _progressId = NextInt()
 
