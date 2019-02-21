@@ -239,7 +239,7 @@ module internal NewWordCloudCommandHelper =
             else
                 wordCounts.[word] <- if wordCounts.ContainsKey(word) then wordCounts.[word] + 1.0f else 1.0f
 
-    let AdjustFontScale (space : SKRect) averageWordFrequency wordCount =
+    let AdjustFontScale wordCount averageWordFrequency (space : SKRect) =
         (space.Height + space.Width) / (8.0f * averageWordFrequency * single wordCount)
 
     let AdjustWordSize
@@ -301,12 +301,12 @@ module internal NewWordCloudCommandHelper =
                 scaleWords wordScales wordSizes tail maxWidth aspect strokeWidth overflow
 
     let getWordScaleDictionary
-        (wordScales : Dictionary<string,single>)
         (wordList : string list)
         maxWidth
         aspect
         strokeWidth
-        overflow =
+        overflow
+        (wordScales : Dictionary<string,single>) =
 
         let dictionary = Dictionary<string, single>(wordList.Length, StringComparer.OrdinalIgnoreCase)
         scaleWords wordScales dictionary wordList maxWidth aspect strokeWidth overflow
@@ -349,3 +349,12 @@ module internal NewWordCloudCommandHelper =
 
                     angle <- angle + angleIncrement
             }
+
+    let NextOrientation allowRotate =
+        if allowRotate then
+            match Randomizer.NextSingle() with
+            | x when x > 0.75f -> WordOrientation.Vertical
+            | x when x > 0.5f -> WordOrientation.FlippedVertical
+            | _ -> WordOrientation.Horizontal
+        else
+            WordOrientation.Horizontal
