@@ -371,7 +371,7 @@ type NewWordCloudCommand() =
                                     pointProgress.StatusDescription <- String.Format(pointStatus, point.X, point.Y, !pointCount, totalPoints, radius)
                                     self.WriteProgress(pointProgress)
 
-                                    let result = point |> VerifyPoint word !wordBounds brush clipRegion filledSpace orientation inflationValue
+                                    let result = point |> TryGetValidPath word !wordBounds brush clipRegion filledSpace orientation inflationValue
                                     match result with
                                     | Some (path, point) ->
                                         targetPoint <- Some point

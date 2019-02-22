@@ -359,7 +359,7 @@ module internal NewWordCloudCommandHelper =
         else
             WordOrientation.Horizontal
 
-    let VerifyPoint
+    let TryGetValidPath
         (word : string)
         (wordRect : SKRect)
         (brush : SKPaint)
@@ -383,6 +383,6 @@ module internal NewWordCloudCommandHelper =
         if not ((!wordBounds).FallsOutside clipRegion
             || filledSpace.Intersects !wordBounds)
         then
-            Some (alteredPath, adjustedPoint)
+            Some (alteredPath, point)
         else
             None
