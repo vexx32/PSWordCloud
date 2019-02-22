@@ -221,7 +221,7 @@ module internal NewWordCloudCommandHelper =
                     && Math.Abs(v - bkgVal) > MinBrightnessDifference
                 then
                     yield color
-        } |> Seq.take max
+        } |> Seq.truncate max
 
     let CountWords
         (wordCounts : IDictionary<string, single>)
@@ -250,7 +250,7 @@ module internal NewWordCloudCommandHelper =
 
     let SortWordList maxWords (dictionary : IDictionary<string, single>) =
             dictionary.Keys.OrderByDescending(fun word -> dictionary.[word])
-            |> Seq.take(if maxWords = 0 then Int32.MaxValue else maxWords)
+            |> Seq.truncate (if maxWords = 0 then Int32.MaxValue else maxWords)
 
     let rec setBaseFontScale
         (dictionary : Dictionary<string, single>)
