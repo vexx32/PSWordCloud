@@ -32,7 +32,8 @@ type TransformToSKSizeIAttribute() =
         | :? SKSizeI as szI -> szI :> obj
         | :? string as s ->
             if StandardImageSizes.ContainsKey(s) then
-                StandardImageSizes.[s] :> obj
+                let (_, size) = StandardImageSizes.[s]
+                size :> obj
             else
                 let sizePattern = @"^(?<Width>[\d\.,]+)x(?<Height>[\d\.,]+)(px)?$"
                 let numberPattern = @"^(?<SideLength>[\d\.,]+)(px)?$"

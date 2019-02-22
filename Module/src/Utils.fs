@@ -25,14 +25,22 @@ module internal Utils =
     let PaddingBaseScale = 0.05f
     let StrokeBaseScale = 0.02f
 
+    let As<'T> value =
+        try
+            Some <| LanguagePrimitives.ConvertTo<'T>(value)
+        with
+        | _ -> None
+
+    let To<'T> = LanguagePrimitives.ConvertTo<'T>
+
     let FontManager = SKFontManager.Default
 
     let FontList =
         FontManager.FontFamilies.OrderBy((fun x -> x), StringComparer.OrdinalIgnoreCase)
 
     let ColorLibrary =
-        typeof<SKColor>.GetFields (BindingFlags.Static ||| BindingFlags.Public)
-        |> Seq.map (fun field -> (field.Name, field.GetValue(null) :?> SKColor))
+        typeof<SKColor>.GetFields(BindingFlags.Static ||| BindingFlags.Public)
+        |> Seq.map (fun field -> (field.Name, field.GetValue(null) |> To<SKColor>))
         |> Map.ofSeq
 
     let ColorNames = ColorLibrary |> Seq.map (fun item -> item.Key)
@@ -59,14 +67,6 @@ module internal Utils =
         | :? IDictionary as d -> d.[key]
         | :? PSMemberInfoCollection<PSMemberInfo> as p -> p.[key].Value
         | _ -> raise (ArgumentTransformationMetadataException())
-
-    let As<'T> value =
-        try
-            Some (LanguagePrimitives.ConvertTo<'T>(value))
-        with
-        | _ -> None
-
-    let To<'T> = LanguagePrimitives.ConvertTo<'T>
 
     let lock (padlock : obj) task =
         Monitor.Enter padlock
