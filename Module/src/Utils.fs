@@ -380,8 +380,7 @@ module internal NewWordCloudCommandHelper =
 
         (!wordBounds).Inflate(padding, padding)
 
-        if not
-            ((!wordBounds).FallsOutside clipRegion
+        if not ((!wordBounds).FallsOutside clipRegion
             || filledSpace.Intersects !wordBounds)
         then
             Some (alteredPath, adjustedPoint)
