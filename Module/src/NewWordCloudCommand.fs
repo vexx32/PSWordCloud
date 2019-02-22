@@ -50,7 +50,7 @@ type NewWordCloudCommand() =
                         |> Array.toList
                         |> List.choose (fun x ->
                             if
-                                (not self.AllowStopWords.IsPresent && StopWords.Contains(x, StringComparer.OrdinalIgnoreCase))
+                                (not self.AllowStopWords.IsPresent && not <| StopWords.Contains(x, StringComparer.OrdinalIgnoreCase))
                                 || Regex.Replace(x, "[^a-z-]", String.Empty, RegexOptions.IgnoreCase).Length < 2
                             then
                                 Some x
