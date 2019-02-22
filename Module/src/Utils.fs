@@ -39,7 +39,7 @@ module internal Utils =
         FontManager.FontFamilies.OrderBy((fun x -> x), StringComparer.OrdinalIgnoreCase)
 
     let ColorLibrary =
-        typeof<SKColor>.GetFields(BindingFlags.Static ||| BindingFlags.Public)
+        typeof<SKColors>.GetFields(BindingFlags.Static ||| BindingFlags.Public)
         |> Seq.map (fun field -> (field.Name, field.GetValue(null) |> To<SKColor>))
         |> Map.ofSeq
 
