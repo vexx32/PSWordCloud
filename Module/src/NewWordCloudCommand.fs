@@ -49,9 +49,9 @@ type NewWordCloudCommand() =
                         line.Split(SplitChars, StringSplitOptions.RemoveEmptyEntries)
                         |> Array.toList
                         |> List.choose (fun x ->
-                            if
-                                (not (self.AllowStopWords.IsPresent || StopWords.Contains(x, StringComparer.OrdinalIgnoreCase)))
-                                || Regex.Replace(x, "[^a-z-]", String.Empty, RegexOptions.IgnoreCase).Length < 2
+                            if not
+                                (self.AllowStopWords.IsPresent || StopWords.Contains(x, StringComparer.OrdinalIgnoreCase)
+                                || Regex.Replace(x, "[^a-z-]", String.Empty, RegexOptions.IgnoreCase).Length < 2)
                             then
                                 Some x
                             else
