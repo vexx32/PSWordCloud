@@ -33,11 +33,49 @@ namespace PSWordCloud
 
         #endregion Constants
 
-        #region static members
+        #region StaticMembers
 
-        // TBD
+        private static readonly string[] _stopWords = new[] {
+            "a","about","above","after","again","against","all","am","an","and","any","are","aren't","as","at","be",
+            "because","been","before","being","below","between","both","but","by","can't","cannot","could","couldn't",
+            "did","didn't","do","does","doesn't","doing","don't","down","during","each","few","for","from","further",
+            "had","hadn't","has","hasn't","have","haven't","having","he","he'd","he'll","he's","her","here","here's",
+            "hers","herself","him","himself","his","how","how's","i","i'd","i'll","i'm","i've","if","in","into","is",
+            "isn't","it","it's","its","itself","let's","me","more","most","mustn't","my","myself","no","nor","not","of",
+            "off","on","once","only","or","other","ought","our","ours","ourselves","out","over","own","same","shan't",
+            "she","she'd","she'll","she's","should","shouldn't","so","some","such","than","that","that's","the","their",
+            "theirs","them","themselves","then","there","there's","these","they","they'd","they'll","they're","they've",
+            "this","those","through","to","too","under","until","up","very","was","wasn't","we","we'd","we'll","we're",
+            "we've","were","weren't","what","what's","when","when's","where","where's","which","while","who","who's",
+            "whom","why","why's","with","won't","would","wouldn't","you","you'd","you'll","you're","you've","your",
+            "yours","yourself","yourselves" };
 
-        #endregion static members
+        private static readonly char[] _splitChars = new[] {
+            ' ','\n','\t','\r','.',',',';','\\','/','|',
+            ':','"','?','!','{','}','[',']',':','(',')',
+            '<','>','“','”','*','#','%','^','&','+','=' };
+
+        private static readonly object _randomLock = new object();
+        private static Random _random;
+        private static Random Random
+        {
+            get
+            {
+                lock (_randomLock)
+                {
+                    return (_random = _random ?? new Random());
+                }
+            }
+            set
+            {
+                lock (_randomLock)
+                {
+                    _random = value;
+                }
+            }
+        }
+
+        #endregion StaticMembers
 
         #region Parameters
 
@@ -81,10 +119,14 @@ namespace PSWordCloud
             get => _backgroundFullPath;
             set
             {
-                var previousDir = Environment.CurrentDirectory;
-                Environment.CurrentDirectory = SessionState.Path.CurrentFileSystemLocation.Path;
-                _backgroundFullPath = System.IO.Path.GetFullPath(value);
-                Environment.CurrentDirectory = previousDir;
+                var resolvedPaths = SessionState.Path.GetResolvedPSPathFromPSPath(value);
+                if (resolvedPaths.Count > 1)
+                {
+                    throw new ArgumentException(string.Format(
+                        "Unable to resolve argument for parameter {0} to a single file path.", nameof(BackgroundImage)));
+                }
+
+                _backgroundFullPath = resolvedPaths[0].Path;
             }
         }
 
@@ -132,8 +174,7 @@ namespace PSWordCloud
         [Alias("FontFamily", "FontFace")]
         [ArgumentCompleter(typeof(FontFamilyCompleter))]
         [TransformToSKTypeface()]
-        public SKTypeface Typeface { get; set; } = WCUtils.FontManager.MatchFamily(
-            "Consolas", SKFontStyle.Normal);
+        public SKTypeface Typeface { get; set; } = WCUtils.FontManager.MatchFamily("Consolas", SKFontStyle.Normal);
 
         /// <summary>
         /// <para>Gets or sets the SKColor value used as the background for the word cloud image.</para>
@@ -314,34 +355,6 @@ namespace PSWordCloud
 
         #endregion Parameters
 
-        #region staticMembers
-
-        private static readonly string[] _stopWords = new[] {
-            "a","about","above","after","again","against","all","am","an","and","any","are","aren't","as","at","be",
-            "because","been","before","being","below","between","both","but","by","can't","cannot","could","couldn't",
-            "did","didn't","do","does","doesn't","doing","don't","down","during","each","few","for","from","further",
-            "had","hadn't","has","hasn't","have","haven't","having","he","he'd","he'll","he's","her","here","here's",
-            "hers","herself","him","himself","his","how","how's","i","i'd","i'll","i'm","i've","if","in","into","is",
-            "isn't","it","it's","its","itself","let's","me","more","most","mustn't","my","myself","no","nor","not","of",
-            "off","on","once","only","or","other","ought","our","ours","ourselves","out","over","own","same","shan't",
-            "she","she'd","she'll","she's","should","shouldn't","so","some","such","than","that","that's","the","their",
-            "theirs","them","themselves","then","there","there's","these","they","they'd","they'll","they're","they've",
-            "this","those","through","to","too","under","until","up","very","was","wasn't","we","we'd","we'll","we're",
-            "we've","were","weren't","what","what's","when","when's","where","where's","which","while","who","who's",
-            "whom","why","why's","with","won't","would","wouldn't","you","you'd","you'll","you're","you've","your",
-            "yours","yourself","yourselves" };
-
-        private static readonly char[] _splitChars = new[] {
-            ' ','\n','\t','\r','.',',',';','\\','/','|',
-            ':','"','?','!','{','}','[',']',':','(',')',
-            '<','>','“','”','*','#','%','^','&','+','=' };
-
-        private static readonly object _randomLock = new object();
-        private static Random _random;
-        private static Random Random => _random = _random ?? new Random();
-
-        #endregion staticMembers
-
         #region privateVariables
 
         private List<Task<IEnumerable<string>>> _wordProcessingTasks;
@@ -399,7 +412,7 @@ namespace PSWordCloud
         /// </summary>
         protected override void BeginProcessing()
         {
-            _random = MyInvocation.BoundParameters.ContainsKey(nameof(RandomSeed))
+            Random = MyInvocation.BoundParameters.ContainsKey(nameof(RandomSeed))
                 ? new Random(RandomSeed)
                 : new Random();
             _progressID = Random.Next();
@@ -942,13 +955,7 @@ namespace PSWordCloud
             } while (clockwise ? angle <= maxAngle : angle >= maxAngle);
         }
 
-        private static float RandomFloat()
-        {
-            lock (_randomLock)
-            {
-                return (float)Random.NextDouble();
-            }
-        }
+        private static float RandomFloat() => (float)Random.NextDouble();
 
         /// <summary>
         /// Asynchronous method used to quickly process large amounts of text input into words.
