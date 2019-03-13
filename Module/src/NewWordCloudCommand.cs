@@ -361,48 +361,39 @@ namespace PSWordCloud
         private float _fontScale;
         private int _progressID;
         private int _colorIndex = 0;
-        private SKColor _nextColor
+        private SKColor GetNextColor()
         {
-            get
+            if (_colorIndex == _colors.Count)
             {
-                if (_colorIndex == _colors.Count)
+                _colorIndex = 0;
+            }
+
+            var color = _colors[_colorIndex];
+            _colorIndex++;
+
+            return color;
+        }
+
+        private WordOrientation GetWordOrientation()
+        {
+            if (!DisableRotation)
+            {
+                var num = RandomFloat();
+                if (num > 0.75)
                 {
-                    _colorIndex = 0;
+                    return WordOrientation.Vertical;
                 }
 
-                var color = _colors[_colorIndex];
-                _colorIndex++;
-
-                return color;
-            }
-        }
-
-        private WordOrientation _wordOrientation
-        {
-            get
-            {
-                if (!DisableRotation)
+                if (num > 0.5)
                 {
-                    var num = RandomFloat();
-                    if (num > 0.75)
-                    {
-                        return WordOrientation.Vertical;
-                    }
-
-                    if (num > 0.5)
-                    {
-                        return WordOrientation.FlippedVertical;
-                    }
+                    return WordOrientation.FlippedVertical;
                 }
-
-                return WordOrientation.Horizontal;
             }
+
+            return WordOrientation.Horizontal;
         }
 
-        private float _paddingMultiplier
-        {
-            get => Padding * PADDING_BASE_SCALE;
-        }
+        private float _paddingMultiplier => Padding * PADDING_BASE_SCALE;
 
         #endregion privateVariables
 
@@ -621,7 +612,7 @@ namespace PSWordCloud
                         targetOrientation = WordOrientation.Horizontal;
                         targetPoint = SKPoint.Empty;
 
-                        var wordColor = _nextColor;
+                        var wordColor = GetNextColor();
                         brush.NextWord(scaledWordSizes[word], StrokeWidth, wordColor);
 
                         wordPath.Dispose();
@@ -658,7 +649,7 @@ namespace PSWordCloud
                                     continue;
                                 }
 
-                                var orientation = _wordOrientation;
+                                var orientation = GetWordOrientation();
                                 pointProgress.Activity = string.Format(
                                     "Finding available space to draw with orientation: {0}",
                                     orientation);
