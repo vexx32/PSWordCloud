@@ -420,20 +420,11 @@ namespace PSWordCloud
         /// </summary>
         protected override void ProcessRecord()
         {
-            string[] text;
-            if (MyInvocation.ExpectingInput)
-            {
-                text = new[] { InputObject.BaseObject as string };
-            }
-            else
-            {
-                text = InputObject.BaseObject as string[] ?? new[] { InputObject.BaseObject as string };
-            }
+            var text = MyInvocation.ExpectingInput
+                    ? new[] { InputObject.BaseObject as string }
+                    : InputObject.BaseObject as string[] ?? new[] { InputObject.BaseObject as string };
 
-            if (_wordProcessingTasks == null)
-            {
-                _wordProcessingTasks = new List<Task<IEnumerable<string>>>(text.Length);
-            }
+            _wordProcessingTasks = _wordProcessingTasks ?? new List<Task<IEnumerable<string>>>(text.Length);
 
             foreach (var line in text)
             {
@@ -450,17 +441,20 @@ namespace PSWordCloud
             var lineStrings = Task.WhenAll<IEnumerable<string>>(_wordProcessingTasks);
             lineStrings.Wait();
 
-            var wordCount = 0;
+            int wordCount = 0;
+            float inflationValue, maxWordWidth, highestWordFreq, aspectRatio, maxRadius;
+
             var wordScaleDictionary = new Dictionary<string, float>(StringComparer.OrdinalIgnoreCase);
-            SKRect wordBounds = SKRect.Empty;
-            SKRect drawableBounds;
+            Dictionary<string, float> scaledWordSizes;
+            List<string> sortedWordList;
+
             SKPath wordPath = null;
             SKRegion clipRegion = null;
             SKBitmap backgroundImage = null;
-            ProgressRecord wordProgress = null;
-            ProgressRecord pointProgress = null;
+            SKPoint centrePoint;
 
-            float inflationValue = 0;
+            SKRect wordBounds = SKRect.Empty, drawableBounds = SKRect.Empty;
+            ProgressRecord wordProgress = null, pointProgress = null;
 
             foreach (var lineWords in lineStrings.Result)
             {
@@ -468,14 +462,14 @@ namespace PSWordCloud
             }
 
             // All words counted and in the dictionary.
-            var highestWordFreq = wordScaleDictionary.Values.Max();
+            highestWordFreq = wordScaleDictionary.Values.Max();
 
             if (MyInvocation.BoundParameters.ContainsKey(nameof(FocusWord)))
             {
                 wordScaleDictionary[FocusWord] = highestWordFreq = highestWordFreq * FOCUS_WORD_SCALE;
             }
 
-            List<string> sortedWordList = new List<string>(SortWordList(wordScaleDictionary, MaxRenderedWords));
+            sortedWordList = new List<string>(SortWordList(wordScaleDictionary, MaxRenderedWords));
 
             try
             {
@@ -499,9 +493,10 @@ namespace PSWordCloud
                     wordScaleDictionary.Values.Average(),
                     Math.Min(wordScaleDictionary.Count, MaxRenderedWords));
 
-                var scaledWordSizes = new Dictionary<string, float>(
+                scaledWordSizes = new Dictionary<string, float>(
                     sortedWordList.Count, StringComparer.OrdinalIgnoreCase);
-                float maxWordWidth = DisableRotation
+
+                maxWordWidth = DisableRotation
                     ? drawableBounds.Width * MAX_WORD_WIDTH_PERCENT
                     : Math.Max(drawableBounds.Width, drawableBounds.Height) * MAX_WORD_WIDTH_PERCENT;
 
@@ -557,13 +552,13 @@ namespace PSWordCloud
                     while (retry);
                 }
 
-                var aspectRatio = drawableBounds.Width / (float)drawableBounds.Height;
-                SKPoint centrePoint = new SKPoint(drawableBounds.MidX, drawableBounds.MidY);
+                aspectRatio = drawableBounds.Width / (float)drawableBounds.Height;
+                centrePoint = new SKPoint(drawableBounds.MidX, drawableBounds.MidY);
 
                 // Remove all words that were cut from the final rendering list
                 sortedWordList.RemoveAll(x => !scaledWordSizes.ContainsKey(x));
 
-                var maxRadius = Math.Max(drawableBounds.Width, drawableBounds.Height) / 2f;
+                maxRadius = Math.Max(drawableBounds.Width, drawableBounds.Height) / 2f;
 
                 using (SKFileWStream outputStream = new SKFileWStream(_resolvedPath))
                 using (SKXmlStreamWriter xmlWriter = new SKXmlStreamWriter(outputStream))
