@@ -253,6 +253,23 @@ namespace PSWordCloud
         public string FocusWord { get; set; }
 
         /// <summary>
+        /// <para>Gets or sets the words to be explicitly ignored when rendering the word cloud.</para>
+        /// <para>This is usually used to exclude irrelevant words, link segments, etc.</para>
+        /// </summary>
+        [Parameter()]
+        [Alias("ForbidWord", "IgnoreWord")]
+        public string[] ExcludeWord { get; set; }
+
+        /// <summary>
+        /// <para>Gets or sets the words to be explicitly included in rendering of the cloud.</para>
+        /// <para>This can be used to override specific words normally excluded by the StopWords list.</para>
+        /// </summary>
+        /// <value></value>
+        [Parameter()]
+        [Alias()]
+        public string[] IncludeWord { get; set; }
+
+        /// <summary>
         /// Gets or sets the float value to scale the base word size by. By default, the word cloud is scaled to fill
         /// most of the canvas. A value of 0.5 should result in the cloud covering approximately half of the canvas,
         /// clustered around the center.
@@ -432,7 +449,7 @@ namespace PSWordCloud
 
             foreach (var line in text)
             {
-                _wordProcessingTasks.Add(ProcessInputAsync(line));
+                _wordProcessingTasks.Add(ProcessInputAsync(line, IncludeWord, ExcludeWord));
             }
         }
 
@@ -952,15 +969,18 @@ namespace PSWordCloud
         /// </summary>
         /// <param name="line">The text to split and process.</param>
         /// <returns>An enumerable string collection of all words in the input, with stopwords stripped out.</returns>
-        private Task<IEnumerable<string>> ProcessInputAsync(string line)
+        private Task<IEnumerable<string>> ProcessInputAsync(
+            string line, string[] includeWords = null, string[] excludeWords = null)
         {
             return Task.Run<IEnumerable<string>>(
                 () =>
                 {
                     var words = new List<string>(line.Split(_splitChars, StringSplitOptions.RemoveEmptyEntries));
                     words.RemoveAll(
-                        x => (!AllowStopWords && _stopWords.Contains(x, StringComparer.OrdinalIgnoreCase))
-                            || Regex.Replace(x, "[^a-z-]", string.Empty, RegexOptions.IgnoreCase).Length < 2);
+                        x => includeWords?.Contains(x, StringComparer.OrdinalIgnoreCase) != true
+                            && (excludeWords?.Contains(x, StringComparer.OrdinalIgnoreCase) == true
+                                || (!AllowStopWords && _stopWords.Contains(x, StringComparer.OrdinalIgnoreCase))
+                                || Regex.Replace(x, "[^a-z-]", string.Empty, RegexOptions.IgnoreCase).Length < 2));
                     return words;
                 });
         }
