@@ -1,11 +1,6 @@
 ﻿$PlatformFolder = switch ($true) {
     $IsWindows {
-        if ([IntPtr]::Size -eq 8) {
-            "win-x64"
-        }
-        else {
-            "win-x86"
-        }
+        if ([Environment]::Is64BitProcess) { "win-x64" } else { "win-x86" }
     }
     $IsMacOS {
         "osx"
