@@ -688,17 +688,28 @@ namespace PSWordCloud
 
                                 wordBounds.Inflate(inflationValue * 2, inflationValue * 2);
 
-                                if (wordBounds.FallsOutside(clipRegion))
+                                if (wordCount == 1)
                                 {
-                                    continue;
-                                }
-
-                                if (!occupiedSpace.IntersectsRect(wordBounds))
-                                {
+                                    // First word will always be drawn in the centre.
                                     wordPath = alteredPath;
                                     targetPoint = adjustedPoint;
                                     targetOrientation = orientation;
                                     goto nextWord;
+                                }
+                                else
+                                {
+                                    if (wordBounds.FallsOutside(clipRegion))
+                                    {
+                                        continue;
+                                    }
+
+                                    if (!occupiedSpace.IntersectsRect(wordBounds))
+                                    {
+                                        wordPath = alteredPath;
+                                        targetPoint = adjustedPoint;
+                                        targetOrientation = orientation;
+                                        goto nextWord;
+                                    }
                                 }
 
                                 if (point == centrePoint)
