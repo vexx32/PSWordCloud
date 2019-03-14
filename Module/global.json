@@ -2,12 +2,8 @@
   "frameworks": {
     "netstandard2.0": {
       "dependencies": {
-        "SkiaSharp": {
-          "version": "1.68.0"
-        },
-        "SkiaSharp.NativeAssets.Linux": {
-          "version": "1.68.0"
-        }
+        "SkiaSharp": {},
+        "SkiaSharp.NativeAssets.Linux": {}
       }
     }
   },
