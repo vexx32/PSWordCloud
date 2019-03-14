@@ -57,23 +57,7 @@ namespace PSWordCloud
 
         private static readonly object _randomLock = new object();
         private static Random _random;
-        private static Random Random
-        {
-            get
-            {
-                lock (_randomLock)
-                {
-                    return (_random = _random ?? new Random());
-                }
-            }
-            set
-            {
-                lock (_randomLock)
-                {
-                    _random = value;
-                }
-            }
-        }
+        private static Random Random => _random = _random ?? new Random();
 
         #endregion StaticMembers
 
@@ -424,10 +408,14 @@ namespace PSWordCloud
         /// </summary>
         protected override void BeginProcessing()
         {
-            Random = MyInvocation.BoundParameters.ContainsKey(nameof(RandomSeed))
-                ? new Random(RandomSeed)
-                : new Random();
-            _progressID = Random.Next();
+            lock (_randomLock)
+            {
+                _random = MyInvocation.BoundParameters.ContainsKey(nameof(RandomSeed))
+                    ? new Random(RandomSeed)
+                    : new Random();
+            }
+
+            _progressID = RandomInt();
 
             _colors = ProcessColorSet(ColorSet, BackgroundColor, StrokeColor, MaxRenderedWords, Monochrome)
                 .OrderByDescending(x => x.SortValue(RandomFloat()))
@@ -810,7 +798,7 @@ namespace PSWordCloud
         private static IEnumerable<SKColor> ProcessColorSet(
             SKColor[] set, SKColor background, SKColor stroke, int maxCount, bool monochrome)
         {
-            Random.Shuffle(set);
+            Shuffle(set);
             background.ToHsv(out float bh, out float bs, out float backgroundBrightness);
 
             foreach (var color in set.Where(x => x != stroke && x != background).Take(maxCount))
@@ -935,7 +923,7 @@ namespace PSWordCloud
             float angle = 0, maxAngle = 0, angleIncrement = 360 / (radius / 6 + 1);
             bool clockwise = RandomFloat() > 0.5;
 
-            switch (Random.Next() % 4)
+            switch (RandomInt() % 4)
             {
                 case 0:
                     angle = 0;
@@ -973,7 +961,29 @@ namespace PSWordCloud
             } while (clockwise ? angle <= maxAngle : angle >= maxAngle);
         }
 
-        private static float RandomFloat() => (float)Random.NextDouble();
+        private static float RandomFloat()
+        {
+            lock (_randomLock)
+            {
+                return (float)Random.NextDouble();
+            }
+        }
+
+        private static int RandomInt()
+        {
+            lock (_randomLock)
+            {
+                return Random.Next();
+            }
+        }
+
+        private static void Shuffle<T>(T[] items)
+        {
+            lock (_randomLock)
+            {
+                Random.Shuffle(items)
+            }
+        }
 
         /// <summary>
         /// Asynchronous method used to quickly process large amounts of text input into words.
