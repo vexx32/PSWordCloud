@@ -339,13 +339,6 @@ namespace PSWordCloud
         public SwitchParameter AllowStopWords { get; set; }
 
         /// <summary>
-        /// Gets or sets the value that determines whether or not to retrieve and output the FileInfo object that
-        /// represents the completed word cloud when processing is completed.
-        /// </summary>
-        [Parameter()]
-        public SwitchParameter PassThru { get; set; }
-
-        /// <summary>
         /// Gets or sets whether or not to allow words to overflow the base canvas.
         /// </summary>
         /// <value></value>
@@ -353,14 +346,25 @@ namespace PSWordCloud
         [Alias("AllowBleed")]
         public SwitchParameter AllowOverflow { get; set; }
 
+        /// <summary>
+        /// Gets or sets the value that determines whether or not to retrieve and output the FileInfo object that
+        /// represents the completed word cloud when processing is completed.
+        /// </summary>
+        [Parameter()]
+        public SwitchParameter PassThru { get; set; }
+
         #endregion Parameters
 
         #region privateVariables
 
         private List<Task<IEnumerable<string>>> _wordProcessingTasks;
+
         private float _fontScale;
+
         private int _progressID;
+
         private int _colorIndex = 0;
+
         private SKColor GetNextColor()
         {
             if (_colorIndex == _colors.Count)
@@ -500,12 +504,12 @@ namespace PSWordCloud
                     ? drawableBounds.Width * MAX_WORD_WIDTH_PERCENT
                     : Math.Max(drawableBounds.Width, drawableBounds.Height) * MAX_WORD_WIDTH_PERCENT;
 
-                bool retry;
                 using (SKPaint brush = new SKPaint())
                 {
                     brush.Typeface = Typeface;
                     SKRect rect = SKRect.Empty;
                     float adjustedWordSize;
+                    bool retry;
 
                     do
                     {
@@ -948,9 +952,9 @@ namespace PSWordCloud
         /// </summary>
         /// <param name="line">The text to split and process.</param>
         /// <returns>An enumerable string collection of all words in the input, with stopwords stripped out.</returns>
-        private async Task<IEnumerable<string>> ProcessInputAsync(string line)
+        private Task<IEnumerable<string>> ProcessInputAsync(string line)
         {
-            return await Task.Run<IEnumerable<string>>(
+            return Task.Run<IEnumerable<string>>(
                 () =>
                 {
                     var words = new List<string>(line.Split(_splitChars, StringSplitOptions.RemoveEmptyEntries));
