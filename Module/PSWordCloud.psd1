@@ -88,12 +88,17 @@
 
     # List of all files packaged with this module
     FileList             = @(
-        'Private/Get-ImageFormat.ps1'
-        'Private/ConvertTo-Radians.ps1'
-        'Public/New-WordCloud.ps1'
         'PSWordCloud.psd1'
         'PSWordCloud.psm1'
-        'Data\StopWords.txt'
+        'PSWordCloudCmdlet.dll'
+        'linux-x64/libSkiaSharp.so'
+        'linux-x64/SkiaSharp.dll'
+        'osx/libSkiaSharp.dylib'
+        'osx/SkiaSharp.dll'
+        'win-x64/libSkiaSharp.dll'
+        'win-x64/SkiaSharp.dll'
+        'win-x86/libSkiaSharp.dll'
+        'win-x86/SkiaSharp.dll'
     )
 
     # Private data to pass to the module specified in RootModule/ModuleToProcess. This may also contain a PSData hashtable with additional module metadata used by PowerShell.
