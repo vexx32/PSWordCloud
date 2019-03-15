@@ -981,7 +981,7 @@ namespace PSWordCloud
         {
             lock (_randomLock)
             {
-                Random.Shuffle(items)
+                Random.Shuffle(items);
             }
         }
 
