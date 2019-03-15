@@ -17,6 +17,7 @@ namespace PSWordCloud
     /// </summary>
     [Cmdlet(VerbsCommon.New, "WordCloud", DefaultParameterSetName = "ColorBackground")]
     [Alias("wordcloud", "nwc", "wcloud")]
+    [OutputType(typeof(System.IO.FileInfo))]
     public class NewWordCloudCommand : PSCmdlet
     {
 
