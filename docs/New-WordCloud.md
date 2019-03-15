@@ -14,7 +14,6 @@ Describes the syntax and behaviour of the New-WordCloud cmdlet.
 ## SYNTAX
 
 ### ColorBackground (Default)
-
 ```
 New-WordCloud -InputObject <PSObject> [-Path] <String> [-ImageSize <SKSizeI>] [-Typeface <SKTypeface>]
  [-BackgroundColor <SKColor>] [-ColorSet <SKColor[]>] [-StrokeWidth <Single>] [-StrokeColor <SKColor>]
@@ -25,7 +24,6 @@ New-WordCloud -InputObject <PSObject> [-Path] <String> [-ImageSize <SKSizeI>] [-
 ```
 
 ### ColorBackground-Mono
-
 ```
 New-WordCloud -InputObject <PSObject> [-Path] <String> [-ImageSize <SKSizeI>] [-Typeface <SKTypeface>]
  [-BackgroundColor <SKColor>] [-ColorSet <SKColor[]>] [-StrokeWidth <Single>] [-StrokeColor <SKColor>]
@@ -36,7 +34,6 @@ New-WordCloud -InputObject <PSObject> [-Path] <String> [-ImageSize <SKSizeI>] [-
 ```
 
 ### FileBackground
-
 ```
 New-WordCloud -InputObject <PSObject> [-Path] <String> -BackgroundImage <String> [-Typeface <SKTypeface>]
  [-ColorSet <SKColor[]>] [-StrokeWidth <Single>] [-StrokeColor <SKColor>] [-FocusWord <String>]
@@ -46,7 +43,6 @@ New-WordCloud -InputObject <PSObject> [-Path] <String> -BackgroundImage <String>
 ```
 
 ### FileBackground-Mono
-
 ```
 New-WordCloud -InputObject <PSObject> [-Path] <String> -BackgroundImage <String> [-Typeface <SKTypeface>]
  [-ColorSet <SKColor[]>] [-StrokeWidth <Single>] [-StrokeColor <SKColor>] [-FocusWord <String>]
@@ -133,8 +129,7 @@ Parameter Sets: (All)
 Aliases: AllowBleed
 
 Required: False
-Position: Name
-
+Position: Named
 Default value: None
 Accept pipeline input: False
 Accept wildcard characters: False
@@ -239,8 +234,7 @@ Accept wildcard characters: False
 ```
 
 ### -DisableRotation
-
-If this option is specified, all words will be rendered upright, with no rotation applied.
+{{ Fill DisableRotation Description }}
 
 ```yaml
 Type: SwitchParameter
@@ -336,10 +330,7 @@ Accept wildcard characters: False
 ```
 
 ### -IncludeWord
-
-Determines the words to be explicitly included in rendering of the cloud. This can be used to override only specific words normally excluded by the StopWords list.
-
-Values from this parameter take precedence over those from -ExcludeWord.
+{{ Fill IncludeWord Description }}
 
 ```yaml
 Type: String[]
@@ -388,10 +379,7 @@ Accept wildcard characters: False
 ```
 
 ### -MaxRenderedWords
-
-Determines the maximum number of words to render as part of the cloud. Note that larger numbers of words will take longer to render.
-
-Additionally, words beyond 100 start to become very difficult to see at normal zoom levels, but can still be rendered perfectly well thanks to the SVG vector format used for images, and you can explore such complex clouds in any vector graphics editor.
+{{ Fill MaxRenderedWords Description }}
 
 ```yaml
 Type: Int32
@@ -400,7 +388,7 @@ Aliases: MaxWords
 
 Required: False
 Position: Named
-Default value: 100
+Default value: None
 Accept pipeline input: False
 Accept wildcard characters: False
 ```
@@ -438,8 +426,7 @@ Accept wildcard characters: False
 ```
 
 ### -PassThru
-
-New-WordCloud typically sends no output to the console. Use the -PassThru option to have it output a FileInfo object containing the path to the resulting image file.
+{{ Fill PassThru Description }}
 
 ```yaml
 Type: SwitchParameter
@@ -470,8 +457,7 @@ Accept wildcard characters: False
 ```
 
 ### -RadialStep
-
-The value to scale the radial arc step by. The larger the value, the fewer draw attempts at each distance from the center.
+{{ Fill RadialStep Description }}
 
 ```yaml
 Type: Single
@@ -480,7 +466,7 @@ Aliases:
 
 Required: False
 Position: Named
-Default value: 15.0
+Default value: None
 Accept pipeline input: False
 Accept wildcard characters: False
 ```
@@ -538,19 +524,7 @@ Accept wildcard characters: False
 ```
 
 ### -Typeface
-
-Determines the typeface to be used in the word cloud. Input can be accepted as a complete [SkiaSharp.SKTypeface] object, or one of the following formats:
-
-1. A string value matching a valid font name. These can be autocompleted by pressing [Tab]. An invalid value will cause the system fallback to be used.
-2. A custom object or hashtable object containing the following keys or properties:
-    - FamilyName: string value. If no font by this name is available, the system default will be used.
-    - FontWeight: "Invisible", "ExtraLight", Light", "Thin", "Normal", "Medium", "SemiBold", "Bold",
-      "ExtraBold", "Black", "ExtraBlack" (Default: "Normal")
-    - FontSlant: "Upright", "Italic", "Oblique" (Default: "Upright")
-    - FontWidth: "UltraCondensed", "ExtraCondensed", "Condensed", "SemiCondensed", "Normal", "SemiExpanded",
-      "Expanded", "ExtraExpanded", "UltraExpanded" (Default: "Normal")
-
-The system fallback value may vary depending on which fonts are installed. The current system default is available from the SkiaSharp library, by calling [SkiaSharp.SKTypeface]::Default
+{{ Fill Typeface Description }}
 
 ```yaml
 Type: SKTypeface
@@ -559,7 +533,7 @@ Aliases: FontFamily, FontFace
 
 Required: False
 Position: Named
-Default value: Consolas, Normal
+Default value: None
 Accept pipeline input: False
 Accept wildcard characters: False
 ```
@@ -583,7 +557,6 @@ Accept wildcard characters: False
 ```
 
 ### CommonParameters
-
 This cmdlet supports the common parameters: -Debug, -ErrorAction, -ErrorVariable, -InformationAction, -InformationVariable, -OutVariable, -OutBuffer, -PipelineVariable, -Verbose, -WarningAction, and -WarningVariable. For more information, see about_CommonParameters (http://go.microsoft.com/fwlink/?LinkID=113216).
 
 ## INPUTS
@@ -606,6 +579,6 @@ While a lot of work has gone into the parameter transforms to ensure you can cus
 
 ## RELATED LINKS
 
-https://github.com/vexx32/PSWordCloud/blob/master/docs/New-WordCloud.md
+[Online Version](https://github.com/vexx32/PSWordCloud/blob/master/docs/New-WordCloud.md)
 
-https://docs.microsoft.com/en-us/dotnet/api/skiasharp
+[SkiaSharp API Reference](https://docs.microsoft.com/en-us/dotnet/api/skiasharp)
