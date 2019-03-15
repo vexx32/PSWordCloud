@@ -958,7 +958,7 @@ namespace PSWordCloud
                 point = Complex.FromPolarCoordinates(radius, angle.ToRadians());
                 yield return new SKPoint(centre.X + (float)point.Real * aspectRatio, centre.Y + (float)point.Imaginary);
 
-                angle += angleIncrement;
+                angle += angleIncrement * (radialStep / 15);
             } while (clockwise ? angle <= maxAngle : angle >= maxAngle);
         }
 
