@@ -234,7 +234,8 @@ Accept wildcard characters: False
 ```
 
 ### -DisableRotation
-{{ Fill DisableRotation Description }}
+
+When this option is specified, New-WordCloud draws all words horizontally.
 
 ```yaml
 Type: SwitchParameter
@@ -250,7 +251,8 @@ Accept wildcard characters: False
 
 ### -DistanceStep
 
-Gets or sets the value to scale the distance step by. Larger numbers will result in more radially spread-out clouds.
+Determines the value to scale the distance step by.
+Larger numbers will result in more radially spread-out clouds.
 
 ```yaml
 Type: Single
@@ -266,7 +268,8 @@ Accept wildcard characters: False
 
 ### -ExcludeWord
 
-Determines the words to be explicitly ignored when rendering the word cloud. This is usually used to exclude irrelevant words, unwanted URL segments, etc.
+Determines the words to be explicitly ignored when rendering the word cloud.
+This is usually used to exclude irrelevant words, unwanted URL segments, etc.
 
 Values from -IncludeWord take precedence over those from this parameter.
 
@@ -284,7 +287,8 @@ Accept wildcard characters: False
 
 ### -FocusWord
 
-Gets or sets the focus word string to be used in the word cloud. This string will typically appear in the centre of the cloud, larger than all the other words.
+Determines the focus word string to be used in the word cloud. This string will typically appear in
+the centre of the cloud, larger than all the other words.
 
 ```yaml
 Type: String
@@ -330,7 +334,10 @@ Accept wildcard characters: False
 ```
 
 ### -IncludeWord
-{{ Fill IncludeWord Description }}
+
+Specifies normally-excluded words to include in the word cloud.
+
+This parameter takes precedence over the -ExcludeWord parameter.
 
 ```yaml
 Type: String[]
@@ -346,7 +353,9 @@ Accept wildcard characters: False
 
 ### -InputObject
 
-Provides the input text to supply to the word cloud. All input is accepted, but will be treated as string data regardless of the input type. If you are entering complex object input, ensure they have a meaningful ToString() method override defined.
+Provides the input text to supply to the word cloud.
+All input is accepted, but will be treated as string data regardless of the input type.
+If you are entering complex object input, ensure the objects have a meaningful ToString() method override defined.
 
 ```yaml
 Type: PSObject
@@ -379,7 +388,11 @@ Accept wildcard characters: False
 ```
 
 ### -MaxRenderedWords
-{{ Fill MaxRenderedWords Description }}
+
+Specifies the maximum number of words to draw in the rendered cloud.
+More words take longer to render, and after a few hundred words the visible sizes become unreadable in all but the largest images.
+
+However, an appropriate vector graphics viewer or editor is still capable of zooming in far enough to see them.
 
 ```yaml
 Type: Int32
@@ -388,14 +401,15 @@ Aliases: MaxWords
 
 Required: False
 Position: Named
-Default value: None
+Default value: 100
 Accept pipeline input: False
 Accept wildcard characters: False
 ```
 
 ### -Monochrome
 
-If this option is specified, New-WordCloud draws the word cloud in monochrome (greyscale), using only the Brightness values from the SKColors in the color set provided.
+If this option is specified, New-WordCloud draws the word cloud in monochrome (greyscale).
+Only the Brightness values from the SKColors in the color set provided will be used.
 
 ```yaml
 Type: SwitchParameter
@@ -426,7 +440,8 @@ Accept wildcard characters: False
 ```
 
 ### -PassThru
-{{ Fill PassThru Description }}
+
+Specifying this option causes New-WordCloud to emit a FileInfo object representing the finished SVG file when it is completed.
 
 ```yaml
 Type: SwitchParameter
@@ -457,7 +472,10 @@ Accept wildcard characters: False
 ```
 
 ### -RadialStep
-{{ Fill RadialStep Description }}
+
+Determines the distance around each radial arc that the scanning algorithm takes for each circular sweep.
+Larger values correspond to fewer points checked on each radial sweep.
+This value is scaled according to distance from the center, so there will be more steps on a larger radius.
 
 ```yaml
 Type: Single
@@ -466,7 +484,7 @@ Aliases:
 
 Required: False
 Position: Named
-Default value: None
+Default value: 15.0
 Accept pipeline input: False
 Accept wildcard characters: False
 ```
@@ -489,11 +507,15 @@ Accept wildcard characters: False
 
 ### -StrokeColor
 
-Determines the SKColor value used as the stroke color for the words in the image. Accepts input as a complete SKColor object, or one of the following formats:
+Determines the SKColor value used as the stroke color for the words in the image.
+Accepts input as a complete SKColor object, or one of the following formats:
 
-1. A string color name matching one of the fields in SkiaSharp.SKColors. These values will be pulled for tab-completion automatically. Wildcards may be used only if the pattern matches exactly one color name.
+1. A string color name matching one of the fields in SkiaSharp.SKColors.
+These values will be pulled for tab-completion automatically.
+Wildcards may be used only if the pattern matches exactly one color name.
 2. A hexadecimal number string with or without the preceding #, in the form: AARRGGBB, RRGGBB, ARGB, or RGB.
-3. A hashtable or custom object with keys or properties named: "Red, Green, Blue", and/or "Alpha", with values from 0-255. Omitted color values are assumed to be 0, but omitting alpha defaults it to 255 (fully opaque)
+3. A hashtable or custom object with keys or properties named: "Red, Green, Blue", and/or "Alpha", with values from 0-255.
+Omitted color values are assumed to be 0, but omitting alpha defaults it to 255 (fully opaque)
 
 ```yaml
 Type: SKColor
@@ -509,7 +531,9 @@ Accept wildcard characters: False
 
 ### -StrokeWidth
 
-Determines the width of the word outline. Values from 0-10 are  permitted. A zero value indicates the special "Hairline" width, where the width of the stroke depends on the SVG viewing scale.
+Determines the width of the word outline.
+Values from 0-10 are  permitted.
+A zero value indicates the special "Hairline" width, where the width of the stroke depends on the SVG viewing scale.
 
 ```yaml
 Type: Single
@@ -524,7 +548,19 @@ Accept wildcard characters: False
 ```
 
 ### -Typeface
-{{ Fill Typeface Description }}
+
+Gets or sets the typeface to be used in the word cloud.
+Input can be processed as a SkiaSharp.SKTypeface object, or one of the following formats:
+
+1. String value matching a valid font name. These can be autocompleted by pressing [Tab].
+An invalid value will cause the system default to be used.
+2. A custom object or hashtable object containing the following keys or properties:
+    - FamilyName: string value. If no font by this name is available, the system default will be used.
+    - FontWeight: "Invisible", "ExtraLight", Light", "Thin", "Normal", "Medium", "SemiBold", "Bold",
+      "ExtraBold", "Black", "ExtraBlack" (Default: "Normal")
+    - FontSlant: "Upright", "Italic", "Oblique" (Default: "Upright")
+    - FontWidth: "UltraCondensed", "ExtraCondensed", "Condensed", "SemiCondensed", "Normal", "SemiExpanded",
+      "Expanded", "ExtraExpanded", "UltraExpanded" (Default: "Normal")
 
 ```yaml
 Type: SKTypeface
@@ -533,14 +569,17 @@ Aliases: FontFamily, FontFace
 
 Required: False
 Position: Named
-Default value: None
+Default value: Consolas
 Accept pipeline input: False
 Accept wildcard characters: False
 ```
 
 ### -WordScale
 
-Applies a scaling value to the words in the cloud. Use this parameter to shrink or expand your total word cloud area with respect to the size of the image. The default of 1.0 is approximately equivalent to the total image size. Scale as appropriate according to how much of the total canvas you would like the cloud to cover.
+Applies a scaling value to the words in the cloud.
+Use this parameter to shrink or expand your total word cloud area with respect to the size of the image.
+The default of 1.0 is approximately equivalent to the total image size.
+Scale as appropriate according to how much of the total canvas you would like the cloud to cover.
 
 The cloud size is restricted to the canvas size by default, so values above 1.0 will typically not have an impact without also supplying the -AllowOverflow option.
 
@@ -563,17 +602,23 @@ This cmdlet supports the common parameters: -Debug, -ErrorAction, -ErrorVariable
 
 ### System.Management.Automation.PSObject
 
-New-WordCloud accepts pipeline input of any type to its -InputObject parameter. Due to the nature of the command, all inputs will be transformed to string before they are used in the final word cloud. Complex objects may be reduced to their type names only, if they do not have a predefined conversion path to a string representation.
+New-WordCloud accepts pipeline input of any type to its -InputObject parameter.
+Due to the nature of the command, all inputs will be transformed to string before they are used in the final word cloud.
+Complex objects may be reduced to their type names only, if they do not have a predefined conversion path to a string representation.
 
 ## OUTPUTS
 
 ### System.IO.FileInfo
 
-If the -PassThru switch is used, New-WordCloud will output the FileInfo object representing the completed image file. Otherwise, there is no output to the console.
+If the -PassThru switch is used, New-WordCloud will output the FileInfo object representing the completed image file.
+Otherwise, there is no output to the console.
 
 ## NOTES
 
-Due to its dependence on the SkiaSharp library, loading the New-WordCloud module will also expose the SkiaSharp library types for you to use. This is both by necessity and for configurability. SkiaSharp types are accessible in the SkiaSharp namespace, for example [SkiaSharp.SKTypeface]. It is also possible to surface the type names with a using namespace declaration.
+Due to its dependence on the SkiaSharp library, loading the New-WordCloud module will also expose the SkiaSharp library types for you to use.
+This is both by necessity and for configurability.
+SkiaSharp types are accessible in the SkiaSharp namespace, for example [SkiaSharp.SKTypeface].
+It is also possible to surface the type names with a using namespace declaration.
 
 While a lot of work has gone into the parameter transforms to ensure you can customise the final look of the word cloud as much as possible, New-WordCloud seamlessly accepts direct input of the SkiaSharp objects it utilises, so that you can obtain and use your own SkiaSharp library objects for maximum configurability.
 
