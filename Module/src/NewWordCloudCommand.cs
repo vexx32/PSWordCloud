@@ -15,7 +15,8 @@ namespace PSWordCloud
     /// This command can be used to input large amounts of text, and will generate a word cloud based on
     /// the relative frequencies of the words in the input text.
     /// </summary>
-    [Cmdlet(VerbsCommon.New, "WordCloud", DefaultParameterSetName = "ColorBackground")]
+    [Cmdlet(VerbsCommon.New, "WordCloud", DefaultParameterSetName = "ColorBackground",
+        HelpUri = "https://github.com/vexx32/PSWordCloud/blob/master/docs/New-WordCloud.md")]
     [Alias("wordcloud", "nwc", "wcloud")]
     [OutputType(typeof(System.IO.FileInfo))]
     public class NewWordCloudCommand : PSCmdlet
