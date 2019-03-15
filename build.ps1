@@ -15,6 +15,9 @@ param(
     $ProjectFile = (Join-Path -Path $PSScriptRoot -ChildPath "Module" "PSWordCloudCmdlet.csproj")
 )
 
+Install-Module -Name PlatyPS -Scope CurrentUser
+Import-Module PlatyPS
+
 if (Test-Path -Path $OutputPath) {
     Remove-Item -Recurse -Path $OutputPath
 }
@@ -29,7 +32,7 @@ $Dotnet = Start-Process -NoNewWindow -PassThru -FilePath 'dotnet' -ArgumentList 
 $Dotnet.WaitForExit()
 
 $SupportedPlatforms = "win-x64", "win-x86", "linux-x64", "osx"
-$ModulePath = "$OutputPath/PSWordCloud"
+$ModulePath = Join-Path $OutputPath -ChildPath "PSWordCloud"
 New-Item -Path $ModulePath -ItemType Directory | Out-Null
 
 # Copy the main module DLL to final module directory
@@ -52,3 +55,11 @@ $RuntimeFolders | ForEach-Object {
 Split-Path -Path $ProjectFile -Parent |
     Get-ChildItem -Recurse -Include "*.ps*1" |
     Copy-Item -Destination $ModulePath
+
+Import-Module $ModulePath
+
+$DocsPath = Join-Path $PSScriptRoot -ChildPath "docs"
+Update-MarkdownHelp -Path $DocsPath -AlphabeticParamsOrder
+
+$ExternalHelpPath = Join-Path $ModulePath -ChildPath "en-US"
+New-ExternalHelp -Path $DocsPath -OutputPath $ExternalHelpPath
