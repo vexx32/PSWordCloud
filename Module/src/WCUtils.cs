@@ -8,7 +8,7 @@ using System.Reflection;
 using System.Runtime.CompilerServices;
 using SkiaSharp;
 
-[assembly: InternalsVisibleTo("Cmdlet.Tests")]
+[assembly: InternalsVisibleTo("PSWordCloud.Tests")]
 namespace PSWordCloud
 {
     internal enum WordOrientation : sbyte
@@ -20,15 +20,15 @@ namespace PSWordCloud
 
     internal static class WCUtils
     {
-        public static SKPoint Multiply(this SKPoint point, float factor)
+        internal static SKPoint Multiply(this SKPoint point, float factor)
             => new SKPoint(point.X * factor, point.Y * factor);
 
-        public static float ToRadians(this float degrees)
+        internal static float ToRadians(this float degrees)
         {
             return (float)(degrees * Math.PI / 180);
         }
 
-        public static void Shuffle<T>(this Random rng, T[] array)
+        internal static void Shuffle<T>(this Random rng, T[] array)
         {
             int n = array.Length;
             while (n > 1)
@@ -46,7 +46,7 @@ namespace PSWordCloud
         /// <param name="region">The region to test for edge intersection.</param>
         /// <param name="other">The rectangle to test position against the edges of the region.</param>
         /// <returns>Returns false if the rectangle is entirely within the region, and false otherwise.</returns>
-        public static bool FallsOutside(this SKRect other, SKRegion region)
+        internal static bool FallsOutside(this SKRect other, SKRegion region)
         {
             var bounds = region.Bounds;
             return other.Top < bounds.Top
@@ -55,10 +55,10 @@ namespace PSWordCloud
                 || other.Right > bounds.Right;
         }
 
-        public static void NextWord(this SKPaint brush, float wordSize, float strokeWidth)
+        internal static void NextWord(this SKPaint brush, float wordSize, float strokeWidth)
             => brush.NextWord(wordSize, strokeWidth, SKColors.Black);
 
-        public static void NextWord(this SKPaint brush, float wordSize, float strokeWidth, SKColor color)
+        internal static void NextWord(this SKPaint brush, float wordSize, float strokeWidth, SKColor color)
         {
             brush.TextSize = wordSize;
             brush.IsStroke = false;
@@ -68,14 +68,14 @@ namespace PSWordCloud
             brush.Color = color;
         }
 
-        public static float SortValue(this SKColor color, float sortAdjustment)
+        internal static float SortValue(this SKColor color, float sortAdjustment)
         {
             color.ToHsv(out float h, out float saturation, out float brightness);
             var rand = brightness * (sortAdjustment - 0.5f) / (1 - saturation);
             return brightness + rand;
         }
 
-        public static bool SetPath(this SKRegion region, SKPath path, bool usePathBounds)
+        internal static bool SetPath(this SKRegion region, SKPath path, bool usePathBounds)
         {
             if (usePathBounds && path.GetBounds(out SKRect bounds))
             {
@@ -91,7 +91,7 @@ namespace PSWordCloud
             }
         }
 
-        public static bool Op(this SKRegion region, SKPath path, SKRegionOperation operation)
+        internal static bool Op(this SKRegion region, SKPath path, SKRegionOperation operation)
         {
             using (SKRegion pathRegion = new SKRegion())
             {
@@ -100,7 +100,7 @@ namespace PSWordCloud
             }
         }
 
-        public static bool IntersectsRect(this SKRegion region, SKRect rect)
+        internal static bool IntersectsRect(this SKRegion region, SKRect rect)
         {
             if (region.Bounds.IsEmpty)
             {
@@ -114,7 +114,7 @@ namespace PSWordCloud
             }
         }
 
-        public static bool IntersectsPath(this SKRegion region, SKPath path)
+        internal static bool IntersectsPath(this SKRegion region, SKPath path)
         {
             if (region.Bounds.IsEmpty)
             {
@@ -164,9 +164,9 @@ namespace PSWordCloud
             }
         }
 
-        public static SKFontManager FontManager = SKFontManager.Default;
+        internal static SKFontManager FontManager = SKFontManager.Default;
 
-        public static IEnumerable<string> FontList = WCUtils.FontManager.FontFamilies
+        internal static IEnumerable<string> FontList = WCUtils.FontManager.FontFamilies
             .OrderBy(name => name, StringComparer.OrdinalIgnoreCase);
 
         internal static ReadOnlyDictionary<string, (string Tooltip, SKSizeI Size)> StandardImageSizes =

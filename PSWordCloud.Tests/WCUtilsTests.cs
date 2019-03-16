@@ -2,7 +2,7 @@ using System;
 using Xunit;
 using PSWordCloud;
 
-namespace Cmdlet.Tests
+namespace PSWordCloud.Tests
 {
     public class WCUtilsTests
     {
@@ -10,8 +10,8 @@ namespace Cmdlet.Tests
         public void Test_ToRadians()
         {
             //Assert.Equal(KnownResult, TestResult);
-            
-            Assert.Equal(0,((float)0).ToRadians());
+
+            Assert.Equal(0, ((float)0).ToRadians());
         }
     }
 }
