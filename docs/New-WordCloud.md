@@ -17,39 +17,77 @@ Describes the syntax and behaviour of the New-WordCloud cmdlet.
 ```
 New-WordCloud -InputObject <PSObject> [-Path] <String> [-ImageSize <SKSizeI>] [-Typeface <SKTypeface>]
  [-BackgroundColor <SKColor>] [-ColorSet <SKColor[]>] [-StrokeWidth <Single>] [-StrokeColor <SKColor>]
- [-FocusWord <String>] [-ExcludeWord <String[]>] [-IncludeWord <String[]>] [-WordScale <Single>]
- [-Padding <Single>] [-DistanceStep <Single>] [-RadialStep <Single>] [-MaxRenderedWords <Int32>]
- [-MaxColors <Int32>] [-RandomSeed <Int32>] [-DisableRotation] [-AllowStopWords] [-AllowOverflow] [-PassThru]
- [<CommonParameters>]
+ [-ExcludeWord <String[]>] [-IncludeWord <String[]>] [-WordScale <Single>] [-Padding <Single>]
+ [-DistanceStep <Single>] [-RadialStep <Single>] [-MaxRenderedWords <Int32>] [-MaxColors <Int32>]
+ [-RandomSeed <Int32>] [-DisableRotation] [-AllowStopWords] [-AllowOverflow] [-PassThru] [<CommonParameters>]
 ```
 
 ### ColorBackground-Mono
 ```
 New-WordCloud -InputObject <PSObject> [-Path] <String> [-ImageSize <SKSizeI>] [-Typeface <SKTypeface>]
  [-BackgroundColor <SKColor>] [-ColorSet <SKColor[]>] [-StrokeWidth <Single>] [-StrokeColor <SKColor>]
- [-FocusWord <String>] [-ExcludeWord <String[]>] [-IncludeWord <String[]>] [-WordScale <Single>]
- [-Padding <Single>] [-DistanceStep <Single>] [-RadialStep <Single>] [-MaxRenderedWords <Int32>]
- [-MaxColors <Int32>] [-RandomSeed <Int32>] [-DisableRotation] [-Monochrome] [-AllowStopWords] [-AllowOverflow]
- [-PassThru] [<CommonParameters>]
+ [-ExcludeWord <String[]>] [-IncludeWord <String[]>] [-WordScale <Single>] [-Padding <Single>]
+ [-DistanceStep <Single>] [-RadialStep <Single>] [-MaxRenderedWords <Int32>] [-MaxColors <Int32>]
+ [-RandomSeed <Int32>] [-DisableRotation] [-Monochrome] [-AllowStopWords] [-AllowOverflow] [-PassThru]
+ [<CommonParameters>]
+```
+
+### ColorBackground-FocusWord
+```
+New-WordCloud -InputObject <PSObject> [-Path] <String> [-ImageSize <SKSizeI>] [-Typeface <SKTypeface>]
+ [-BackgroundColor <SKColor>] [-ColorSet <SKColor[]>] [-StrokeWidth <Single>] [-StrokeColor <SKColor>]
+ -FocusWord <String> [-RotateFocusWord <Int32>] [-ExcludeWord <String[]>] [-IncludeWord <String[]>]
+ [-WordScale <Single>] [-Padding <Single>] [-DistanceStep <Single>] [-RadialStep <Single>]
+ [-MaxRenderedWords <Int32>] [-MaxColors <Int32>] [-RandomSeed <Int32>] [-DisableRotation] [-AllowStopWords]
+ [-AllowOverflow] [-PassThru] [<CommonParameters>]
+```
+
+### ColorBackground-FocusWord-Mono
+```
+New-WordCloud -InputObject <PSObject> [-Path] <String> [-ImageSize <SKSizeI>] [-Typeface <SKTypeface>]
+ [-BackgroundColor <SKColor>] [-ColorSet <SKColor[]>] [-StrokeWidth <Single>] [-StrokeColor <SKColor>]
+ -FocusWord <String> [-RotateFocusWord <Int32>] [-ExcludeWord <String[]>] [-IncludeWord <String[]>]
+ [-WordScale <Single>] [-Padding <Single>] [-DistanceStep <Single>] [-RadialStep <Single>]
+ [-MaxRenderedWords <Int32>] [-MaxColors <Int32>] [-RandomSeed <Int32>] [-DisableRotation] [-Monochrome]
+ [-AllowStopWords] [-AllowOverflow] [-PassThru] [<CommonParameters>]
 ```
 
 ### FileBackground
 ```
 New-WordCloud -InputObject <PSObject> [-Path] <String> -BackgroundImage <String> [-Typeface <SKTypeface>]
- [-ColorSet <SKColor[]>] [-StrokeWidth <Single>] [-StrokeColor <SKColor>] [-FocusWord <String>]
- [-ExcludeWord <String[]>] [-IncludeWord <String[]>] [-WordScale <Single>] [-Padding <Single>]
- [-DistanceStep <Single>] [-RadialStep <Single>] [-MaxRenderedWords <Int32>] [-MaxColors <Int32>]
- [-RandomSeed <Int32>] [-DisableRotation] [-AllowStopWords] [-AllowOverflow] [-PassThru] [<CommonParameters>]
+ [-ColorSet <SKColor[]>] [-StrokeWidth <Single>] [-StrokeColor <SKColor>] [-ExcludeWord <String[]>]
+ [-IncludeWord <String[]>] [-WordScale <Single>] [-Padding <Single>] [-DistanceStep <Single>]
+ [-RadialStep <Single>] [-MaxRenderedWords <Int32>] [-MaxColors <Int32>] [-RandomSeed <Int32>]
+ [-DisableRotation] [-AllowStopWords] [-AllowOverflow] [-PassThru] [<CommonParameters>]
 ```
 
 ### FileBackground-Mono
 ```
 New-WordCloud -InputObject <PSObject> [-Path] <String> -BackgroundImage <String> [-Typeface <SKTypeface>]
- [-ColorSet <SKColor[]>] [-StrokeWidth <Single>] [-StrokeColor <SKColor>] [-FocusWord <String>]
- [-ExcludeWord <String[]>] [-IncludeWord <String[]>] [-WordScale <Single>] [-Padding <Single>]
- [-DistanceStep <Single>] [-RadialStep <Single>] [-MaxRenderedWords <Int32>] [-MaxColors <Int32>]
- [-RandomSeed <Int32>] [-DisableRotation] [-Monochrome] [-AllowStopWords] [-AllowOverflow] [-PassThru]
+ [-ColorSet <SKColor[]>] [-StrokeWidth <Single>] [-StrokeColor <SKColor>] [-ExcludeWord <String[]>]
+ [-IncludeWord <String[]>] [-WordScale <Single>] [-Padding <Single>] [-DistanceStep <Single>]
+ [-RadialStep <Single>] [-MaxRenderedWords <Int32>] [-MaxColors <Int32>] [-RandomSeed <Int32>]
+ [-DisableRotation] [-Monochrome] [-AllowStopWords] [-AllowOverflow] [-PassThru] [<CommonParameters>]
+```
+
+### FileBackground-FocusWord
+```
+New-WordCloud -InputObject <PSObject> [-Path] <String> -BackgroundImage <String> [-Typeface <SKTypeface>]
+ [-ColorSet <SKColor[]>] [-StrokeWidth <Single>] [-StrokeColor <SKColor>] -FocusWord <String>
+ [-RotateFocusWord <Int32>] [-ExcludeWord <String[]>] [-IncludeWord <String[]>] [-WordScale <Single>]
+ [-Padding <Single>] [-DistanceStep <Single>] [-RadialStep <Single>] [-MaxRenderedWords <Int32>]
+ [-MaxColors <Int32>] [-RandomSeed <Int32>] [-DisableRotation] [-AllowStopWords] [-AllowOverflow] [-PassThru]
  [<CommonParameters>]
+```
+
+### FileBackground-FocusWord-Mono
+```
+New-WordCloud -InputObject <PSObject> [-Path] <String> -BackgroundImage <String> [-Typeface <SKTypeface>]
+ [-ColorSet <SKColor[]>] [-StrokeWidth <Single>] [-StrokeColor <SKColor>] -FocusWord <String>
+ [-RotateFocusWord <Int32>] [-ExcludeWord <String[]>] [-IncludeWord <String[]>] [-WordScale <Single>]
+ [-Padding <Single>] [-DistanceStep <Single>] [-RadialStep <Single>] [-MaxRenderedWords <Int32>]
+ [-MaxColors <Int32>] [-RandomSeed <Int32>] [-DisableRotation] [-Monochrome] [-AllowStopWords] [-AllowOverflow]
+ [-PassThru] [<CommonParameters>]
 ```
 
 ## DESCRIPTION
@@ -185,7 +223,7 @@ Accepts input as a complete SKColor object, or one of the following formats:
 
 ```yaml
 Type: SKColor
-Parameter Sets: ColorBackground, ColorBackground-Mono
+Parameter Sets: ColorBackground, ColorBackground-Mono, ColorBackground-FocusWord, ColorBackground-FocusWord-Mono
 Aliases: Backdrop, CanvasColor
 
 Required: False
@@ -201,7 +239,7 @@ Specifies the path to the background image to be used as a base for the final wo
 
 ```yaml
 Type: String
-Parameter Sets: FileBackground, FileBackground-Mono
+Parameter Sets: FileBackground, FileBackground-Mono, FileBackground-FocusWord, FileBackground-FocusWord-Mono
 Aliases:
 
 Required: True
@@ -292,10 +330,10 @@ the centre of the cloud, larger than all the other words.
 
 ```yaml
 Type: String
-Parameter Sets: (All)
+Parameter Sets: ColorBackground-FocusWord, ColorBackground-FocusWord-Mono, FileBackground-FocusWord, FileBackground-FocusWord-Mono
 Aliases: Title
 
-Required: False
+Required: True
 Position: Named
 Default value: None
 Accept pipeline input: False
@@ -323,7 +361,7 @@ Input can be passed directly as a [SkiaSharp.SKSizeI] object, or in one of the f
 
 ```yaml
 Type: SKSizeI
-Parameter Sets: ColorBackground, ColorBackground-Mono
+Parameter Sets: ColorBackground, ColorBackground-Mono, ColorBackground-FocusWord, ColorBackground-FocusWord-Mono
 Aliases:
 
 Required: False
@@ -413,7 +451,7 @@ Only the Brightness values from the SKColors in the color set provided will be u
 
 ```yaml
 Type: SwitchParameter
-Parameter Sets: ColorBackground-Mono, FileBackground-Mono
+Parameter Sets: ColorBackground-Mono, ColorBackground-FocusWord-Mono, FileBackground-Mono, FileBackground-FocusWord-Mono
 Aliases: BlackAndWhite, Greyscale
 
 Required: True
@@ -497,6 +535,22 @@ Determines the seed value for the random numbers used to vary the position and p
 Type: Int32
 Parameter Sets: (All)
 Aliases: SeedValue
+
+Required: False
+Position: Named
+Default value: None
+Accept pipeline input: False
+Accept wildcard characters: False
+```
+
+### -RotateFocusWord
+{{ Fill RotateFocusWord Description }}
+
+```yaml
+Type: Int32
+Parameter Sets: ColorBackground-FocusWord, ColorBackground-FocusWord-Mono, FileBackground-FocusWord, FileBackground-FocusWord-Mono
+Aliases: RotateTitle
+Accepted values: -90, -45, 0, 45, 90
 
 Required: False
 Position: Named
