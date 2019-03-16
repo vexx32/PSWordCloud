@@ -74,8 +74,12 @@ namespace PSWordCloud
         /// </summary>
         [Parameter(Mandatory = true, ValueFromPipeline = true, ParameterSetName = "ColorBackground")]
         [Parameter(Mandatory = true, ValueFromPipeline = true, ParameterSetName = "ColorBackground-Mono")]
+        [Parameter(Mandatory = true, ValueFromPipeline = true, ParameterSetName = "ColorBackground-FocusWord")]
+        [Parameter(Mandatory = true, ValueFromPipeline = true, ParameterSetName = "ColorBackground-FocusWord-Mono")]
         [Parameter(Mandatory = true, ValueFromPipeline = true, ParameterSetName = "FileBackground")]
         [Parameter(Mandatory = true, ValueFromPipeline = true, ParameterSetName = "FileBackground-Mono")]
+        [Parameter(Mandatory = true, ValueFromPipeline = true, ParameterSetName = "FileBackground-FocusWord")]
+        [Parameter(Mandatory = true, ValueFromPipeline = true, ParameterSetName = "FileBackground-FocusWord-Mono")]
         [Alias("InputString", "Text", "String", "Words", "Document", "Page")]
         [AllowEmptyString()]
         public PSObject InputObject { get; set; }
@@ -86,8 +90,12 @@ namespace PSWordCloud
         /// </summary>
         [Parameter(Mandatory = true, Position = 0, ParameterSetName = "ColorBackground")]
         [Parameter(Mandatory = true, Position = 0, ParameterSetName = "ColorBackground-Mono")]
+        [Parameter(Mandatory = true, Position = 0, ParameterSetName = "ColorBackground-FocusWord")]
+        [Parameter(Mandatory = true, Position = 0, ParameterSetName = "ColorBackground-FocusWord-Mono")]
         [Parameter(Mandatory = true, Position = 0, ParameterSetName = "FileBackground")]
         [Parameter(Mandatory = true, Position = 0, ParameterSetName = "FileBackground-Mono")]
+        [Parameter(Mandatory = true, Position = 0, ParameterSetName = "FileBackground-FocusWord")]
+        [Parameter(Mandatory = true, Position = 0, ParameterSetName = "FileBackground-FocusWord-Mono")]
         [Alias("OutFile", "ExportPath", "ImagePath")]
         public string Path
         {
@@ -101,7 +109,9 @@ namespace PSWordCloud
         /// Gets or sets the path to the background image to be used as a base for the final word cloud image.
         /// </summary>
         [Parameter(Mandatory = true, ParameterSetName = "FileBackground")]
+        [Parameter(Mandatory = true, ParameterSetName = "FileBackground-FocusWord")]
         [Parameter(Mandatory = true, ParameterSetName = "FileBackground-Mono")]
+        [Parameter(Mandatory = true, ParameterSetName = "FileBackground-FocusWord-Mono")]
         public string BackgroundImage
         {
             get => _backgroundFullPath;
@@ -139,7 +149,9 @@ namespace PSWordCloud
         /// </summary>
         /// <value>The default value is a size of 3840x2160.</value>
         [Parameter(ParameterSetName = "ColorBackground")]
+        [Parameter(ParameterSetName = "ColorBackground-FocusWord")]
         [Parameter(ParameterSetName = "ColorBackground-Mono")]
+        [Parameter(ParameterSetName = "ColorBackground-FocusWord-Mono")]
         [ArgumentCompleter(typeof(ImageSizeCompleter))]
         [TransformToSKSizeI()]
         public SKSizeI ImageSize { get; set; } = new SKSizeI(3840, 2160);
@@ -177,7 +189,9 @@ namespace PSWordCloud
         /// </summary>
         /// <value>The default value is SKColors.Black.</value>
         [Parameter(ParameterSetName = "ColorBackground")]
+        [Parameter(ParameterSetName = "ColorBackground-FocusWord")]
         [Parameter(ParameterSetName = "ColorBackground-Mono")]
+        [Parameter(ParameterSetName = "ColorBackground-FocusWord-Mono")]
         [Alias("Backdrop", "CanvasColor")]
         [ArgumentCompleter(typeof(SKColorCompleter))]
         [TransformToSKColor()]
@@ -236,9 +250,20 @@ namespace PSWordCloud
         /// Gets or sets the focus word string to be used in the word cloud. This string will typically appear in the
         /// centre of the cloud, larger than all the other words.
         /// </summary>
-        [Parameter()]
+        [Parameter(Mandatory = true, ParameterSetName = "ColorBackground-FocusWord")]
+        [Parameter(Mandatory = true, ParameterSetName = "ColorBackground-FocusWord-Mono")]
+        [Parameter(Mandatory = true, ParameterSetName = "FileBackground-FocusWord")]
+        [Parameter(Mandatory = true, ParameterSetName = "FileBackground-FocusWord-Mono")]
         [Alias("Title")]
         public string FocusWord { get; set; }
+
+        [Parameter(ParameterSetName = "ColorBackground-FocusWord")]
+        [Parameter(ParameterSetName = "ColorBackground-FocusWord-Mono")]
+        [Parameter(ParameterSetName = "FileBackground-FocusWord")]
+        [Parameter(ParameterSetName = "FileBackground-FocusWord-Mono")]
+        [Alias("RotateTitle")]
+        [ValidateSet("-90", "-45", "0", "45", "90")]
+        public int RotateFocusWord { get; set; }
 
         /// <summary>
         /// <para>Gets or sets the words to be explicitly ignored when rendering the word cloud.</para>
@@ -331,7 +356,9 @@ namespace PSWordCloud
         /// Gets or sets whether to draw the cloud in monochrome (greyscale).
         /// </summary>
         [Parameter(Mandatory = true, ParameterSetName = "FileBackground-Mono")]
+        [Parameter(Mandatory = true, ParameterSetName = "FileBackground-FocusWord-Mono")]
         [Parameter(Mandatory = true, ParameterSetName = "ColorBackground-Mono")]
+        [Parameter(Mandatory = true, ParameterSetName = "ColorBackground-FocusWord-Mono")]
         [Alias("BlackAndWhite", "Greyscale")]
         public SwitchParameter Monochrome { get; set; }
 
@@ -672,7 +699,15 @@ namespace PSWordCloud
                                     (wordHeight / 2));
                                 adjustedPoint = point + baseOffset;
 
-                                SKMatrix rotation = GetRotationMatrix(point, orientation);
+                                SKMatrix rotation;
+                                if (wordCount == 1 && MyInvocation.BoundParameters.ContainsKey(nameof(RotateFocusWord)))
+                                {
+                                    rotation = SKMatrix.MakeRotationDegrees(RotateFocusWord, point.X, point.Y);
+                                }
+                                else
+                                {
+                                    rotation = GetRotationMatrix(point, orientation);
+                                }
 
                                 SKPath alteredPath = brush.GetTextPath(word, adjustedPoint.X, adjustedPoint.Y);
                                 alteredPath.Transform(rotation);
