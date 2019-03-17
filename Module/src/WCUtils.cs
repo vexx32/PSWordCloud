@@ -11,19 +11,18 @@ using SkiaSharp;
 [assembly: InternalsVisibleTo("PSWordCloud.Tests")]
 namespace PSWordCloud
 {
-    [Flags()]
     public enum WordOrientations : sbyte
     {
-        None = 0x0,
-        Vertical = 0x1,
-        FlippedVertical = 0x2,
-        EitherVertical = Vertical | FlippedVertical,
-        UprightDiagonals = 0x4,
-        InvertedDiagonals = 0x8,
-        AllDiagonals = UprightDiagonals | InvertedDiagonals,
-        AllUpright = 0x10,
-        AllInverted = 0x20,
-        All = AllUpright | AllInverted
+        None,
+        Vertical,
+        FlippedVertical,
+        EitherVertical,
+        UprightDiagonals,
+        InvertedDiagonals,
+        AllDiagonals,
+        AllUpright,
+        AllInverted,
+        All,
     }
 
     internal static class WCUtils
