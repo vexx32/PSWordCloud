@@ -384,7 +384,7 @@ namespace PSWordCloud
 
         private float NextDrawAngle()
         {
-            switch (RotationStyle)
+            switch (AllowRotation)
             {
                 case WordOrientations.Vertical:
                     return RandomFloat() > 0.5 ? 0 : 90;
@@ -544,7 +544,7 @@ namespace PSWordCloud
                 scaledWordSizes = new Dictionary<string, float>(
                     sortedWordList.Count, StringComparer.OrdinalIgnoreCase);
 
-                maxWordWidth = RotationStyle == WordOrientations.None
+                maxWordWidth = AllowRotation == WordOrientations.None
                     ? drawableBounds.Width * MAX_WORD_WIDTH_PERCENT
                     : Math.Max(drawableBounds.Width, drawableBounds.Height) * MAX_WORD_WIDTH_PERCENT;
 
