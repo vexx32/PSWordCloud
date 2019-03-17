@@ -323,8 +323,8 @@ namespace PSWordCloud
         /// Gets or sets which types of word rotations are used when drawing the word cloud.
         /// </summary>
         [Parameter()]
-        [Alias("DisableWordRotation")]
-        public WordOrientations RotationStyle { get; set; } = WordOrientations.EitherVertical;
+        [Alias()]
+        public WordOrientations AllowRotation { get; set; } = WordOrientations.EitherVertical;
 
         /// <summary>
         /// Gets or sets whether to draw the cloud in monochrome (greyscale).
