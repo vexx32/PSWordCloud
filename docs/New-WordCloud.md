@@ -19,7 +19,7 @@ New-WordCloud -InputObject <PSObject> [-Path] <String> [-ImageSize <SKSizeI>] [-
  [-BackgroundColor <SKColor>] [-ColorSet <SKColor[]>] [-StrokeWidth <Single>] [-StrokeColor <SKColor>]
  [-FocusWord <String>] [-ExcludeWord <String[]>] [-IncludeWord <String[]>] [-WordScale <Single>]
  [-Padding <Single>] [-DistanceStep <Single>] [-RadialStep <Single>] [-MaxRenderedWords <Int32>]
- [-MaxColors <Int32>] [-RandomSeed <Int32>] [-RotationStyle <WordOrientations>] [-AllowStopWords]
+ [-MaxColors <Int32>] [-RandomSeed <Int32>] [-AllowRotation <WordOrientations>] [-AllowStopWords]
  [-AllowOverflow] [-PassThru] [<CommonParameters>]
 ```
 
@@ -29,7 +29,7 @@ New-WordCloud -InputObject <PSObject> [-Path] <String> [-ImageSize <SKSizeI>] [-
  [-BackgroundColor <SKColor>] [-ColorSet <SKColor[]>] [-StrokeWidth <Single>] [-StrokeColor <SKColor>]
  [-FocusWord <String>] [-ExcludeWord <String[]>] [-IncludeWord <String[]>] [-WordScale <Single>]
  [-Padding <Single>] [-DistanceStep <Single>] [-RadialStep <Single>] [-MaxRenderedWords <Int32>]
- [-MaxColors <Int32>] [-RandomSeed <Int32>] [-RotationStyle <WordOrientations>] [-Monochrome] [-AllowStopWords]
+ [-MaxColors <Int32>] [-RandomSeed <Int32>] [-AllowRotation <WordOrientations>] [-Monochrome] [-AllowStopWords]
  [-AllowOverflow] [-PassThru] [<CommonParameters>]
 ```
 
@@ -39,7 +39,7 @@ New-WordCloud -InputObject <PSObject> [-Path] <String> -BackgroundImage <String>
  [-ColorSet <SKColor[]>] [-StrokeWidth <Single>] [-StrokeColor <SKColor>] [-FocusWord <String>]
  [-ExcludeWord <String[]>] [-IncludeWord <String[]>] [-WordScale <Single>] [-Padding <Single>]
  [-DistanceStep <Single>] [-RadialStep <Single>] [-MaxRenderedWords <Int32>] [-MaxColors <Int32>]
- [-RandomSeed <Int32>] [-RotationStyle <WordOrientations>] [-AllowStopWords] [-AllowOverflow] [-PassThru]
+ [-RandomSeed <Int32>] [-AllowRotation <WordOrientations>] [-AllowStopWords] [-AllowOverflow] [-PassThru]
  [<CommonParameters>]
 ```
 
@@ -49,7 +49,7 @@ New-WordCloud -InputObject <PSObject> [-Path] <String> -BackgroundImage <String>
  [-ColorSet <SKColor[]>] [-StrokeWidth <Single>] [-StrokeColor <SKColor>] [-FocusWord <String>]
  [-ExcludeWord <String[]>] [-IncludeWord <String[]>] [-WordScale <Single>] [-Padding <Single>]
  [-DistanceStep <Single>] [-RadialStep <Single>] [-MaxRenderedWords <Int32>] [-MaxColors <Int32>]
- [-RandomSeed <Int32>] [-RotationStyle <WordOrientations>] [-Monochrome] [-AllowStopWords] [-AllowOverflow]
+ [-RandomSeed <Int32>] [-AllowRotation <WordOrientations>] [-Monochrome] [-AllowStopWords] [-AllowOverflow]
  [-PassThru] [<CommonParameters>]
 ```
 
@@ -132,6 +132,25 @@ Aliases: AllowBleed
 Required: False
 Position: Named
 Default value: None
+Accept pipeline input: False
+Accept wildcard characters: False
+```
+
+### -AllowRotation
+
+Specify -AllowRotation None to prevent word rotation entirely, or use one of the options to permit specific rotation modes.
+
+All modes permit the "upright" standard orientation, as well as their specified additions.
+
+```yaml
+Type: WordOrientations
+Parameter Sets: (All)
+Aliases:
+Accepted values: None, Vertical, FlippedVertical, EitherVertical, UprightDiagonals, InvertedDiagonals, AllDiagonals, AllUpright, AllInverted, All
+
+Required: False
+Position: Named
+Default value: EitherVertical
 Accept pipeline input: False
 Accept wildcard characters: False
 ```
@@ -486,23 +505,6 @@ Aliases: SeedValue
 Required: False
 Position: Named
 Default value: None
-Accept pipeline input: False
-Accept wildcard characters: False
-```
-
-### -RotationStyle
-
-Specify the rotation modes permitted when drawing the word cloud.
-
-```yaml
-Type: WordOrientations
-Parameter Sets: (All)
-Aliases: DisableWordRotation
-Accepted values: None, Vertical, FlippedVertical, EitherVertical, UprightDiagonals, InvertedDiagonals, AllDiagonals, AllUpright, AllInverted, All
-
-Required: False
-Position: Named
-Default value: EitherVertical
 Accept pipeline input: False
 Accept wildcard characters: False
 ```
