@@ -177,7 +177,7 @@ namespace PSWordCloud
         /// </summary>
         /// <value>The default value is SKColors.Black.</value>
         [Parameter(ParameterSetName = "ColorBackground")]
-        [Parameter(ParameterSetName = "ColorBackground-Mono")]
+        [Parameter(ParameterSetName = "ColorBackground-FocusWord")]
         [Alias("Backdrop", "CanvasColor")]
         [ArgumentCompleter(typeof(SKColorCompleter))]
         [TransformToSKColor()]
