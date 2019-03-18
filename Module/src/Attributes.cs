@@ -423,7 +423,7 @@ namespace PSWordCloud
                     var typeface = SKTypeface.Default;
                     using (var brush = new SKPaint())
                     {
-                        brush.NextWord(10, 0);
+                        brush.NextWord(wordSize: 10, strokeWidth: 0);
                         return brush.GetTextPath(s, 0, 0);
                     }
                 default:
