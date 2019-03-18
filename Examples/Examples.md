@@ -1,16 +1,69 @@
 ﻿# PSWordCloud Examples
 
 Below are some sample output images, along with as many of their input commands as I can recall.
-Some of these may be from slightly different versions of the module, but by and large they should
-represent fairly accurately the results you can obtain with a little exploration.
+Some of these may be from slightly different versions of the module, but by and large they should represent fairly accurately the results you can obtain with a little exploration.
 
-Note that many of these are rendered on transparent backgrounds and may not look especially grand
-on lighter backdrops.
+Note that some of these are rendered on transparent backgrounds and may not look the best on lighter backdrops.
 
-## Edge of Night
+## v2.x.x Examples
 
-Input is the complete Lyrics from _Edge of Night_, the song Pipping sings in _Lord of the Rings_ to
-the Steward of Gondor.
+### New Rotation Modes Tests
+
+The below examples use the following command to generate the cloud, only adding the -AllowRotation mode for that test:
+
+```powershell
+$poem | New-WordCloud -Path .\test.svg -ImageSize 800 -Typeface "Segoe Print" -FocusWord Hollow
+```
+
+`$poem` contains the poem text from [this page](http://www.poetsforum.com/poems/hollow/).
+
+#### -AllowRotation None
+
+![None](./_images/NoRotation.svg)
+
+#### -AllowRotation Vertical
+
+![Vertical](./_images/VerticalRotationR.svg)
+
+#### -AllowRotation FlippedVertical
+
+![FlippedVertical](./_images/VerticalRotationL.svg)
+
+#### -AllowRotation EitherVertical (Default)
+
+![EitherVertical](./_images/VerticalRotation2.svg)
+
+#### -AllowRotation UprightDiagonals
+
+![UprightDiagonals](./_images/UprightDiag.svg)
+
+#### -AllowRotation InvertedDiagonals
+
+![InvertedDiagonals](./_images/InvertedDiag.svg)
+
+#### -AllowRotation AllDiagonals
+
+![AllDiagonals](./_images/AllDiag.svg)
+
+#### -AllowRotation AllUpright
+
+![AllUpright](./_images/AllUpright.svg)
+
+#### -AllowRotation AllInverted
+
+![AllInverted](./_images/AllInverted.svg)
+
+#### -AllowRotation All
+
+![All](./_images/AllRotations.svg)
+
+## v1.x.x Examples
+
+These examples come from the v1.x.x versions of PSWordCloud.
+
+### Edge of Night
+
+Input is the complete Lyrics from _Edge of Night_, the song Pipping sings in _Lord of the Rings_ to the Steward of Gondor.
 
 ![Edge of Night](./_images/EdgeOfNight.png)
 
@@ -28,18 +81,17 @@ $Params = @{
 $Lyrics | New-WordCloud @Params
 ```
 
-## Paterson
+### Paterson
 
-These are a collection I created for a friend of my wife and I. Here's to William Carlos Williams'
-_Paterson_, just for you, Kate!
+These are a collection I created for a friend of my wife and I. Here's to William Carlos Williams' _Paterson_, just for you, Kate!
 
-### Cursive
+#### Cursive
 
 ![Paterson Cursive](./_images/Paterson-Cursive.png)
 
 This one was very standard settings, apart from the font, which I don't recall.
 
-### Scriptina
+#### Scriptina
 
 ![Paterson Scriptina Blue](./_images/Paterson-Scriptina.png)
 
@@ -102,10 +154,10 @@ $Params = @{
 $Paterson | New-WordCloud @Params
 ```
 
-## PSKoans
+### PSKoans
 
-These are all created from the text and script data in the PSKoans module. Some include the test
-files, but most do not.
+These are all created from the text and script data in the PSKoans module.
+Some include the test files, but most do not.
 
 ![PSKoans HBH](./_images/PSKoans_HBH.png)
 
@@ -174,15 +226,12 @@ $Params = @{
 $PSKoans | New-WordCloud @Params
 ```
 
-## PowerShell
+### PowerShell
 
-These were created by pulling _every line of code_ from the
-[PowerShell Core](https://github.com/PowerShell/PowerShell) github repository in every `.cs` file
-and passing it into the word cloud.
+These were created using _every line of code_ from every `.cs` file in the [PowerShell Core](https://github.com/PowerShell/PowerShell) GitHub repository.
 
-This was so slow I was literally forced to apply multithreading to the module to make it complete
-_just the text processing portion_ in under an hour on my machine. It's much quicker now, but these
-were each an ordeal.
+This was so slow I was literally forced to apply multithreading to the module to make it complete _just the text processing portion_ in under an hour on my machine.
+It's much quicker now, but these were each an ordeal.
 
 ![PowerShell](./_images/PowerShell-one.png)
 
@@ -243,10 +292,9 @@ $Params = @{
 $PSCoreCode | New-WordCloud @Params
 ```
 
-## PowerShell-RFC Repo
+### PowerShell-RFC Repo
 
-This one is made from all the [PowerShell-RFC](https://github.com/PowerShell/PowerShell-RFC)
-Markdown files.
+This one is made from all the [PowerShell-RFC](https://github.com/PowerShell/PowerShell-RFC) Markdown files.
 
 ![PowerShell-RFC](./_images/PowerShellRFC.png)
 
