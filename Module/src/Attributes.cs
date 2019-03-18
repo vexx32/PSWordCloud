@@ -393,4 +393,21 @@ namespace PSWordCloud
         }
     }
 
+    public class AngleCompleter : IArgumentCompleter
+    {
+        public IEnumerable<CompletionResult> CompleteArgument(
+            string commandName,
+            string parameterName,
+            string wordToComplete,
+            CommandAst commandAst,
+            IDictionary fakeBoundParameters)
+        {
+            for (float angle = 0; angle <= 360; angle += 45)
+            {
+                var s = LanguagePrimitives.ConvertTo<string>(angle);
+                yield return new CompletionResult(s, s, CompletionResultType.ParameterValue, s);
+            }
+        }
+    }
+
 }

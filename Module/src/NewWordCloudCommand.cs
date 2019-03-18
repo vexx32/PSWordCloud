@@ -73,9 +73,9 @@ namespace PSWordCloud
         /// have a meaningful ToString() method override defined.
         /// </summary>
         [Parameter(Mandatory = true, ValueFromPipeline = true, ParameterSetName = "ColorBackground")]
-        [Parameter(Mandatory = true, ValueFromPipeline = true, ParameterSetName = "ColorBackground-Mono")]
+        [Parameter(Mandatory = true, ValueFromPipeline = true, ParameterSetName = "ColorBackground-FocusWord")]
         [Parameter(Mandatory = true, ValueFromPipeline = true, ParameterSetName = "FileBackground")]
-        [Parameter(Mandatory = true, ValueFromPipeline = true, ParameterSetName = "FileBackground-Mono")]
+        [Parameter(Mandatory = true, ValueFromPipeline = true, ParameterSetName = "FileBackground-FocusWord")]
         [Alias("InputString", "Text", "String", "Words", "Document", "Page")]
         [AllowEmptyString()]
         public PSObject InputObject { get; set; }
@@ -85,9 +85,9 @@ namespace PSWordCloud
         /// Gets or sets the output path to save the final SVG vector file to.
         /// </summary>
         [Parameter(Mandatory = true, Position = 0, ParameterSetName = "ColorBackground")]
-        [Parameter(Mandatory = true, Position = 0, ParameterSetName = "ColorBackground-Mono")]
+        [Parameter(Mandatory = true, Position = 0, ParameterSetName = "ColorBackground-FocusWord")]
         [Parameter(Mandatory = true, Position = 0, ParameterSetName = "FileBackground")]
-        [Parameter(Mandatory = true, Position = 0, ParameterSetName = "FileBackground-Mono")]
+        [Parameter(Mandatory = true, Position = 0, ParameterSetName = "FileBackground-FocusWord")]
         [Alias("OutFile", "ExportPath", "ImagePath")]
         public string Path
         {
@@ -101,7 +101,7 @@ namespace PSWordCloud
         /// Gets or sets the path to the background image to be used as a base for the final word cloud image.
         /// </summary>
         [Parameter(Mandatory = true, ParameterSetName = "FileBackground")]
-        [Parameter(Mandatory = true, ParameterSetName = "FileBackground-Mono")]
+        [Parameter(Mandatory = true, ParameterSetName = "FileBackground-FocusWord")]
         public string BackgroundImage
         {
             get => _backgroundFullPath;
@@ -139,7 +139,7 @@ namespace PSWordCloud
         /// </summary>
         /// <value>The default value is a size of 3840x2160.</value>
         [Parameter(ParameterSetName = "ColorBackground")]
-        [Parameter(ParameterSetName = "ColorBackground-Mono")]
+        [Parameter(ParameterSetName = "ColorBackground-FocusWord")]
         [ArgumentCompleter(typeof(ImageSizeCompleter))]
         [TransformToSKSizeI()]
         public SKSizeI ImageSize { get; set; } = new SKSizeI(3840, 2160);
@@ -177,7 +177,7 @@ namespace PSWordCloud
         /// </summary>
         /// <value>The default value is SKColors.Black.</value>
         [Parameter(ParameterSetName = "ColorBackground")]
-        [Parameter(ParameterSetName = "ColorBackground-Mono")]
+        [Parameter(ParameterSetName = "ColorBackground-FocusWord")]
         [Alias("Backdrop", "CanvasColor")]
         [ArgumentCompleter(typeof(SKColorCompleter))]
         [TransformToSKColor()]
@@ -236,9 +236,17 @@ namespace PSWordCloud
         /// Gets or sets the focus word string to be used in the word cloud. This string will typically appear in the
         /// centre of the cloud, larger than all the other words.
         /// </summary>
-        [Parameter()]
+        [Parameter(Mandatory = true, ParameterSetName = "ColorBackground-FocusWord")]
+        [Parameter(Mandatory = true, ParameterSetName = "FileBackground-FocusWord")]
         [Alias("Title")]
         public string FocusWord { get; set; }
+
+        [Parameter(ParameterSetName = "ColorBackground-FocusWord")]
+        [Parameter(ParameterSetName = "FileBackground-FocusWord")]
+        [Alias("RotateTitle")]
+        [ArgumentCompleter(typeof(AngleCompleter))]
+        [ValidateRange(-360, 360)]
+        public float RotateFocusWord { get; set; }
 
         /// <summary>
         /// <para>Gets or sets the words to be explicitly ignored when rendering the word cloud.</para>
@@ -267,6 +275,13 @@ namespace PSWordCloud
         [Alias("ScaleFactor")]
         [ValidateRange(0.01, 20)]
         public float WordScale { get; set; } = 1;
+
+        /// <summary>
+        /// Gets or sets which types of word rotations are used when drawing the word cloud.
+        /// </summary>
+        [Parameter()]
+        [Alias()]
+        public WordOrientations AllowRotation { get; set; } = WordOrientations.EitherVertical;
 
         /// <summary>
         /// Gets or sets the float value to scale the padding space around the words by.
@@ -320,17 +335,9 @@ namespace PSWordCloud
         public int RandomSeed { get; set; }
 
         /// <summary>
-        /// Gets or sets which types of word rotations are used when drawing the word cloud.
-        /// </summary>
-        [Parameter()]
-        [Alias()]
-        public WordOrientations AllowRotation { get; set; } = WordOrientations.EitherVertical;
-
-        /// <summary>
         /// Gets or sets whether to draw the cloud in monochrome (greyscale).
         /// </summary>
-        [Parameter(Mandatory = true, ParameterSetName = "FileBackground-Mono")]
-        [Parameter(Mandatory = true, ParameterSetName = "ColorBackground-Mono")]
+        [Parameter()]
         [Alias("BlackAndWhite", "Greyscale")]
         public SwitchParameter Monochrome { get; set; }
 
@@ -663,6 +670,11 @@ namespace PSWordCloud
                         var wordWidth = wordBounds.Width;
                         var wordHeight = wordBounds.Height;
 
+                        float drawAngle = wordCount == 1
+                            && MyInvocation.BoundParameters.ContainsKey(nameof(RotateFocusWord))
+                                ? drawAngle = RotateFocusWord
+                                : drawAngle = NextDrawAngle();
+
                         var percentComplete = 100f * wordCount / scaledWordSizes.Count;
 
                         wordProgress.StatusDescription = string.Format(
@@ -690,7 +702,6 @@ namespace PSWordCloud
                                     continue;
                                 }
 
-                                var drawAngle = NextDrawAngle();
                                 pointProgress.Activity = string.Format(
                                     "Finding available space to draw at angle: {0}",
                                     drawAngle);
