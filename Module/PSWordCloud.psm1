@@ -18,6 +18,8 @@ $SkiaDllPath = Join-Path -Path $PSScriptRoot -ChildPath $PlatformFolder |
     Join-Path -ChildPath "SkiaSharp.dll"
 
 Add-Type -Path $SkiaDllPath
-Import-Module  "$PSScriptRoot/PSWordCloudCmdlet.dll"
+
+$ModuleDllPath = Join-Path -Path $PSScriptRoot -ChildPath "PSWordCloudCmdlet.dll"
+Import-Module $ModuleDllPath
 
 Export-ModuleMember -Cmdlet "New-WordCloud"
