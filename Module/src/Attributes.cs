@@ -419,8 +419,6 @@ namespace PSWordCloud
                 case SKPath p:
                     return p;
                 case string s:
-                    // We must use the default typeface here, as other parameters are not available during binding
-                    var typeface = SKTypeface.Default;
                     using (var brush = new SKPaint())
                     {
                         brush.NextWord(wordSize: 10, strokeWidth: 0);
