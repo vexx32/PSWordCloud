@@ -410,4 +410,28 @@ namespace PSWordCloud
         }
     }
 
+    public class TransformToSKPathAttribute : ArgumentTransformationAttribute
+    {
+        public override object Transform(EngineIntrinsics engineIntrinsics, object inputData)
+        {
+            switch (inputData)
+            {
+                case SKPath p:
+                    return p;
+                case string s:
+                    // We must use the default typeface here, as other parameters are not available during binding
+                    var typeface = SKTypeface.Default;
+                    using (var brush = new SKPaint())
+                    {
+                        brush.NextWord(10, 0);
+                        return brush.GetTextPath(s, 0, 0);
+                    }
+                default:
+                    throw new NotImplementedException(
+                        string.Format("The transformation from type {0} to {1} has not been defined.",
+                            inputData.GetType(), typeof(SKPath)));
+            }
+        }
+    }
+
 }
