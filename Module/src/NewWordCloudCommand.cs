@@ -320,12 +320,11 @@ namespace PSWordCloud
         public int RandomSeed { get; set; }
 
         /// <summary>
-        /// Gets or sets whether or not to disable rotation of words. Selecting this option will result in a more
-        /// uniform cloud, where all words are drawn horizontally.
+        /// Gets or sets which types of word rotations are used when drawing the word cloud.
         /// </summary>
         [Parameter()]
-        [Alias("DisableWordRotation")]
-        public SwitchParameter DisableRotation { get; set; }
+        [Alias()]
+        public WordOrientations AllowRotation { get; set; } = WordOrientations.EitherVertical;
 
         /// <summary>
         /// Gets or sets whether to draw the cloud in monochrome (greyscale).
@@ -383,23 +382,59 @@ namespace PSWordCloud
             return color;
         }
 
-        private WordOrientation GetWordOrientation()
+        private float NextDrawAngle()
         {
-            if (!DisableRotation)
+            switch (AllowRotation)
             {
-                var num = RandomFloat();
-                if (num > 0.75)
-                {
-                    return WordOrientation.Vertical;
-                }
-
-                if (num > 0.5)
-                {
-                    return WordOrientation.FlippedVertical;
-                }
+                case WordOrientations.Vertical:
+                    return RandomFloat() > 0.5 ? 0 : 90;
+                case WordOrientations.FlippedVertical:
+                    return RandomFloat() < 0.5 ? 0 : -90;
+                case WordOrientations.EitherVertical:
+                    return RandomFloat() < 0.5
+                        ? 0
+                        : RandomFloat() > 0.5
+                            ? 90
+                            : -90;
+                case WordOrientations.UprightDiagonals:
+                    switch (RandomInt(0, 5))
+                    {
+                        case 0: return -90;
+                        case 1: return -45;
+                        case 2: return 45;
+                        case 3: return 90;
+                        case 4: default: return 0;
+                    }
+                case WordOrientations.InvertedDiagonals:
+                    switch (RandomInt(0, 5))
+                    {
+                        case 0: return 90;
+                        case 1: return 135;
+                        case 2: return -135;
+                        case 3: return -90;
+                        case 4: default: return 180;
+                    }
+                case WordOrientations.AllDiagonals:
+                    switch (RandomInt(0, 8))
+                    {
+                        case 0: return 45;
+                        case 1: return 90;
+                        case 2: return 135;
+                        case 3: return 180;
+                        case 4: return -135;
+                        case 5: return -90;
+                        case 6: return -45;
+                        case 7: default: return 0;
+                    }
+                case WordOrientations.AllUpright:
+                    return RandomInt(-90, 91);
+                case WordOrientations.AllInverted:
+                    return RandomInt(90, 271);
+                case WordOrientations.All:
+                    return RandomInt(0, 361);
+                default:
+                    return 0;
             }
-
-            return WordOrientation.Horizontal;
         }
 
         private float _paddingMultiplier => Padding * PADDING_BASE_SCALE;
@@ -509,7 +544,7 @@ namespace PSWordCloud
                 scaledWordSizes = new Dictionary<string, float>(
                     sortedWordList.Count, StringComparer.OrdinalIgnoreCase);
 
-                maxWordWidth = DisableRotation
+                maxWordWidth = AllowRotation == WordOrientations.None
                     ? drawableBounds.Width * MAX_WORD_WIDTH_PERCENT
                     : Math.Max(drawableBounds.Width, drawableBounds.Height) * MAX_WORD_WIDTH_PERCENT;
 
@@ -595,7 +630,6 @@ namespace PSWordCloud
                         canvas.Clear(BackgroundColor);
                     }
 
-                    WordOrientation targetOrientation;
                     SKPoint targetPoint;
 
                     brush.IsAutohinted = true;
@@ -617,7 +651,6 @@ namespace PSWordCloud
                         wordCount++;
 
                         inflationValue = scaledWordSizes[word] * (_paddingMultiplier + StrokeWidth * STROKE_BASE_SCALE);
-                        targetOrientation = WordOrientation.Horizontal;
                         targetPoint = SKPoint.Empty;
 
                         var wordColor = GetNextColor();
@@ -657,10 +690,10 @@ namespace PSWordCloud
                                     continue;
                                 }
 
-                                var orientation = GetWordOrientation();
+                                var drawAngle = NextDrawAngle();
                                 pointProgress.Activity = string.Format(
-                                    "Finding available space to draw with orientation: {0}",
-                                    orientation);
+                                    "Finding available space to draw at angle: {0}",
+                                    drawAngle);
                                 pointProgress.StatusDescription = string.Format(
                                     "Checking [Point:{0,8:N2}, {1,8:N2}] ({2,4} / {3,4}) at [Radius: {4,8:N2}]",
                                     point.X, point.Y, pointsChecked, totalPoints, radius);
@@ -672,7 +705,7 @@ namespace PSWordCloud
                                     (wordHeight / 2));
                                 adjustedPoint = point + baseOffset;
 
-                                SKMatrix rotation = GetRotationMatrix(point, orientation);
+                                SKMatrix rotation = SKMatrix.MakeRotationDegrees(drawAngle, point.X, point.Y);
 
                                 SKPath alteredPath = brush.GetTextPath(word, adjustedPoint.X, adjustedPoint.Y);
                                 alteredPath.Transform(rotation);
@@ -685,7 +718,6 @@ namespace PSWordCloud
                                     // First word will always be drawn in the centre.
                                     wordPath = alteredPath;
                                     targetPoint = adjustedPoint;
-                                    targetOrientation = orientation;
                                     goto nextWord;
                                 }
                                 else
@@ -699,7 +731,6 @@ namespace PSWordCloud
                                     {
                                         wordPath = alteredPath;
                                         targetPoint = adjustedPoint;
-                                        targetOrientation = orientation;
                                         goto nextWord;
                                     }
                                 }
@@ -766,27 +797,6 @@ namespace PSWordCloud
         }
 
         #region HelperMethods
-
-        /// <summary>
-        /// Creates a matrix to rotate drawing objects around the given point, according to the orientation specified.
-        /// </summary>
-        /// <param name="point">The "centre" point for the rotation.</param>
-        /// <param name="orientation">The target word orientation the rotation should result in.</param>
-        /// <returns>A matrix that defines the correct rotation for the given WordOrientation.</returns>
-        private static SKMatrix GetRotationMatrix(SKPoint point, WordOrientation orientation)
-        {
-            switch (orientation)
-            {
-                case WordOrientation.Vertical:
-                    return SKMatrix.MakeRotationDegrees(90, point.X, point.Y);
-
-                case WordOrientation.FlippedVertical:
-                    return SKMatrix.MakeRotationDegrees(-90, point.X, point.Y);
-
-                default:
-                    return SKMatrix.MakeIdentity();
-            }
-        }
 
         /// <summary>
         /// Processes the color set to ensure no colors identical to the background or stroke colors are re-used,
@@ -978,6 +988,14 @@ namespace PSWordCloud
             lock (_randomLock)
             {
                 return Random.Next();
+            }
+        }
+
+        private static int RandomInt(int min, int max)
+        {
+            lock (_randomLock)
+            {
+                return Random.Next(min, max);
             }
         }
 
