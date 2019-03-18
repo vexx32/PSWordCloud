@@ -510,7 +510,9 @@ Accept wildcard characters: False
 
 ### -RotateFocusWord
 
-Specify an angle to rotate the focus word by, overriding the default random rotations for the focus word only.
+Specify an angle in degrees to rotate the focus word by, overriding the default random rotations for the focus word only.
+
+Values from -360 to 360, including sub-degree increments, are permitted.
 
 ```yaml
 Type: Single
