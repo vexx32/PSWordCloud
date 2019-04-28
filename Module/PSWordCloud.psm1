@@ -4,7 +4,7 @@
     public class DllLoadPath
     {
         [DllImport("kernel32", CharSet=CharSet.Unicode)]
-        public static extern int AddDllDirectory(string NewDirectory);
+        public static extern int SetDllDirectory(string NewDirectory);
     }
 "@
 
@@ -21,10 +21,10 @@ $PlatformFolder = switch ($true) {
 }
 
 $NativeRuntimeFolder = Join-Path -Path $PSScriptRoot -ChildPath $PlatformFolder
-[DllLoadPath]::AddDllDirectory($NativeRuntimeFolder)
+[DllLoadPath]::SetDllDirectory($NativeRuntimeFolder)
 
 $SkiaDllPath = Join-Path -Path $PSScriptRoot -ChildPath "SkiaSharp.dll"
 Add-Type -Path $SkiaDllPath
 
-$ModuleDllPath = Join-Path -Path $PSScriptRoot -ChildPath "PSWordCloudCmdlet.dll"
-Import-Module $ModuleDllPath
+Join-Path -Path $PSScriptRoot -ChildPath "PSWordCloudCmdlet.dll" |
+    Import-Module
