@@ -22,9 +22,3 @@ $PlatformFolder = switch ($true) {
 
 $NativeRuntimeFolder = Join-Path -Path $PSScriptRoot -ChildPath $PlatformFolder
 [DllLoadPath]::SetDllDirectory($NativeRuntimeFolder)
-
-$SkiaDllPath = Join-Path -Path $PSScriptRoot -ChildPath "SkiaSharp.dll"
-Add-Type -Path $SkiaDllPath
-
-Join-Path -Path $PSScriptRoot -ChildPath "PSWordCloudCmdlet.dll" |
-    Import-Module
