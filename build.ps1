@@ -1,4 +1,4 @@
-﻿#Requires -Version 6.1
+﻿#Requires -Version 6.1 -Modules Platyps
 [CmdletBinding()]
 param(
     [Parameter()]
@@ -15,7 +15,6 @@ param(
     $ProjectFile = (Join-Path -Path $PSScriptRoot -ChildPath "Module" "PSWordCloudCmdlet.csproj")
 )
 
-Install-Module -Name PlatyPS -Scope CurrentUser
 Import-Module PlatyPS
 
 if (Test-Path -Path $OutputPath) {
@@ -31,7 +30,7 @@ $Dotnet = Start-Process -NoNewWindow -PassThru -FilePath 'dotnet' -ArgumentList 
 
 $Dotnet.WaitForExit()
 
-$SupportedPlatforms = "win-x64", "win-x86", "linux-x64", "osx"
+$SupportedPlatforms = "win-x64", "linux-x64", "osx"
 $ModulePath = Join-Path $OutputPath -ChildPath "PSWordCloud"
 New-Item -Path $ModulePath -ItemType Directory | Out-Null
 
@@ -41,17 +40,15 @@ Copy-Item -Path "$OutputPath/bin/SkiaSharp.dll" -Destination $ModulePath
 
 # Copy platform-specific runtime library folders for Skia
 $RuntimeFolders = Get-ChildItem -Path "$OutputPath/bin/runtimes" |
-    Where-Object Name -in $SupportedPlatforms
+Where-Object Name -in $SupportedPlatforms
 
-$RuntimeFolders | ForEach-Object {
-    $OutputDirectory = New-Item -ItemType Directory -Path "$ModulePath/$($_.Name)"
-    Get-ChildItem -Path $_.FullName -Recurse -Include *.dylib, *.dll, *.so |
-        Copy-Item -Destination $OutputDirectory.FullName
-}
+$RuntimeFolders |
+Get-ChildItem -Recurse -Include *.dylib, *.dll, *.so |
+Copy-Item -Destination $ModulePath
 
 Split-Path -Path $ProjectFile -Parent |
-    Get-ChildItem -Recurse -Include "*.ps*1" |
-    Copy-Item -Destination $ModulePath
+Get-ChildItem -Recurse -Include "*.ps*1" |
+Copy-Item -Destination $ModulePath
 
 Import-Module $ModulePath
 
