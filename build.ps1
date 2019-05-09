@@ -45,7 +45,9 @@ Where-Object Name -in $SupportedPlatforms
 $RuntimeFolders | ForEach-Object {
     if ($_.Name -match 'win') {
         # Copy Windows libs into runtime folders
-        $WinPlatFolder = Join-Path -Path $ModulePath -ChildPath $_.Name
+        $WinPlatFolder = Join-Path -Path $ModulePath -ChildPath $_.Name |
+        New-Item -ItemType Directory -Path { $_ }
+
         Get-ChildItem -LiteralPath $_.FullName -Recurse -Include *.dll |
         Copy-Item -Destination $WinPlatFolder
     }
