@@ -11,7 +11,7 @@ if ($IsWindows) {
             public static extern int SetDllDirectory(string NewDirectory);
         }
 "@
-    $PlatformFolder = if ([Environment]::Is64BitProcess) { 'win-x86' } else { 'win-x64' }
+    $PlatformFolder = if ([Environment]::Is64BitProcess) { 'win-x64' } else { 'win-x86' }
     $NativeRuntimeFolder = Join-Path -Path $PSScriptRoot -ChildPath $PlatformFolder
     [DllLoadPath]::SetDllDirectory($NativeRuntimeFolder)
 }
