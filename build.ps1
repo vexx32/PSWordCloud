@@ -30,7 +30,7 @@ $Dotnet = Start-Process -NoNewWindow -PassThru -FilePath 'dotnet' -ArgumentList 
 
 $Dotnet.WaitForExit()
 
-$SupportedPlatforms = "win-x64", "linux-x64", "osx"
+$SupportedPlatforms = "win-x64", "win-x86", "linux-x64", "osx"
 $ModulePath = Join-Path $OutputPath -ChildPath "PSWordCloud"
 New-Item -Path $ModulePath -ItemType Directory | Out-Null
 
@@ -42,9 +42,19 @@ Copy-Item -Path "$OutputPath/bin/SkiaSharp.dll" -Destination $ModulePath
 $RuntimeFolders = Get-ChildItem -Path "$OutputPath/bin/runtimes" |
 Where-Object Name -in $SupportedPlatforms
 
-$RuntimeFolders |
-Get-ChildItem -Recurse -Include *.dylib, *.dll, *.so |
-Copy-Item -Destination $ModulePath
+$RuntimeFolders | ForEach-Object {
+    if ($_.Name -match 'win') {
+        # Copy Windows libs into runtime folders
+        $WinPlatFolder = Join-Path -Path $ModulePath -ChildPath $_.Name
+        Get-ChildItem -LiteralPath $_.FullName -Recurse -Include *.dll |
+        Copy-Item -Destination $WinPlatFolder
+    }
+    else {
+        # Copy Linux/Mac libs into module root
+        Get-ChildItem -LiteralPath $_.FullName -Recurse -Include *.dylib, *.so |
+        Copy-Item -Destination $ModulePath
+    }
+}
 
 Split-Path -Path $ProjectFile -Parent |
 Get-ChildItem -Recurse -Include "*.ps*1" |
