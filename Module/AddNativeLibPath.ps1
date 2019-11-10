@@ -1,4 +1,8 @@
-﻿Add-Type -ReferencedAssemblies 'System.Runtime.Loader' -TypeDefinition @"
+﻿$Assemblies = @(
+    'System.Runtime.Loader'
+    'System.Runtime.InteropServices.RuntimeInformation'
+)
+Add-Type -ReferencedAssemblies $Assemblies -TypeDefinition @"
     using System;
     using System.Reflection;
     using System.Runtime.InteropServices;
