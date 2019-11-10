@@ -49,14 +49,12 @@ Add-Type -ReferencedAssemblies $Assemblies -TypeDefinition @"
 "@
 
 $PlatformFolder = switch ($true) {
-    $IsWindows {
-        if ([Environment]::Is64BitProcess) { "win-x64" } else { "win-x86" }
-    }
-    $IsMacOS { "osx" }
+    $IsWindows { "win-x64" }
+    $IsMacOS { "osx-x64" }
     $IsLinux { "linux-x64" }
     default {
         # Windows PowerShell
-        if ([Environment]::Is64BitProcess) { "win-x64" } else { "win-x86" }
+        "win-x64"
     }
 }
 
