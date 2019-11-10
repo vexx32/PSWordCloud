@@ -33,7 +33,7 @@ Add-Type -ReferencedAssemblies $Assemblies -TypeDefinition @"
 
         public static class Loader
         {
-            static void LoadLibrary(string path)
+            public static void LoadLibrary(string path)
             {
                 if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
                 {
