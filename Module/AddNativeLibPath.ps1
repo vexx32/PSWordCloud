@@ -1,10 +1,19 @@
-﻿Add-Type -TypeDefinition @"
-    using System.Runtime.InteropServices;
+﻿Add-Type -ReferencedAssemblies 'System.Runtime.Loader' -TypeDefinition @"
+    using System;
+    using System.Runtime.Loader;
 
-    public class DllLoadPath
+    namespace PSWordCloud.Native
     {
-        [DllImport("kernel32", CharSet=CharSet.Unicode)]
-        public static extern int SetDllDirectory(string NewDirectory);
+        public class Loader : AssemblyLoadContext
+        {
+            private static Loader singleton = new Loader();
+            private Loader() : base() {}
+
+            public static IntPtr LoadLibrary(string path)
+            {
+                return singleton.LoadUnmanagedDllFromPath(path);
+            }
+        }
     }
 "@
 
@@ -20,5 +29,5 @@ $PlatformFolder = switch ($true) {
     }
 }
 
-$NativeRuntimeFolder = Join-Path -Path $PSScriptRoot -ChildPath $PlatformFolder
-[DllLoadPath]::SetDllDirectory($NativeRuntimeFolder)
+$NativeRuntime = Get-Item -Path "$PSScriptRoot/$PlatformFolder/libSkiaSharp.*"
+[PSWordCloud.Native.Loader]::LoadLibrary($NativeRuntime)
