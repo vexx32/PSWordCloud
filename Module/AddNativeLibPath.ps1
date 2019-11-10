@@ -41,7 +41,7 @@ Add-Type -ReferencedAssemblies $Assemblies -TypeDefinition @"
                 }
                 else
                 {
-                    LinuxNativeMethods.dlopen(path, DLOpenFlags.RTLD_LAZY);
+                    UnixNativeMethods.dlopen(path, DLOpenFlags.RTLD_LAZY);
                 }
             }
         }
