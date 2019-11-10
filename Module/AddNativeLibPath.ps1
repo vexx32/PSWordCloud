@@ -15,7 +15,7 @@
                 return singleton.LoadUnmanagedDllFromPath(path);
             }
 
-            public override Assembly Load(AssemblyName assemblyName) => null;
+            protected override Assembly Load(AssemblyName assemblyName) => null;
         }
     }
 "@
