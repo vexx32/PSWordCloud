@@ -1,21 +1,45 @@
 ﻿Add-Type -ReferencedAssemblies 'System.Runtime.Loader' -TypeDefinition @"
     using System;
     using System.Reflection;
+    using System.Runtime.InteropServices;
     using System.Runtime.Loader;
 
     namespace PSWordCloud.Native
     {
-        public class Loader : AssemblyLoadContext
+        [Flags]
+        internal enum DLOpenFlags
         {
-            private static Loader singleton = new Loader();
-            private Loader() : base() {}
+            RTLD_LAZY = 1,
+            RTLD_NOW = 2,
+            RTLD_LOCAL = 4,
+            RTLD_GLOBAL = 8,
+        }
 
-            public static IntPtr LoadLibrary(string path)
+        internal static class UnixNativeMethods
+        {
+            [DllImport("libdl", CharSet = CharSet.Ansi, CallingConvention = CallingConvention.Cdecl)]
+            public static extern IntPtr dlopen(string dlToOpen, DLOpenFlags flags);
+        }
+
+        internal static class Win32NativeMethods
+        {
+            [DllImport("kernel32.dll", EntryPoint="LoadLibraryW")]
+            public static extern IntPtr LoadLibrary([InAttribute, MarshalAs(UnmanagedType.LPWStr)] string dllToLoad);
+        }
+
+        public static class Loader
+        {
+            static void LoadLibrary(string path)
             {
-                return singleton.LoadUnmanagedDllFromPath(path);
+                if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
+                {
+                    Win32NativeMethods.LoadLibrary(path);
+                }
+                else
+                {
+                    LinuxNativeMethods.dlopen(path, DLOpenFlags.RTLD_LAZY);
+                }
             }
-
-            protected override Assembly Load(AssemblyName assemblyName) => null;
         }
     }
 "@
