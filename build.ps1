@@ -22,16 +22,19 @@ if (Test-Path -Path $OutputPath) {
     Remove-Item -Recurse -Path $OutputPath
 }
 
-$Dotnet = Start-Process -NoNewWindow -PassThru -FilePath 'dotnet' -ArgumentList @(
-    'publish'
-    "-c $Channel"
-    '-o "{0}"' -f (Join-Path -Path $OutputPath -ChildPath "bin")
-    $ProjectFile
-)
+foreach ($RuntimeId in 'win-x64', 'linux-x64', 'osx-x64') {
+    $args = @(
+        'publish'
+        '-c', $Channel
+        '-o', ('"{0}"' -f (Join-Path -Path $OutputPath -ChildPath "bin"))
+        '-r', $RuntimeId
+        '--self-contained', 'true'
+        '"{0}"' -f (Get-Item $ProjectFile).FullName
+    )
 
-$Dotnet.WaitForExit()
+    & dotnet @args
+}
 
-$SupportedPlatforms = "win-x64", "win-x86", "linux-x64", "osx"
 $ModulePath = Join-Path $OutputPath -ChildPath "PSWordCloud"
 New-Item -Path $ModulePath -ItemType Directory | Out-Null
 
@@ -39,15 +42,25 @@ New-Item -Path $ModulePath -ItemType Directory | Out-Null
 Copy-Item -Path "$OutputPath/bin/PSWordCloudCmdlet.dll" -Destination $ModulePath
 Copy-Item -Path "$OutputPath/bin/SkiaSharp.dll" -Destination $ModulePath
 
-# Copy platform-specific runtime library folders for Skia
-$RuntimeFolders = Get-ChildItem -Path "$OutputPath/bin/runtimes" |
-    Where-Object Name -in $SupportedPlatforms
-
-$RuntimeFolders | ForEach-Object {
-    $OutputDirectory = New-Item -ItemType Directory -Path "$ModulePath/$($_.Name)"
-    Get-ChildItem -Path $_.FullName -Recurse -Include *.dylib, *.dll, *.so |
-        Copy-Item -Destination $OutputDirectory.FullName
-}
+# Copy native runtimes
+$RuntimeFolders = Get-Item -Path "$OutputPath/bin/libSkiaSharp.*" |
+    ForEach-Object {
+        $File = $_
+        switch ($_.Extension) {
+            '.dll' {
+                $Destination = New-Item -ItemType Directory -Path "$ModulePath/win-x64"
+                $File | Copy-Item -Destination $Destination.Fullname
+            }
+            '.so' {
+                $Destination = New-Item -ItemType Directory -Path "$ModulePath/linux-x64"
+                $File | Copy-Item -Destination $Destination.Fullname
+            }
+            '.dylib' {
+                $Destination = New-Item -ItemType Directory -Path "$ModulePath/osx-x64"
+                $File | Copy-Item -Destination $Destination.Fullname
+            }
+        }
+    }
 
 Split-Path -Path $ProjectFile -Parent |
     Get-ChildItem -Recurse -Include "*.ps*1" |
