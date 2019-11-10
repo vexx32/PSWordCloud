@@ -1,5 +1,6 @@
 ﻿Add-Type -ReferencedAssemblies 'System.Runtime.Loader' -TypeDefinition @"
     using System;
+    using System.Reflection;
     using System.Runtime.Loader;
 
     namespace PSWordCloud.Native
@@ -13,6 +14,8 @@
             {
                 return singleton.LoadUnmanagedDllFromPath(path);
             }
+
+            public override Assembly Load(AssemblyName assemblyName) => null;
         }
     }
 "@
