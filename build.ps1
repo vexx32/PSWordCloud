@@ -25,7 +25,7 @@ if (Test-Path -Path $OutputPath) {
 $Dotnet = Start-Process -NoNewWindow -PassThru -FilePath 'dotnet' -ArgumentList @(
     'publish'
     "-c $Channel"
-    "-o $(Join-Path -Path $OutputPath -ChildPath "bin")"
+    '-o "{0}"' -f (Join-Path -Path $OutputPath -ChildPath "bin")
     $ProjectFile
 )
 
