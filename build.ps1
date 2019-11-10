@@ -43,7 +43,7 @@ Copy-Item -Path "$OutputPath/bin/PSWordCloudCmdlet.dll" -Destination $ModulePath
 Copy-Item -Path "$OutputPath/bin/SkiaSharp.dll" -Destination $ModulePath
 
 # Copy native runtimes
-$RuntimeFolders = Get-Item -Path "$OutputPath/bin/libSkiaSharp.*" |
+Get-Item -Path "$OutputPath/bin/libSkiaSharp.*" |
     ForEach-Object {
         $File = $_
         switch ($_.Extension) {
