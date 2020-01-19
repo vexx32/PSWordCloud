@@ -11,6 +11,25 @@ Install-Module PSWordCloud
 ## Usage
 
 ```powershell
+
+#Simply Provide a list of words (in this case, randomly adding picking one hundred animals)
+$animals = New-Object System.Collections.ArrayList
+1..100 | %{
+    $x = get-random -Maximum 7 -Minimum 1 
+    $y = switch ($x){
+        1 {"dragon"}
+        2 {"rabbit"}
+        3{"horse"}
+        4{"cow"}
+        5{"cat"}
+        6{"fox"}
+        }
+
+    [void]$animals.add( $y )
+}
+
+$animals | New-WordCloud -Path .\wordcloud.svg -Typeface Consolas
+
 Get-ClipBoard | New-WordCloud -Path .\wordcloud.svg -Typeface Georgia
 
 Get-Content .\words.txt | New-WordCloud -Path .\wordcloud2.svg -ImageSize 1080p
