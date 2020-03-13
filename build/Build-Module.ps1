@@ -39,9 +39,14 @@ foreach ($rid in $SupportedPlatforms) {
         "--runtime $rid"
     )
 
-    $process.ExitCode > $null
-    Start-Sleep -Seconds 10
-    $process.WaitForExit()
+    try {
+        Start-Sleep -Seconds 60
+        $process.WaitForExit()
+    }
+    catch {
+        Write-Warning "dotnet process errored on WaitForExit()"
+        Start-Sleep -Seconds 10
+    }
 
     if ($LASTEXITCODE -eq 1) { $global:LASTEXITCODE = 0 }
 
