@@ -15,9 +15,13 @@ param(
     $ProjectFile = (Join-Path -Path "$PSScriptRoot/.." -ChildPath "Module" "PSWordCloudCmdlet.csproj")
 )
 
+$PSVersionTable | Out-String | Write-Host
+
+Write-Host "Importing PlatyPS"
 Import-Module PlatyPS
 
 if (Test-Path -Path $OutputPath) {
+    Write-Host "Cleaning up '$OutputPath'"
     Remove-Item -Recurse -Path $OutputPath
 }
 
@@ -31,6 +35,7 @@ foreach ($rid in $SupportedPlatforms) {
         Remove-Item -Recurse -Path $binPath -Force
     }
 
+    Write-Host "Running 'dotnet publish' with RID: $rid"
     $process = Start-Process -FilePath 'dotnet' -PassThru -ArgumentList @(
         'publish'
         "--configuration $Channel"
@@ -40,40 +45,42 @@ foreach ($rid in $SupportedPlatforms) {
     )
 
     try {
-        Start-Sleep -Seconds 60
+        Write-Host "Waiting for dotnet process to exit..."
         $process.WaitForExit()
     }
     catch {
         Write-Warning "dotnet process errored on WaitForExit()"
-        Start-Sleep -Seconds 10
     }
 
-    if ($LASTEXITCODE -eq 1) { $global:LASTEXITCODE = 0 }
+    Write-Host "dotnet process exited; exit code was $LASTEXITCODE"
 
+    Write-Host "Locating 'libSkiaSharp' file for $rid"
     $nativeLib = Join-Path $OutputPath -ChildPath 'bin' |
         Get-ChildItem -Recurse -File -Filter '*libSkiaSharp*'
     $destinationPath = Join-Path $ModulePath -ChildPath $rid |
         New-Item -Path { $_ } -ItemType Directory |
         Select-Object -ExpandProperty FullName
 
+    Write-Host "Moving $nativeLib to $destinationPath"
     $nativeLib | Move-Item -Destination $destinationPath -Force
 }
 
-# Copy the main module DLLs to final module directory
+Write-Host "Copying PSWordCloud and SkiaSharp DLLs to '$ModulePath'"
 Copy-Item -Path "$OutputPath/bin/PSWordCloudCmdlet.dll" -Destination $ModulePath
 Copy-Item -Path "$OutputPath/bin/SkiaSharp.dll" -Destination $ModulePath
 
+Write-Host "Copying PowerShell files to module folder"
 Split-Path -Path $ProjectFile -Parent |
     Get-ChildItem -Recurse -Include "*.ps*1" |
     Copy-Item -Destination $ModulePath
 
+Write-Host "Importing the built module"
 Import-Module $ModulePath
 
-$DocsPath = Join-Path $PSScriptRoot -ChildPath "docs"
+$DocsPath = Join-Path "$PSScriptRoot/.." -ChildPath "docs"
+Write-Host "Updating markdown help files in '$DocsPath'"
 Update-MarkdownHelp -Path $DocsPath -AlphabeticParamsOrder
 
 $ExternalHelpPath = Join-Path $ModulePath -ChildPath "en-US"
+Write-Host "Generating external help in '$ExternalHelpPath'"
 New-ExternalHelp -Path $DocsPath -OutputPath $ExternalHelpPath
-
-$host.SetShouldExit(0)
-$global:LASTEXITCODE = 0
