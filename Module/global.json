@@ -1,16 +1,15 @@
 {
-  "frameworks": {
-    "netstandard2.0": {
-      "dependencies": {
-        "SkiaSharp": {},
-        "SkiaSharp.NativeAssets.Linux": {}
-      }
+    "frameworks": {
+        "netstandard2.0": {
+            "dependencies": {
+                "SkiaSharp": {},
+                "SkiaSharp.NativeAssets.Linux": {}
+            }
+        }
+    },
+    "runtimes": {
+        "win": {},
+        "osx": {},
+        "linux": {}
     }
-  },
-  "runtimes": {
-    "win-x86": {},
-    "win-x64": {},
-    "osx-x64": {},
-    "linux-x64": {}
-  }
 }
