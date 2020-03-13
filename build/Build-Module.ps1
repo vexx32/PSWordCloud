@@ -8,11 +8,11 @@ param(
 
     [Parameter()]
     [string]
-    $OutputPath = (Join-Path -Path $PSScriptRoot -ChildPath "build"),
+    $OutputPath = $PSScriptRoot,
 
     [Parameter()]
     [string]
-    $ProjectFile = (Join-Path -Path $PSScriptRoot -ChildPath "Module" "PSWordCloudCmdlet.csproj")
+    $ProjectFile = (Join-Path -Path "$PSScriptRoot/.." -ChildPath "Module" "PSWordCloudCmdlet.csproj")
 )
 
 Install-Module -Name PlatyPS -Scope CurrentUser

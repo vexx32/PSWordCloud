@@ -1,0 +1,33 @@
+parameters:
+- name: repositoryPath
+  type: string
+  default: '$(System.DefaultWorkingDirectory)'
+- name: repositoryName
+  type: string
+  default: 'FileSystem'
+- name: artifactName
+  type: string
+  default: 'PSWordCloud.nupkg'
+
+steps:
+- template: './register-local-repo.yml'
+  parameters:
+    repositoryPath: ${{ parameters.repositoryPath }}
+    repositoryName: ${{ parameters.repositoryName }}
+
+- task: DownloadPipelineArtifact@2
+  displayName: 'Download Built Module Artifact'
+  inputs:
+    artifact: ${{ parameters.artifactName }}
+    path: ${{ parameters.repositoryPath }}
+
+- task: PowerShell@2
+  displayName: 'Install Module from Nupkg'
+  inputs:
+    targetType: 'inline'
+    script: |
+      Install-Module PSWordCloud -Repository ${{ parameters.repositoryName }} -Force -Scope CurrentUser
+
+    errorActionPreference: 'stop'
+    failOnStderr: true
+    pwsh: true
