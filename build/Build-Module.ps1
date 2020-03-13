@@ -27,13 +27,13 @@ $SupportedPlatforms = "win-x64", "win-x86", "linux-x64", "osx"
 
 foreach ($rid in $SupportedPlatforms) {
     $binPath = Join-Path -Path $OutputPath -ChildPath "bin"
-    $Dotnet = Start-Process -NoNewWindow -PassThru -FilePath 'dotnet' -ArgumentList @(
+    $Dotnet = Start-Process -PassThru -FilePath 'dotnet' -ArgumentList @(
         'publish'
         "-c $Channel"
         "-o $binPath"
         $ProjectFile
         "-r $rid"
-    )
+    ) 2> $null
     $Dotnet | Wait-Process
 
     $nativeLib = Join-Path $OutputPath -ChildPath 'bin' |
