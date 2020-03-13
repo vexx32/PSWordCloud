@@ -8,7 +8,7 @@ steps:
       Install-Module -Name PSDeploy, BuildHelpers, Platyps -Force -Scope CurrentUser
       Install-Module -Name Pester -Force -SkipPublisherCheck -Scope CurrentUser
 
-      $File = Join-Path $env:TEMP -ChildPath 'Install-Dotnet.ps1'
+      $File = Join-Path $(System.DefaultWorkingDirectory) -ChildPath 'Install-Dotnet.ps1'
       Invoke-WebRequest -Uri 'https://dot.net/v1/dotnet-install.ps1' -OutFile $File
 
       & $File
