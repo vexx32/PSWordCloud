@@ -15,7 +15,6 @@ param(
     $ProjectFile = (Join-Path -Path "$PSScriptRoot/.." -ChildPath "Module" "PSWordCloudCmdlet.csproj")
 )
 
-Install-Module -Name PlatyPS -Scope CurrentUser
 Import-Module PlatyPS
 
 if (Test-Path -Path $OutputPath) {
@@ -61,3 +60,12 @@ Update-MarkdownHelp -Path $DocsPath -AlphabeticParamsOrder
 
 $ExternalHelpPath = Join-Path $ModulePath -ChildPath "en-US"
 New-ExternalHelp -Path $DocsPath -OutputPath $ExternalHelpPath
+
+if ($Error.Count -gt 0) {
+    foreach ($Item in $Error) {
+        $Item | Format-List -Force -Property * | Out-String | Write-Error
+    }
+}
+else {
+    exit 0
+}
