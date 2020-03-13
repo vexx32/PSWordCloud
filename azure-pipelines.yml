@@ -68,7 +68,7 @@ stages:
     displayName: 'Module Nupkg'
 
     pool:
-      vmImage: ubuntu-latest
+      vmImage: windows-latest
 
     steps:
     - template: 'templates/environment-setup.yml'
