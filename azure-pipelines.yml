@@ -17,10 +17,10 @@ variables:
     Trigger: '$(SourceBranchName)'
   ${{ if eq(variables['Build.Reason'], 'PullRequest') }}:
     Trigger: 'PR #$(System.PullRequest.PullRequestNumber)'
-  NupkgArtifactName: 'PSWordCloud.nupkg'
   FileSystemRepository: 'FileSystem'
   PackageDownloadPath: '$(Build.ArtifactStagingDirectory)'
   ModuleArtifactName: 'PSWordCloud'
+  NupkgArtifactName: 'PSWordCloud.nupkg'
 
 
 name: '$(BuildID)-$(Date:yyyy-MM-dd)$(Rev:.r) $(TeamProject) (${{ variables.Trigger }})'
@@ -60,25 +60,25 @@ stages:
   dependsOn: []
 
   variables:
-    FileSystemDeploymentPath: '$(System.DefaultWorkingDirectory)/build/FileSystem'
-    BuiltModulePath: '$(System.DefaultWorkingDirectory)/build/PSWordCloud'
+    FileSystemDeploymentPath: '$(System.DefaultWorkingDirectory)\build\FileSystem'
+    BuiltModulePath: '$(System.DefaultWorkingDirectory)\build\PSWordCloud'
 
   jobs:
-  - job: BuildNupkg
-    displayName: 'Module Nupkg'
+  - job: BuildModule
+    displayName: 'Build Module'
 
     pool:
       vmImage: windows-latest
 
     steps:
-    - template: 'templates/environment-setup.yml'
+    - template: templates\environment-setup.yml
 
     - task: PowerShell@2
       displayName: 'Stage PSWordCloud Module'
 
       inputs:
         targetType: 'filePath'
-        filePath: './build/Build-Module.ps1'
+        filePath: '.\build\Build-Module.ps1'
 
         errorActionPreference: 'stop'
         failOnStdErr: true
@@ -90,7 +90,7 @@ stages:
         path: '$(BuiltModulePath)'
         artifact: '$(ModuleArtifactName)'
 
-    - template: './templates/register-local-repo.yml'
+    - template: .\templates\register-local-repo.yml
       parameters:
         repositoryPath: '$(FileSystemDeploymentPath)'
 
@@ -98,8 +98,8 @@ stages:
       displayName: 'Create Module Nupkg'
       inputs:
         targetType: 'filePath'
-        filePath: './build/Publish-Module.ps1'
-        arguments: -Key 'filesystem' -Path '$(FileSystemDeploymentPath)' -OutputDirectory '$(FileSystemDeploymentPath)' -ModulePath $(BuiltModulePath)
+        filePath: '.\build\Publish-Module.ps1'
+        arguments: -Key 'filesystem' -Path '$(FileSystemDeploymentPath)' -OutputDirectory '$(FileSystemDeploymentPath)' -ModulePath '.\build\PSWordCloud'
 
         errorActionPreference: 'stop'
         failOnStderr: true
@@ -124,15 +124,15 @@ stages:
       vmImage: ubuntu-latest
 
     steps:
-    - template: './templates/environment-setup.yml'
+    - template: templates/environment-setup.yml
 
-    - template: './templates/install-built-module.yml'
+    - template: templates/install-built-module.yml
       parameters:
         repositoryPath: '$(PackageDownloadPath)'
         repositoryName: '$(FileSystemRepository)'
         artifactName: '$(NupkgArtifactName)'
 
-    - template: './templates/test-steps.yml'
+    - template: templates/test-steps.yml
 
 - stage: WindowsTests
   displayName: 'Windows'
@@ -147,15 +147,15 @@ stages:
       vmImage: windows-latest
 
     steps:
-    - template: './templates/environment-setup.yml'
+    - template: templates/environment-setup.yml
 
-    - template: './templates/install-built-module.yml'
+    - template: templates/install-built-module.yml
       parameters:
         repositoryPath: '$(PackageDownloadPath)'
         repositoryName: '$(FileSystemRepository)'
         artifactName: '$(NupkgArtifactName)'
 
-    - template: './templates/test-steps.yml'
+    - template: templates/test-steps.yml
 
 - stage: MacOSTests
   displayName: 'MacOS'
@@ -170,15 +170,15 @@ stages:
       vmImage: macOS-latest
 
     steps:
-    - template: './templates/environment-setup.yml'
+    - template: templates/environment-setup.yml
 
-    - template: './templates/install-built-module.yml'
+    - template: templates/install-built-module.yml
       parameters:
         repositoryPath: '$(PackageDownloadPath)'
         repositoryName: '$(FileSystemRepository)'
         artifactName: '$(NupkgArtifactName)'
 
-    - template: './templates/test-steps.yml'
+    - template: templates/test-steps.yml
 
 - stage: PublishModule
   displayName: 'Publish Module'
@@ -207,7 +207,9 @@ stages:
         deploy:
           steps:
           - checkout: self
-          - template: './templates/environment-setup.yml'
+
+          - template: templates/environment-setup.yml
+
           - task: DownloadPipelineArtifact@2
             displayName: 'Download Built Module Artifact'
             inputs:

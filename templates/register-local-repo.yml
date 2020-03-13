@@ -9,11 +9,12 @@ parameters:
 steps:
 - task: PowerShell@2
   displayName: 'Register FileSystem Repository'
+
   inputs:
     targetType: 'filePath'
-    filePath: './build/Register-FileSystemRepository.ps1'
+    filePath: ./build/Register-FileSystemRepository.ps1
     arguments: -Path '${{ parameters.repositoryPath }}' -Name '${{ parameters.repositoryName }}'
 
-    errorActionPreference: 'stop'
+    errorActionPreference: 'continue'
     failOnStderr: true
     pwsh: true
