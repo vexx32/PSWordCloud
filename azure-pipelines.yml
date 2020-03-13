@@ -60,25 +60,25 @@ stages:
   dependsOn: []
 
   variables:
-    FileSystemDeploymentPath: '$(System.DefaultWorkingDirectory)\build\FileSystem'
-    BuiltModulePath: '$(System.DefaultWorkingDirectory)\build\PSWordCloud'
+    FileSystemDeploymentPath: '$(System.DefaultWorkingDirectory)/build/FileSystem'
+    BuiltModulePath: '$(System.DefaultWorkingDirectory)/build/PSWordCloud'
 
   jobs:
   - job: BuildModule
-    displayName: 'Build Module'
+    displayName: 'Build and Collate Module'
 
     pool:
       vmImage: windows-latest
 
     steps:
-    - template: templates\environment-setup.yml
+    - template: templates/environment-setup.yml
 
     - task: PowerShell@2
       displayName: 'Stage PSWordCloud Module'
 
       inputs:
         targetType: 'filePath'
-        filePath: '.\build\Build-Module.ps1'
+        filePath: './build/Build-Module.ps1'
 
         errorActionPreference: 'stop'
         failOnStdErr: true
@@ -90,7 +90,23 @@ stages:
         path: '$(BuiltModulePath)'
         artifact: '$(ModuleArtifactName)'
 
-    - template: .\templates\register-local-repo.yml
+  - job: BuildNupkg
+    displayName: 'Build Module Nupkg'
+    dependsOn: BuildModule
+
+    pool:
+      vmImage: ubuntu-latest
+
+    steps:
+    - template: templates/environment-setup.yml
+
+    - task: DownloadPipelineArtifact@2
+      displayName: 'Download Staged Module'
+      inputs:
+        artifact: '$(ModuleArtifactName)'
+        targetPath: '$(Build.ArtifactStagingDirectory)'
+
+    - template: ./templates/register-local-repo.yml
       parameters:
         repositoryPath: '$(FileSystemDeploymentPath)'
 
@@ -98,8 +114,8 @@ stages:
       displayName: 'Create Module Nupkg'
       inputs:
         targetType: 'filePath'
-        filePath: '.\build\Publish-Module.ps1'
-        arguments: -Key 'filesystem' -Path '$(FileSystemDeploymentPath)' -OutputDirectory '$(FileSystemDeploymentPath)' -ModulePath '.\build\PSWordCloud'
+        filePath: './build/Publish-Module.ps1'
+        arguments: -Key 'filesystem' -Path '$(FileSystemDeploymentPath)' -OutputDirectory '$(FileSystemDeploymentPath)' -ModulePath '$(Build.ArtifactStagingDirectory)/$(ModuleArtifactName)'
 
         errorActionPreference: 'stop'
         failOnStderr: true
