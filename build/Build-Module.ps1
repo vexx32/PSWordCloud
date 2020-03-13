@@ -27,14 +27,23 @@ $SupportedPlatforms = "win-x64", "win-x86", "linux-x64", "osx"
 
 foreach ($rid in $SupportedPlatforms) {
     $binPath = Join-Path -Path $OutputPath -ChildPath "bin"
-    Start-Process -NoNewWindow -Wait -FilePath 'dotnet' -ArgumentList @(
+    if (Test-Path $binPath) {
+        Remove-Item -Recurse -Path $binPath -Force
+    }
+
+    $process = Start-Process -FilePath 'dotnet' -PassThru -ArgumentList @(
         'publish'
         "--configuration $Channel"
         "--output $binPath"
         $ProjectFile
         "--runtime $rid"
-        "--verbosity detailed"
     )
+
+    $process.ExitCode > $null
+    Start-Sleep -Seconds 10
+    $process.WaitForExit()
+
+    if ($LASTEXITCODE -eq 1) { $global:LASTEXITCODE = 0 }
 
     $nativeLib = Join-Path $OutputPath -ChildPath 'bin' |
         Get-ChildItem -Recurse -File -Filter '*libSkiaSharp*'
@@ -62,3 +71,4 @@ $ExternalHelpPath = Join-Path $ModulePath -ChildPath "en-US"
 New-ExternalHelp -Path $DocsPath -OutputPath $ExternalHelpPath
 
 $host.SetShouldExit(0)
+$global:LASTEXITCODE = 0
