@@ -27,14 +27,14 @@ $SupportedPlatforms = "win-x64", "win-x86", "linux-x64", "osx"
 
 foreach ($rid in $SupportedPlatforms) {
     $binPath = Join-Path -Path $OutputPath -ChildPath "bin"
-    $Dotnet = Start-Process -PassThru -FilePath 'dotnet' -ArgumentList @(
+    Start-Process -NoNewWindow -Wait -FilePath 'dotnet' -ArgumentList @(
         'publish'
-        "-c $Channel"
-        "-o $binPath"
+        "--configuration $Channel"
+        "--output $binPath"
         $ProjectFile
-        "-r $rid"
-    ) 2> $null
-    $Dotnet | Wait-Process
+        "--runtime $rid"
+        "--verbosity detailed"
+    )
 
     $nativeLib = Join-Path $OutputPath -ChildPath 'bin' |
         Get-ChildItem -Recurse -File -Filter '*libSkiaSharp*'
@@ -61,11 +61,4 @@ Update-MarkdownHelp -Path $DocsPath -AlphabeticParamsOrder
 $ExternalHelpPath = Join-Path $ModulePath -ChildPath "en-US"
 New-ExternalHelp -Path $DocsPath -OutputPath $ExternalHelpPath
 
-if ($Error.Count -gt 0) {
-    foreach ($Item in $Error) {
-        $Item | Format-List -Force -Property * | Out-String | Write-Error
-    }
-}
-else {
-    exit 0
-}
+$host.SetShouldExit(0)
