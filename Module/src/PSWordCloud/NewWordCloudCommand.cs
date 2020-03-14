@@ -1,5 +1,7 @@
 ﻿using System;
+using System.Collections;
 using System.Collections.Generic;
+using System.IO;
 using System.Linq;
 using System.Management.Automation;
 using System.Numerics;
@@ -26,12 +28,12 @@ namespace PSWordCloud
 
         #region Constants
 
-        private const float FOCUS_WORD_SCALE = 1.3f;
-        private const float BLEED_AREA_SCALE = 1.15f;
+        private const float FOCUS_WORD_SCALE = 1.2f;
+        private const float BLEED_AREA_SCALE = 1.2f;
         private const float MIN_SATURATION_VALUE = 5f;
         private const float MIN_BRIGHTNESS_DISTANCE = 25f;
-        private const float MAX_WORD_WIDTH_PERCENT = 0.75f;
-        private const float PADDING_BASE_SCALE = 0.05f;
+        private const float MAX_WORD_WIDTH_PERCENT = 1.0f;
+        private const float PADDING_BASE_SCALE = 0.06f;
 
         internal const float STROKE_BASE_SCALE = 0.02f;
 
@@ -80,7 +82,6 @@ namespace PSWordCloud
         [AllowEmptyString()]
         public PSObject InputObject { get; set; }
 
-        private string _resolvedPath;
         /// <summary>
         /// Gets or sets the output path to save the final SVG vector file to.
         /// </summary>
@@ -89,12 +90,7 @@ namespace PSWordCloud
         [Parameter(Mandatory = true, Position = 0, ParameterSetName = "FileBackground")]
         [Parameter(Mandatory = true, Position = 0, ParameterSetName = "FileBackground-FocusWord")]
         [Alias("OutFile", "ExportPath", "ImagePath")]
-        public string Path
-        {
-            get => _resolvedPath;
-            set => _resolvedPath = SessionState.Path
-                .GetUnresolvedProviderPathFromPSPath(value, out ProviderInfo provider, out PSDriveInfo drive);
-        }
+        public string Path { get; set; }
 
         private string _backgroundFullPath;
         /// <summary>
@@ -475,11 +471,8 @@ namespace PSWordCloud
         /// </summary>
         protected override void ProcessRecord()
         {
-            var text = MyInvocation.ExpectingInput
-                    ? new[] { InputObject.BaseObject as string }
-                    : InputObject.BaseObject as string[] ?? new[] { InputObject.BaseObject as string };
-
-            _wordProcessingTasks = _wordProcessingTasks ?? new List<Task<IEnumerable<string>>>(text.Length);
+            IEnumerable<string> text = NormalizeInput(InputObject);
+            _wordProcessingTasks = _wordProcessingTasks ?? new List<Task<IEnumerable<string>>>(GetEstimatedCapacity(InputObject));
 
             foreach (var line in text)
             {
@@ -521,7 +514,7 @@ namespace PSWordCloud
 
             if (MyInvocation.BoundParameters.ContainsKey(nameof(FocusWord)))
             {
-                wordScaleDictionary[FocusWord] = highestWordFreq = highestWordFreq * FOCUS_WORD_SCALE;
+                wordScaleDictionary[FocusWord] = highestWordFreq *= FOCUS_WORD_SCALE;
             }
 
             sortedWordList = new List<string>(SortWordList(wordScaleDictionary, MaxRenderedWords));
@@ -615,7 +608,7 @@ namespace PSWordCloud
 
                 maxRadius = Math.Max(drawableBounds.Width, drawableBounds.Height) / 2f;
 
-                using (SKFileWStream outputStream = new SKFileWStream(_resolvedPath))
+                using (SKDynamicMemoryWStream outputStream = new SKDynamicMemoryWStream())
                 using (SKXmlStreamWriter xmlWriter = new SKXmlStreamWriter(outputStream))
                 using (SKCanvas canvas = SKSvgCanvas.Create(drawableBounds, xmlWriter))
                 using (SKPaint brush = new SKPaint())
@@ -650,8 +643,10 @@ namespace PSWordCloud
                     pointProgress = new ProgressRecord(
                         _progressID + 1,
                         "Scanning available space...",
-                        "Scanning radial points...");
-                    pointProgress.ParentActivityId = _progressID;
+                        "Scanning radial points...")
+                    {
+                        ParentActivityId = _progressID
+                    };
 
                     foreach (string word in sortedWordList.OrderByDescending(x => scaledWordSizes[x]))
                     {
@@ -776,10 +771,14 @@ namespace PSWordCloud
                     }
 
                     canvas.Flush();
+                    canvas.Dispose();
                     outputStream.Flush();
+
+                    SaveSvgData(outputStream);
+
                     if (PassThru.IsPresent)
                     {
-                        WriteObject(InvokeProvider.Item.Get(_resolvedPath), true);
+                        WriteObject(InvokeProvider.Item.Get(Path), true);
                     }
                 }
             }
@@ -807,7 +806,103 @@ namespace PSWordCloud
             }
         }
 
+        private void SaveSvgData(SKDynamicMemoryWStream outputStream)
+        {
+            string[] path = new[] { Path };
+
+            if (InvokeProvider.Item.Exists(Path, force: true, literalPath: true))
+            {
+                InvokeProvider.Content.Clear(path,
+                    force: false,
+                    literalPath: true);
+            }
+
+            using (SKData data = outputStream.CopyToData())
+            using (var reader = new StreamReader(data.AsStream()))
+            using (var writer = InvokeProvider.Content.GetWriter(path, force: false, literalPath: true).First())
+            {
+                writer.Write(new[] { reader.ReadToEnd() });
+                writer.Close();
+            }
+        }
+
         #region HelperMethods
+
+        private int GetEstimatedCapacity(PSObject inputObject)
+        {
+            if (inputObject.BaseObject is string)
+            {
+                return 1;
+            }
+
+            if (inputObject.BaseObject is IList list)
+            {
+                return list.Count;
+            }
+
+            return 1;
+        }
+
+        private IEnumerable<string> NormalizeInput(PSObject input)
+        {
+            string value;
+            switch (input.BaseObject)
+            {
+                case string s2:
+                    yield return s2;
+                    yield break;
+
+                case string[] sa:
+                    foreach (var line in sa)
+                    {
+                        yield return line;
+                    }
+
+                    yield break;
+
+                default:
+                    IEnumerable enumerable;
+                    try
+                    {
+                        enumerable = LanguagePrimitives.GetEnumerable(input.BaseObject);
+                    }
+                    catch
+                    {
+                        yield break;
+                    }
+
+                    if (enumerable != null)
+                    {
+                        foreach (var item in enumerable)
+                        {
+                            try
+                            {
+                                value = LanguagePrimitives.ConvertTo<string>(item);
+                            }
+                            catch
+                            {
+                                yield break;
+                            }
+
+                            yield return value;
+                        }
+
+                        yield break;
+                    }
+
+                    try
+                    {
+                        value = LanguagePrimitives.ConvertTo<string>(input);
+                    }
+                    catch
+                    {
+                        yield break;
+                    }
+
+                    yield return value;
+                    yield break;
+            }
+        }
 
         /// <summary>
         /// Processes the color set to ensure no colors identical to the background or stroke colors are re-used,
@@ -882,8 +977,7 @@ namespace PSWordCloud
         /// <returns>Returns a float value representing a conservative scaling value to apply to each word.</returns>
         private static float FontScale(SKRect space, float baseScale, float averageWordFrequency, int wordCount)
         {
-            return baseScale * (space.Height + space.Width)
-                / (8 * averageWordFrequency * wordCount);
+            return baseScale * Math.Max(space.Height, space.Width) / (averageWordFrequency * wordCount);
         }
 
         /// <summary>
@@ -896,8 +990,8 @@ namespace PSWordCloud
         private static float ScaleWordSize(
             float baseSize, float globalScale, IDictionary<string, float> scaleDictionary)
         {
-            return baseSize * globalScale * (2 * RandomFloat()
-                / (1 + scaleDictionary.Values.Max() - scaleDictionary.Values.Min()) + 0.9f);
+            return baseSize * globalScale * (((0.75f + RandomFloat()) / 2)
+                / (1 + scaleDictionary.Values.Max() - scaleDictionary.Values.Min()) + 0.68f);
         }
 
         /// <summary>
@@ -925,7 +1019,7 @@ namespace PSWordCloud
         /// at that radius once again for available space.</returns>
         private static float GetRadiusIncrement(
             float wordSize, float distanceStep, float maxRadius, float padding, float percentComplete)
-            => (5 + RandomFloat() * (2.5f + percentComplete / 10)) * distanceStep * wordSize * (1 + padding) / maxRadius;
+            => (4 + RandomFloat() * (1 + percentComplete / 10)) * distanceStep * wordSize * (1 + padding) / maxRadius;
 
         /// <summary>
         /// Scans in an ovoid pattern at a given radius to get a set of points to check for sufficient drawing space.
@@ -945,7 +1039,8 @@ namespace PSWordCloud
             }
 
             Complex point;
-            float angle = 0, maxAngle = 0, angleIncrement = 360 / (radius / 6 + 1);
+            float angle = 0;
+            float angleIncrement = 360 / (radius / 6 + 1);
             bool clockwise = RandomFloat() > 0.5;
 
             switch (RandomInt() % 4)
@@ -967,6 +1062,7 @@ namespace PSWordCloud
                     break;
             }
 
+            float maxAngle;
             if (clockwise)
             {
                 maxAngle = angle + 360;
@@ -1027,16 +1123,40 @@ namespace PSWordCloud
             string line, string[] includeWords = null, string[] excludeWords = null)
         {
             return Task.Run<IEnumerable<string>>(
-                () =>
-                {
-                    var words = new List<string>(line.Split(_splitChars, StringSplitOptions.RemoveEmptyEntries));
-                    words.RemoveAll(
-                        x => includeWords?.Contains(x, StringComparer.OrdinalIgnoreCase) != true
-                            && (excludeWords?.Contains(x, StringComparer.OrdinalIgnoreCase) == true
-                                || (!AllowStopWords && _stopWords.Contains(x, StringComparer.OrdinalIgnoreCase))
-                                || Regex.Replace(x, "[^a-z-]", string.Empty, RegexOptions.IgnoreCase).Length < 2));
-                    return words;
-                });
+                () => TrimAndSplitWords(line).Where(x => SelectWord(x, includeWords, excludeWords)));
+        }
+
+        private IEnumerable<string> TrimAndSplitWords(string text)
+        {
+            foreach (var word in text.Split(_splitChars, StringSplitOptions.RemoveEmptyEntries))
+            {
+                yield return Regex.Replace(word, @"^[^a-zA-Z0-9]|[^a-zA-Z0-9']$", string.Empty);
+            }
+        }
+
+        private bool SelectWord(string word, string[] includeWords, string[] excludeWords)
+        {
+            if (includeWords?.Contains(word, StringComparer.OrdinalIgnoreCase) == true)
+            {
+                return true;
+            }
+
+            if (excludeWords?.Contains(word, StringComparer.OrdinalIgnoreCase) == true)
+            {
+                return false;
+            }
+
+            if (!AllowStopWords && _stopWords.Contains(word, StringComparer.OrdinalIgnoreCase))
+            {
+                return false;
+            }
+
+            if (Regex.Replace(word, "[^a-zA-Z-]", string.Empty).Length < 2)
+            {
+                return false;
+            }
+
+            return true;
         }
 
         #endregion HelperMethods

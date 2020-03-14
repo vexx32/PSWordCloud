@@ -77,7 +77,7 @@ namespace PSWordCloud
 
         internal static float SortValue(this SKColor color, float sortAdjustment)
         {
-            color.ToHsv(out float h, out float saturation, out float brightness);
+            color.ToHsv(out _, out float saturation, out float brightness);
             var rand = brightness * (sortAdjustment - 0.5f) / (1 - saturation);
             return brightness + rand;
         }
