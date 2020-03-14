@@ -97,6 +97,9 @@ stages:
     pool:
       vmImage: ubuntu-latest
 
+    variables:
+      DownloadPath: '$(Build.ArtifactStagingDirectory)/$(ModuleArtifactName)'
+
     steps:
     - template: templates/environment-setup.yml
 
@@ -104,7 +107,7 @@ stages:
       displayName: 'Download Staged Module'
       inputs:
         artifact: '$(ModuleArtifactName)'
-        targetPath: '$(Build.ArtifactStagingDirectory)/$(ModuleArtifactName)'
+        targetPath: '$(DownloadPath)'
 
     - template: ./templates/register-local-repo.yml
       parameters:
@@ -115,7 +118,7 @@ stages:
       inputs:
         targetType: 'filePath'
         filePath: './build/Publish-Module.ps1'
-        arguments: -Key 'filesystem' -Path '$(FileSystemDeploymentPath)' -OutputDirectory '$(FileSystemDeploymentPath)' -ModulePath '$(Build.ArtifactStagingDirectory)/$(ModuleArtifactName)'
+        arguments: -Key 'filesystem' -Path '$(FileSystemDeploymentPath)' -OutputDirectory '$(FileSystemDeploymentPath)' -ModulePath '$(DownloadPath)'
 
         errorActionPreference: 'stop'
         failOnStderr: true

@@ -1,6 +1,6 @@
 Deploy Module {
     By PSGalleryModule {
-        FromSource "$env:BUILD_ARTIFACT_STAGING_DIRECTORY/PSWordCloud"
+        FromSource "$env:BUILD_ARTIFACTSTAGINGDIRECTORY/PSWordCloud"
         To FileSystem
         WithOptions @{
             ApiKey = 'FileSystem'
