@@ -35,9 +35,6 @@ namespace PSWordCloud
 
     public static class NativeMethods
     {
-        // On Linux/macOS the shared lib must be named Foo.so and not libFoo.so
-        // public const string LibName = "Foo";
-
         public static IntPtr LibHandle { get; private set; }
 
         public static void LoadNativeLibrary(string dllPath)
@@ -48,7 +45,7 @@ namespace PSWordCloud
             }
             else
             {
-                LibHandle = UnixNativeMethods.dlopen(dllPath, DLOpenFlags.RTLD_LAZY);
+                LibHandle = UnixNativeMethods.dlopen(dllPath, DLOpenFlags.RTLD_NOW);
             }
         }
     }

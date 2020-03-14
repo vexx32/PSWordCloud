@@ -61,11 +61,7 @@ foreach ($rid in $SupportedPlatforms) {
         Select-Object -ExpandProperty FullName
 
     Write-Host "Moving $nativeLib to $destinationPath"
-    $nativeLib = $nativeLib | Move-Item -Destination $destinationPath -Force -PassThru
-
-    if ($rid -notmatch '^win') {
-        $nativeLib | Rename-Item -NewName { "SkiaSharp$($_.Extension)" }
-    }
+    $nativeLib | Move-Item -Destination $destinationPath -Force -PassThru
 }
 
 Write-Host "Copying PSWordCloud and SkiaSharp DLLs to '$ModulePath'"
