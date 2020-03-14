@@ -90,25 +90,6 @@ stages:
         path: '$(BuiltModulePath)'
         artifact: '$(ModuleArtifactName)'
 
-  - job: BuildNupkg
-    displayName: 'Build Module Nupkg'
-    dependsOn: BuildModule
-
-    pool:
-      vmImage: ubuntu-latest
-
-    variables:
-      DownloadPath: '$(Build.ArtifactStagingDirectory)/$(ModuleArtifactName)'
-
-    steps:
-    - template: templates/environment-setup.yml
-
-    - task: DownloadPipelineArtifact@2
-      displayName: 'Download Staged Module'
-      inputs:
-        artifact: '$(ModuleArtifactName)'
-        targetPath: '$(DownloadPath)'
-
     - template: ./templates/register-local-repo.yml
       parameters:
         repositoryPath: '$(FileSystemDeploymentPath)'
@@ -116,9 +97,9 @@ stages:
     - task: PowerShell@2
       displayName: 'Create Module Nupkg'
       inputs:
-        targetType: 'filePath'
-        filePath: './build/Publish-Module.ps1'
-        arguments: -Key 'filesystem' -Path '$(FileSystemDeploymentPath)' -OutputDirectory '$(FileSystemDeploymentPath)' -ModulePath '$(DownloadPath)'
+        targetType: 'inline'
+        script: |
+          & './build/Publish-Module.ps1' -Key 'filesystem' -Path '$(FileSystemDeploymentPath)' -OutputDirectory '$(FileSystemDeploymentPath)' -ModulePath '$(BuiltModulePath)'
 
         errorActionPreference: 'stop'
         failOnStderr: true
