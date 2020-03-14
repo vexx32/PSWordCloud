@@ -52,8 +52,6 @@ foreach ($rid in $SupportedPlatforms) {
         Write-Warning "dotnet process errored on WaitForExit()"
     }
 
-    Write-Host "dotnet process exited; exit code was $LASTEXITCODE"
-
     Write-Host "Locating 'libSkiaSharp' file for $rid"
     $nativeLib = Join-Path $OutputPath -ChildPath 'bin' |
         Get-ChildItem -Recurse -File -Filter '*libSkiaSharp*'

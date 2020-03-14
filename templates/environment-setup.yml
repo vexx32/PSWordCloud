@@ -19,8 +19,6 @@ steps:
     failOnStderr: true
     pwsh: true
 
-- template: ./install-powershell.yml
-
 - task: PowerShell@2
   displayName: 'Initialize Environment'
 
