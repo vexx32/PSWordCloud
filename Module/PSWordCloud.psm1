@@ -1,15 +1,12 @@
-if ($PSVersionTable.PSVersion.Major -ge 7) {
+if ($PSVersionTable.PSVersion.Major -ge 7 -or 'PSWordCloud.PSWordCloudCmdlet' -as [type]) {
     return
 }
 
 $PlatformFolder = switch ($true) {
-    $IsWindows {
-        if ([Environment]::Is64BitProcess) { "win-x64" } else { "win-x86" }
-    }
     $IsMacOS { "osx" }
     $IsLinux { "linux-x64" }
     default {
-        # Windows PowerShell
+        # Windows
         if ([Environment]::Is64BitProcess) { "win-x64" } else { "win-x86" }
     }
 }
@@ -24,7 +21,7 @@ using System.Runtime.Loader;
 
 namespace PSWordCloud
 {
-    public class NativeLoadContext : AssemblyLoadContext
+    public class LoadContext : AssemblyLoadContext
     {
         protected override Assembly Load(AssemblyName assemblyName)
         {
@@ -48,3 +45,7 @@ namespace PSWordCloud
     }
 }
 "@
+
+$Context = [PSWordCloud.LoadContext]::new()
+$Context.Load([System.Reflection.AssemblyName]::new("SkiaSharp"))
+$Context.Load([System.Reflection.AssemblyName]::new("PSWordCloudCmdlet"))
