@@ -17,6 +17,7 @@ Add-Type -TypeDefinition @"
 using System;
 using System.IO;
 using System.Reflection;
+using System.Runtime.InteropServices;
 using System.Runtime.Loader;
 
 namespace PSWordCloud
@@ -40,7 +41,22 @@ namespace PSWordCloud
         }
         protected override IntPtr LoadUnmanagedDll(string unmanagedDllName)
         {
-            return LoadUnmanagedDllFromPath(Path.Combine("$NativeRuntimeFolder", unmanagedDllName));
+            if (unmanagedDllName == "liblibSkiaSharp")
+            {
+                unmanagedDllName = "libSkiaSharp"
+            }
+
+            string libExtension = "dll";
+            if (RuntimeInformation.IsOSPlatform(OSPlatform.OSX))
+            {
+                libExtension = "dylib";
+            }
+            elseif (RuntimeInformation.IsOSPlatform(OSPlatform.Linux))
+            {
+                libExtension = "so";
+            }
+
+            return LoadUnmanagedDllFromPath(Path.Combine("$NativeRuntimeFolder", $"unmanagedDllName.{libExtension}"));
         }
     }
 }
