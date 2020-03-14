@@ -1,9 +1,9 @@
 Deploy Module {
     By PSGalleryModule {
-        FromSource "$PSScriptRoot/../PSKoans"
+        FromSource "$PSScriptRoot/../PSWordCloud"
         To PSGallery
         WithOptions @{
-            ApiKey = $ENV:NugetApiKey
+            ApiKey = $env:NugetApiKey
         }
     }
 }
