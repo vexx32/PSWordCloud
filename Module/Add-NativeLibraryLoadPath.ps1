@@ -26,6 +26,21 @@ namespace PSWordCloud
 {
     public class NativeLoadContext : AssemblyLoadContext
     {
+        protected override Assembly Load(AssemblyName assemblyName)
+        {
+            if (assemblyName.Name == "PSWordCloudCmdlet")
+            {
+                return LoadFromAssemblyPath(Path.Combine("$PSScriptRoot","PSWordCloudCmdlet.dll"));
+            }
+
+            if (assemblyName.Name == "SkiaSharp")
+            {
+                return LoadFromAssemblyPath(Path.Combine("$PSScriptRoot","SkiaSharp.dll"));
+            }
+
+            // Return null to fallback on default load context
+            return null;
+        }
         protected override IntPtr LoadUnmanagedDll(string unmanagedDllName)
         {
             return LoadUnmanagedDllFromPath(Path.Combine("$NativeRuntimeFolder", unmanagedDllName));
