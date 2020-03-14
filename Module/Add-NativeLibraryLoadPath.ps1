@@ -28,7 +28,7 @@ namespace PSWordCloud
     {
         protected override IntPtr LoadUnmanagedDll(string unmanagedDllName)
         {
-            return LoadUnmanagedDllFromPath(Path.Combine($NativeRuntimeFolder, unmanagedDllName));
+            return LoadUnmanagedDllFromPath(Path.Combine("$NativeRuntimeFolder", unmanagedDllName));
         }
     }
 }
