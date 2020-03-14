@@ -1019,7 +1019,7 @@ namespace PSWordCloud
         /// at that radius once again for available space.</returns>
         private static float GetRadiusIncrement(
             float wordSize, float distanceStep, float maxRadius, float padding, float percentComplete)
-            => (4 + RandomFloat() * (2.5f + percentComplete / 8)) * distanceStep * wordSize * (1 + padding) / maxRadius;
+            => (4 + RandomFloat() * (1 + percentComplete / 10)) * distanceStep * wordSize * (1 + padding) / maxRadius;
 
         /// <summary>
         /// Scans in an ovoid pattern at a given radius to get a set of points to check for sufficient drawing space.
