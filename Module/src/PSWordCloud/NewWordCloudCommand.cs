@@ -892,7 +892,7 @@ namespace PSWordCloud
 
                     try
                     {
-                        value = LanguagePrimitives.ConvertTo<string>(input.BaseObject);
+                        value = LanguagePrimitives.ConvertTo<string>(input);
                     }
                     catch
                     {
