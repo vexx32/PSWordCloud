@@ -1,36 +1,36 @@
-if ($PSVersionTable.PSVersion.Major -ge 7 -or 'PSWordCloud.PSWordCloudCmdlet' -as [type]) {
-    return
-}
-
-$PlatformFolder = switch ($true) {
-    $IsMacOS { "osx" }
-    $IsLinux { "linux-x64" }
-    default {
-        # Windows
-        if ([Environment]::Is64BitProcess) { "win-x64" } else { "win-x86" }
+switch ($PSVersionTable.PSVersion.Major) {
+    { $_ -ge 7 } {
+        return
+    }
+    6 {
+        if (-not $IsWindows) {
+            throw "Cannot load native dependencies in PowerShell 6.x on Unix systems; please install PowerShell 7 or higher."
+        }
     }
 }
 
-$NativeRuntimeFolder = Join-Path -Path $PSScriptRoot -ChildPath $PlatformFolder
+if ( 'PSWordCloud.PSWordCloudCmdlet' -as [type] ) {
+    return
+}
 
 Add-Type -TypeDefinition @"
-using System;
-using System.IO;
-using System.Reflection;
-using System.Runtime.InteropServices;
-using System.Runtime.Loader;
-
-namespace PSWordCloud
-{
-    public class LoadContext : AssemblyLoadContext
+    using System.Runtime.InteropServices;
+    public class DllLoadPath
     {
-        protected override Assembly Load(AssemblyName assemblyName)
-        {
-            if (assemblyName.Name == "PSWordCloudCmdlet")
-            {
-                return LoadFromAssemblyPath(Path.Combine("$PSScriptRoot","PSWordCloudCmdlet.dll"));
-            }
+        [DllImport("kernel32", CharSet=CharSet.Unicode)]
+        private static extern int SetDllDirectory(string NewDirectory);
 
+        public static void SetLoadPath(string path)
+        {
+            SetDllDirectory(path);
+        }
+    }
+"@
+
+$PlatformFolder = if ([Environment]::Is64BitProcess) { "win-x64" } else { "win-x86" }
+
+$NativeRuntimeFolder = Join-Path -Path $PSScriptRoot -ChildPath $PlatformFolder
+[DllLoadPath]::SetLoadPath($NativeRuntimeFolder)
             if (assemblyName.Name == "SkiaSharp")
             {
                 return LoadFromAssemblyPath(Path.Combine("$PSScriptRoot","SkiaSharp.dll"));
@@ -43,7 +43,7 @@ namespace PSWordCloud
         {
             if (unmanagedDllName == "liblibSkiaSharp")
             {
-                unmanagedDllName = "libSkiaSharp"
+                unmanagedDllName = "libSkiaSharp";
             }
 
             string libExtension = "dll";
