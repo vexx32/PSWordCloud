@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections;
 using System.Collections.Generic;
+using System.IO;
 using System.Linq;
 using System.Management.Automation;
 using System.Numerics;
@@ -81,7 +82,6 @@ namespace PSWordCloud
         [AllowEmptyString()]
         public PSObject InputObject { get; set; }
 
-        private string _resolvedPath;
         /// <summary>
         /// Gets or sets the output path to save the final SVG vector file to.
         /// </summary>
@@ -90,12 +90,7 @@ namespace PSWordCloud
         [Parameter(Mandatory = true, Position = 0, ParameterSetName = "FileBackground")]
         [Parameter(Mandatory = true, Position = 0, ParameterSetName = "FileBackground-FocusWord")]
         [Alias("OutFile", "ExportPath", "ImagePath")]
-        public string Path
-        {
-            get => _resolvedPath;
-            set => _resolvedPath = SessionState.Path
-                .GetUnresolvedProviderPathFromPSPath(value, out _, out _);
-        }
+        public string Path { get; set; }
 
         private string _backgroundFullPath;
         /// <summary>
@@ -613,7 +608,7 @@ namespace PSWordCloud
 
                 maxRadius = Math.Max(drawableBounds.Width, drawableBounds.Height) / 2f;
 
-                using (SKFileWStream outputStream = new SKFileWStream(_resolvedPath))
+                using (SKDynamicMemoryWStream outputStream = new SKDynamicMemoryWStream())
                 using (SKXmlStreamWriter xmlWriter = new SKXmlStreamWriter(outputStream))
                 using (SKCanvas canvas = SKSvgCanvas.Create(drawableBounds, xmlWriter))
                 using (SKPaint brush = new SKPaint())
@@ -776,10 +771,14 @@ namespace PSWordCloud
                     }
 
                     canvas.Flush();
+                    canvas.Dispose();
                     outputStream.Flush();
+
+                    SaveSvgData(outputStream);
+
                     if (PassThru.IsPresent)
                     {
-                        WriteObject(InvokeProvider.Item.Get(_resolvedPath), true);
+                        WriteObject(InvokeProvider.Item.Get(Path), true);
                     }
                 }
             }
@@ -804,6 +803,26 @@ namespace PSWordCloud
                     pointProgress.RecordType = ProgressRecordType.Completed;
                     WriteProgress(pointProgress);
                 }
+            }
+        }
+
+        private void SaveSvgData(SKDynamicMemoryWStream outputStream)
+        {
+            string[] path = new[] { Path };
+
+            if (InvokeProvider.Item.Exists(Path, force: true, literalPath: true))
+            {
+                InvokeProvider.Content.Clear(path,
+                    force: false,
+                    literalPath: true);
+            }
+
+            using (SKData data = outputStream.CopyToData())
+            using (var reader = new StreamReader(data.AsStream()))
+            using (var writer = InvokeProvider.Content.GetWriter(path, force: false, literalPath: true).First())
+            {
+                writer.Write(new[] { reader.ReadToEnd() });
+                writer.Close();
             }
         }
 
