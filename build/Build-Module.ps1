@@ -22,7 +22,7 @@ Import-Module PlatyPS
 
 if (Test-Path -Path $OutputPath) {
     Write-Host "Cleaning up '$OutputPath'"
-    Remove-Item -Recurse -Path $OutputPath
+    Remove-Item -Recurse -Path "$OutputPath/bin", "$OutputPath/PSWordCloud"
 }
 
 $ModulePath = Join-Path $OutputPath -ChildPath 'PSWordCloud'
@@ -36,7 +36,7 @@ foreach ($rid in $SupportedPlatforms) {
     }
 
     Write-Host "Running 'dotnet publish' with RID: $rid"
-    $process = Start-Process -FilePath 'dotnet' -PassThru -ArgumentList @(
+    $process = Start-Process -FilePath 'dotnet' -WindowStyle Hidden -PassThru -ArgumentList @(
         'publish'
         "--configuration $Channel"
         "--output $binPath"
