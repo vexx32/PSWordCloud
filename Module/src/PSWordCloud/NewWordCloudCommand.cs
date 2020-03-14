@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
 using System.Management.Automation;
@@ -476,7 +477,7 @@ namespace PSWordCloud
         protected override void ProcessRecord()
         {
             IEnumerable<string> text = NormalizeInput(InputObject);
-            _wordProcessingTasks = _wordProcessingTasks ?? new List<Task<IEnumerable<string>>>(text.Count());
+            _wordProcessingTasks = _wordProcessingTasks ?? new List<Task<IEnumerable<string>>>(GetEstimatedCapacity(InputObject));
 
             foreach (var line in text)
             {
@@ -808,17 +809,44 @@ namespace PSWordCloud
 
         #region HelperMethods
 
+        private int GetEstimatedCapacity(PSObject inputObject)
+        {
+            if (inputObject.BaseObject is string)
+            {
+                return 1;
+            }
+
+            if (inputObject.BaseObject is IList list)
+            {
+                return list.Count;
+            }
+
+            return 1;
+        }
+
         private IEnumerable<string> NormalizeInput(PSObject input)
         {
+            string value;
             if (MyInvocation.ExpectingInput)
             {
                 if (input.BaseObject is string s)
                 {
                     yield return s;
+                    yield break;
                 }
                 else
                 {
-                    yield return LanguagePrimitives.ConvertTo<string>(input);
+                    try
+                    {
+                        value = LanguagePrimitives.ConvertTo<string>(input);
+                    }
+                    catch
+                    {
+                        yield break;
+                    }
+
+                    yield return value;
+                    yield break;
                 }
             }
             else
@@ -838,18 +866,45 @@ namespace PSWordCloud
                         yield break;
 
                     default:
-                        var enumerable = LanguagePrimitives.GetEnumerable(input.BaseObject);
+                        IEnumerable enumerable;
+                        try
+                        {
+                            enumerable = LanguagePrimitives.GetEnumerable(input.BaseObject);
+                        }
+                        catch
+                        {
+                            yield break;
+                        }
+
                         if (enumerable != null)
                         {
                             foreach (var item in enumerable)
                             {
-                                yield return LanguagePrimitives.ConvertTo<string>(item);
+                                try
+                                {
+                                    value = LanguagePrimitives.ConvertTo<string>(item);
+                                }
+                                catch
+                                {
+                                    yield break;
+                                }
+
+                                yield return value;
                             }
 
                             yield break;
                         }
 
-                        yield return LanguagePrimitives.ConvertTo<string>(input.BaseObject);
+                        try
+                        {
+                            value = LanguagePrimitives.ConvertTo<string>(input.BaseObject);
+                        }
+                        catch
+                        {
+                            yield break;
+                        }
+
+                        yield return value;
                         yield break;
                 }
             }
@@ -991,7 +1046,8 @@ namespace PSWordCloud
             }
 
             Complex point;
-            float angle = 0, angleIncrement = 360 / (radius / 6 + 1);
+            float angle = 0;
+            float angleIncrement = 360 / (radius / 6 + 1);
             bool clockwise = RandomFloat() > 0.5;
 
             switch (RandomInt() % 4)
