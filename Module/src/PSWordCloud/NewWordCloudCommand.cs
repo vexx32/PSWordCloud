@@ -28,12 +28,12 @@ namespace PSWordCloud
 
         #region Constants
 
-        private const float FOCUS_WORD_SCALE = 1.3f;
-        private const float BLEED_AREA_SCALE = 1.15f;
+        private const float FOCUS_WORD_SCALE = 1.2f;
+        private const float BLEED_AREA_SCALE = 1.2f;
         private const float MIN_SATURATION_VALUE = 5f;
         private const float MIN_BRIGHTNESS_DISTANCE = 25f;
-        private const float MAX_WORD_WIDTH_PERCENT = 0.75f;
-        private const float PADDING_BASE_SCALE = 0.05f;
+        private const float MAX_WORD_WIDTH_PERCENT = 1.0f;
+        private const float PADDING_BASE_SCALE = 0.06f;
 
         internal const float STROKE_BASE_SCALE = 0.02f;
 
@@ -977,8 +977,7 @@ namespace PSWordCloud
         /// <returns>Returns a float value representing a conservative scaling value to apply to each word.</returns>
         private static float FontScale(SKRect space, float baseScale, float averageWordFrequency, int wordCount)
         {
-            return baseScale * (space.Height + space.Width)
-                / (8 * averageWordFrequency * wordCount);
+            return baseScale * Math.Max(space.Height, space.Width) / (averageWordFrequency * wordCount);
         }
 
         /// <summary>
@@ -991,8 +990,8 @@ namespace PSWordCloud
         private static float ScaleWordSize(
             float baseSize, float globalScale, IDictionary<string, float> scaleDictionary)
         {
-            return baseSize * globalScale * (2 * RandomFloat()
-                / (1 + scaleDictionary.Values.Max() - scaleDictionary.Values.Min()) + 0.9f);
+            return baseSize * globalScale * (((0.75f + RandomFloat()) / 2)
+                / (1 + scaleDictionary.Values.Max() - scaleDictionary.Values.Min()) + 0.68f);
         }
 
         /// <summary>
@@ -1020,7 +1019,7 @@ namespace PSWordCloud
         /// at that radius once again for available space.</returns>
         private static float GetRadiusIncrement(
             float wordSize, float distanceStep, float maxRadius, float padding, float percentComplete)
-            => (5 + RandomFloat() * (2.5f + percentComplete / 10)) * distanceStep * wordSize * (1 + padding) / maxRadius;
+            => (4 + RandomFloat() * (2.5f + percentComplete / 8)) * distanceStep * wordSize * (1 + padding) / maxRadius;
 
         /// <summary>
         /// Scans in an ovoid pattern at a given radius to get a set of points to check for sufficient drawing space.
@@ -1131,7 +1130,7 @@ namespace PSWordCloud
         {
             foreach (var word in text.Split(_splitChars, StringSplitOptions.RemoveEmptyEntries))
             {
-                yield return Regex.Replace(word, @"[^a-zA-Z0-9]\b|\b[^a-zA-Z0-9']", string.Empty);
+                yield return Regex.Replace(word, @"^[^a-zA-Z0-9]|[^a-zA-Z0-9']$", string.Empty);
             }
         }
 
