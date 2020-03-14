@@ -93,7 +93,7 @@ namespace PSWordCloud
         {
             get => _resolvedPath;
             set => _resolvedPath = SessionState.Path
-                .GetUnresolvedProviderPathFromPSPath(value, out ProviderInfo provider, out PSDriveInfo drive);
+                .GetUnresolvedProviderPathFromPSPath(value, out _, out _);
         }
 
         private string _backgroundFullPath;
@@ -475,11 +475,8 @@ namespace PSWordCloud
         /// </summary>
         protected override void ProcessRecord()
         {
-            var text = MyInvocation.ExpectingInput
-                    ? new[] { InputObject.BaseObject as string }
-                    : InputObject.BaseObject as string[] ?? new[] { InputObject.BaseObject as string };
-
-            _wordProcessingTasks = _wordProcessingTasks ?? new List<Task<IEnumerable<string>>>(text.Length);
+            IEnumerable<string> text = NormalizeInput(InputObject);
+            _wordProcessingTasks = _wordProcessingTasks ?? new List<Task<IEnumerable<string>>>(text.Count());
 
             foreach (var line in text)
             {
@@ -521,7 +518,7 @@ namespace PSWordCloud
 
             if (MyInvocation.BoundParameters.ContainsKey(nameof(FocusWord)))
             {
-                wordScaleDictionary[FocusWord] = highestWordFreq = highestWordFreq * FOCUS_WORD_SCALE;
+                wordScaleDictionary[FocusWord] = highestWordFreq *= FOCUS_WORD_SCALE;
             }
 
             sortedWordList = new List<string>(SortWordList(wordScaleDictionary, MaxRenderedWords));
@@ -650,8 +647,10 @@ namespace PSWordCloud
                     pointProgress = new ProgressRecord(
                         _progressID + 1,
                         "Scanning available space...",
-                        "Scanning radial points...");
-                    pointProgress.ParentActivityId = _progressID;
+                        "Scanning radial points...")
+                    {
+                        ParentActivityId = _progressID
+                    };
 
                     foreach (string word in sortedWordList.OrderByDescending(x => scaledWordSizes[x]))
                     {
@@ -809,6 +808,53 @@ namespace PSWordCloud
 
         #region HelperMethods
 
+        private IEnumerable<string> NormalizeInput(PSObject input)
+        {
+            if (MyInvocation.ExpectingInput)
+            {
+                if (input.BaseObject is string s)
+                {
+                    yield return s;
+                }
+                else
+                {
+                    yield return LanguagePrimitives.ConvertTo<string>(input);
+                }
+            }
+            else
+            {
+                switch (input.BaseObject)
+                {
+                    case string[] sa:
+                        foreach (var line in sa)
+                        {
+                            yield return line;
+                        }
+
+                        yield break;
+
+                    case string s2:
+                        yield return s2;
+                        yield break;
+
+                    default:
+                        var enumerable = LanguagePrimitives.GetEnumerable(input.BaseObject);
+                        if (enumerable != null)
+                        {
+                            foreach (var item in enumerable)
+                            {
+                                yield return LanguagePrimitives.ConvertTo<string>(item);
+                            }
+
+                            yield break;
+                        }
+
+                        yield return LanguagePrimitives.ConvertTo<string>(input.BaseObject);
+                        yield break;
+                }
+            }
+        }
+
         /// <summary>
         /// Processes the color set to ensure no colors identical to the background or stroke colors are re-used,
         /// and picks out a random selection of colors to use up to the maximum count.
@@ -945,7 +991,7 @@ namespace PSWordCloud
             }
 
             Complex point;
-            float angle = 0, maxAngle = 0, angleIncrement = 360 / (radius / 6 + 1);
+            float angle = 0, angleIncrement = 360 / (radius / 6 + 1);
             bool clockwise = RandomFloat() > 0.5;
 
             switch (RandomInt() % 4)
@@ -967,6 +1013,7 @@ namespace PSWordCloud
                     break;
             }
 
+            float maxAngle;
             if (clockwise)
             {
                 maxAngle = angle + 360;
