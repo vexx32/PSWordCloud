@@ -14,7 +14,8 @@
 *.userprefs
 
 # Build results
-build/
+build/PSWordCloud/
+build/bin/
 [Dd]ebug/
 [Dd]ebugPublic/
 [Rr]elease/

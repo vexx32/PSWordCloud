@@ -1,0 +1,31 @@
+steps:
+- task: PowerShell@2
+  displayName: 'Install Dependencies'
+
+  inputs:
+    targetType: 'inline'
+    script: |
+      Install-Module -Name PSDeploy, BuildHelpers, Platyps -Force -Scope CurrentUser
+      Install-Module -Name Pester -Force -SkipPublisherCheck -Scope CurrentUser
+
+      if ($IsWindows) {
+          $File = Join-Path $(System.DefaultWorkingDirectory) -ChildPath 'Install-Dotnet.ps1'
+          Invoke-WebRequest -Uri 'https://dot.net/v1/dotnet-install.ps1' -OutFile $File
+
+          & $File
+      }
+
+    errorActionPreference: 'stop'
+    failOnStderr: true
+    pwsh: true
+
+- task: PowerShell@2
+  displayName: 'Initialize Environment'
+
+  inputs:
+    targetType: 'filePath'
+    filePath: './build/Initialize-Environment.ps1'
+
+    errorActionPreference: 'stop'
+    failOnStdErr: true
+    pwsh: true
