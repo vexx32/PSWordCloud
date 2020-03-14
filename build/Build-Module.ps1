@@ -48,13 +48,15 @@ foreach ($rid in $SupportedPlatforms) {
     }
 
     Write-Host "Running 'dotnet publish' with RID: $rid"
-    $process = Start-Process -FilePath 'dotnet' -NoNewWindow -Wait -PassThru -ArgumentList @(
+    $process = Start-Process -FilePath 'dotnet' -NoNewWindow -PassThru -ArgumentList @(
         'publish'
         "--configuration $Channel"
         "--output $binPath"
         $ProjectFile
         "--runtime $rid"
     )
+
+    $process.WaitForExit()
 
     Write-Host "Locating 'libSkiaSharp' file for $rid"
 
