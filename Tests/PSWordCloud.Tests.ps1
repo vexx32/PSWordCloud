@@ -1,7 +1,8 @@
 Describe 'PSWordCloud Tests' {
 
     BeforeAll {
-        $FilePath = Join-Path $env:TEMP -ChildPath "$(New-Guid).svg"
+        $File = New-TemporaryFile |
+            Rename-Item -NewName { "$($_.BaseName).svg" } -PassThru
     }
 
     It 'should be able to import the PSWordCloud module successfully' {
@@ -11,15 +12,15 @@ Describe 'PSWordCloud Tests' {
     It 'should run New-WordCloud without errors' {
         Get-ChildItem -Path "$PSScriptRoot/../" -Recurse -File -Include "*.cs", "*.ps*1", "*.md" |
             Get-Content |
-            New-WordCloud -Path $FilePath.FullName
+            New-WordCloud -Path $File.FullName
     }
 
     It 'should create a new SVG file' {
-        $FilePath | Should -Exist
+        $File | Should -Exist
     }
 
     It 'should create non-empty files' {
-        $File = Get-Item -Path $FilePath.FullName
+        $File = Get-Item -Path $File.FullName
         $File.Length | Should -BeGreaterThan 0
     }
 }
