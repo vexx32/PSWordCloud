@@ -9,18 +9,49 @@ Describe 'PSWordCloud Tests' {
         { Import-Module PSWordCloud -ErrorAction Stop } | Should -Not -Throw
     }
 
-    It 'should run New-WordCloud without errors' {
-        Get-ChildItem -Path "$PSScriptRoot/../" -Recurse -File -Include "*.cs", "*.ps*1", "*.md" |
-            Get-Content |
-            New-WordCloud -Path $File.FullName
+    Context 'FileSystem Provider' {
+        It 'should run New-WordCloud without errors' {
+            Get-ChildItem -Path "$PSScriptRoot/../" -Recurse -File -Include "*.cs", "*.ps*1", "*.md" |
+                Get-Content |
+                New-WordCloud -Path $File.FullName
+        }
+
+        It 'should create a new SVG file' {
+            $File | Should -Exist
+        }
+
+        It 'should create a non-empty file' {
+            $File = Get-Item -Path $File.FullName
+            $File.Length | Should -BeGreaterThan 0
+        }
+
+        It 'should have SVG data in the file' {
+            Select-String -Pattern '<svg.*>'  -Path $FilePath | Should -Not -BeNullOrEmpty
+        }
     }
 
-    It 'should create a new SVG file' {
-        $File | Should -Exist
-    }
+    Context 'Variable Provider' {
 
-    It 'should create non-empty files' {
-        $File = Get-Item -Path $File.FullName
-        $File.Length | Should -BeGreaterThan 0
+        BeforeAll {
+            $VariableName = 'SvgData'
+        }
+
+        It 'should run New-WordCloud without errors' {
+            Get-ChildItem -Path "$PSScriptRoot/../" -Recurse -File -Include "*.cs", "*.ps*1", "*.md" |
+                Get-Content |
+                New-WordCloud -Path "variable:\$VariableName"
+        }
+
+        It 'should create a new variable' {
+            { Get-Variable -Name $VariableName -ErrorAction Stop } | Should -Not -Throw
+        }
+
+        It 'should populate the variable' {
+            (Get-Variable -Name $VariableName).Value.Length | Should -BeGreaterThan 0
+        }
+
+        It 'should populate the variable with SVG data' {
+            (Get-Variable -Name $VariableName).Value | Should -MatchExactly '<svg.*>'
+        }
     }
 }
