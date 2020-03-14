@@ -827,18 +827,53 @@ namespace PSWordCloud
         private IEnumerable<string> NormalizeInput(PSObject input)
         {
             string value;
-            if (MyInvocation.ExpectingInput)
+            switch (input.BaseObject)
             {
-                if (input.BaseObject is string s)
-                {
-                    yield return s;
+                case string s2:
+                    yield return s2;
                     yield break;
-                }
-                else
-                {
+
+                case string[] sa:
+                    foreach (var line in sa)
+                    {
+                        yield return line;
+                    }
+
+                    yield break;
+
+                default:
+                    IEnumerable enumerable;
                     try
                     {
-                        value = LanguagePrimitives.ConvertTo<string>(input);
+                        enumerable = LanguagePrimitives.GetEnumerable(input.BaseObject);
+                    }
+                    catch
+                    {
+                        yield break;
+                    }
+
+                    if (enumerable != null)
+                    {
+                        foreach (var item in enumerable)
+                        {
+                            try
+                            {
+                                value = LanguagePrimitives.ConvertTo<string>(item);
+                            }
+                            catch
+                            {
+                                yield break;
+                            }
+
+                            yield return value;
+                        }
+
+                        yield break;
+                    }
+
+                    try
+                    {
+                        value = LanguagePrimitives.ConvertTo<string>(input.BaseObject);
                     }
                     catch
                     {
@@ -847,66 +882,6 @@ namespace PSWordCloud
 
                     yield return value;
                     yield break;
-                }
-            }
-            else
-            {
-                switch (input.BaseObject)
-                {
-                    case string[] sa:
-                        foreach (var line in sa)
-                        {
-                            yield return line;
-                        }
-
-                        yield break;
-
-                    case string s2:
-                        yield return s2;
-                        yield break;
-
-                    default:
-                        IEnumerable enumerable;
-                        try
-                        {
-                            enumerable = LanguagePrimitives.GetEnumerable(input.BaseObject);
-                        }
-                        catch
-                        {
-                            yield break;
-                        }
-
-                        if (enumerable != null)
-                        {
-                            foreach (var item in enumerable)
-                            {
-                                try
-                                {
-                                    value = LanguagePrimitives.ConvertTo<string>(item);
-                                }
-                                catch
-                                {
-                                    yield break;
-                                }
-
-                                yield return value;
-                            }
-
-                            yield break;
-                        }
-
-                        try
-                        {
-                            value = LanguagePrimitives.ConvertTo<string>(input.BaseObject);
-                        }
-                        catch
-                        {
-                            yield break;
-                        }
-
-                        yield return value;
-                        yield break;
-                }
             }
         }
 
