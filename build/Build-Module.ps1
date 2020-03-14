@@ -22,7 +22,8 @@ Import-Module PlatyPS
 
 if (Test-Path -Path $OutputPath) {
     Write-Host "Cleaning up '$OutputPath'"
-    Remove-Item -Recurse -Path "$OutputPath/bin", "$OutputPath/PSWordCloud"
+    Get-ChildItem -Directory $OutputPath -Include 'bin', 'PSWordCloud' |
+        Remove-Item -Recurse
 }
 
 $ModulePath = Join-Path $OutputPath -ChildPath 'PSWordCloud'
