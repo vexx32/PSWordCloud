@@ -116,6 +116,9 @@ stages:
   dependsOn:
   - Build
 
+  # DISABLED: Linux Runner does not have PS7 installed currently.
+  condition: false
+
   jobs:
   - job: Linux
     displayName: 'Pester Tests'
@@ -161,6 +164,9 @@ stages:
   displayName: 'MacOS'
   dependsOn:
   - Build
+
+  # DISABLED: MacOS Runner does not have PS7 installed currently.
+  condition: false
 
   jobs:
   - job: MacOS
