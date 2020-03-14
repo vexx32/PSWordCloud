@@ -1105,16 +1105,40 @@ namespace PSWordCloud
             string line, string[] includeWords = null, string[] excludeWords = null)
         {
             return Task.Run<IEnumerable<string>>(
-                () =>
-                {
-                    var words = new List<string>(line.Split(_splitChars, StringSplitOptions.RemoveEmptyEntries));
-                    words.RemoveAll(
-                        x => includeWords?.Contains(x, StringComparer.OrdinalIgnoreCase) != true
-                            && (excludeWords?.Contains(x, StringComparer.OrdinalIgnoreCase) == true
-                                || (!AllowStopWords && _stopWords.Contains(x, StringComparer.OrdinalIgnoreCase))
-                                || Regex.Replace(x, "[^a-z-]", string.Empty, RegexOptions.IgnoreCase).Length < 2));
-                    return words;
-                });
+                () => TrimAndSplitWords(line).Where(x => SelectWord(x, includeWords, excludeWords)));
+        }
+
+        private IEnumerable<string> TrimAndSplitWords(string text)
+        {
+            foreach (var word in text.Split(_splitChars, StringSplitOptions.RemoveEmptyEntries))
+            {
+                yield return Regex.Replace(word, @"[^a-zA-Z0-9]\b|\b[^a-zA-Z0-9']", string.Empty);
+            }
+        }
+
+        private bool SelectWord(string word, string[] includeWords, string[] excludeWords)
+        {
+            if (includeWords?.Contains(word, StringComparer.OrdinalIgnoreCase) == true)
+            {
+                return true;
+            }
+
+            if (excludeWords?.Contains(word, StringComparer.OrdinalIgnoreCase) == true)
+            {
+                return false;
+            }
+
+            if (!AllowStopWords && _stopWords.Contains(word, StringComparer.OrdinalIgnoreCase))
+            {
+                return false;
+            }
+
+            if (Regex.Replace(word, "[^a-zA-Z-]", string.Empty).Length < 2)
+            {
+                return false;
+            }
+
+            return true;
         }
 
         #endregion HelperMethods
