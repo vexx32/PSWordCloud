@@ -104,7 +104,7 @@ stages:
       displayName: 'Download Staged Module'
       inputs:
         artifact: '$(ModuleArtifactName)'
-        targetPath: '$(Build.ArtifactStagingDirectory)'
+        targetPath: '$(Build.ArtifactStagingDirectory)/$(ModuleArtifactName)'
 
     - template: ./templates/register-local-repo.yml
       parameters:
