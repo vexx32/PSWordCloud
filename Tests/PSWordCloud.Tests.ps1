@@ -26,7 +26,7 @@ Describe 'PSWordCloud Tests' {
         }
 
         It 'should have SVG data in the file' {
-            Select-String -Pattern '<svg.*>'  -Path $FilePath | Should -Not -BeNullOrEmpty
+            Select-String -Pattern '<svg.*>'  -Path $File.FullName | Should -Not -BeNullOrEmpty
         }
     }
 
@@ -39,7 +39,7 @@ Describe 'PSWordCloud Tests' {
         It 'should run New-WordCloud without errors' {
             Get-ChildItem -Path "$PSScriptRoot/../" -Recurse -File -Include "*.cs", "*.ps*1", "*.md" |
                 Get-Content |
-                New-WordCloud -Path "variable:\$VariableName"
+                New-WordCloud -Path "variable:global:$VariableName"
         }
 
         It 'should create a new variable' {
