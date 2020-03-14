@@ -124,7 +124,7 @@ namespace PSWordCloud
 
                     break;
                 case object o:
-                    IEnumerable properties = null;
+                    IEnumerable properties;
                     if (o is Hashtable ht)
                     {
                         properties = ht;
@@ -195,7 +195,7 @@ namespace PSWordCloud
                 case string s:
                     return WCUtils.FontManager.MatchFamily(s, SKFontStyle.Normal);
                 default:
-                    IEnumerable properties = null;
+                    IEnumerable properties;
                     if (inputData is Hashtable ht)
                     {
                         properties = ht;
@@ -223,8 +223,9 @@ namespace PSWordCloud
                     }
                     else
                     {
-                        var customStyle = properties.GetValue("FontStyle") as SKFontStyle;
-                        style = customStyle == null ? SKFontStyle.Normal : customStyle;
+                        style = properties.GetValue("FontStyle") is SKFontStyle customStyle
+                            ? customStyle
+                            : SKFontStyle.Normal;
                     }
 
                     string familyName = LanguagePrimitives.ConvertTo<string>(properties.GetValue("FamilyName"));
@@ -325,7 +326,7 @@ namespace PSWordCloud
                     continue;
                 }
 
-                IEnumerable properties = null;
+                IEnumerable properties;
                 if (item is Hashtable ht)
                 {
                     properties = ht;
@@ -362,33 +363,16 @@ namespace PSWordCloud
 
         public override object Transform(EngineIntrinsics engineIntrinsics, object inputData)
         {
-            SKColor[] results;
             switch (inputData)
             {
                 case string s:
-                    results = MatchColor(s).ToArray();
-                    if (results.Length == 1)
-                    {
-                        return results[0];
-                    }
-                    else
-                    {
-                        return results;
-                    }
+                    return Normalize(MatchColor(s));
 
                 case SKColor color:
                     return color;
 
                 default:
-                    results = TransformObject(inputData).ToArray();
-                    if (results.Length == 1)
-                    {
-                        return results[0];
-                    }
-                    else
-                    {
-                        return results;
-                    }
+                    return Normalize(TransformObject(inputData));
             }
         }
     }
