@@ -537,7 +537,11 @@ namespace PSWordCloud
         protected override void EndProcessing()
         {
             int wordCount = 0;
-            float inflationValue, maxWordWidth, highestWordFreq, aspectRatio, maxRadius;
+            float inflationValue;
+            float maxWordWidth;
+            float highestWordFreq;
+            float aspectRatio;
+            float maxRadius;
 
             SKPath wordPath = null;
             SKRegion clipRegion = null;
@@ -546,7 +550,8 @@ namespace PSWordCloud
             SKBitmap backgroundImage = null;
             SKPoint centrePoint;
             List<string> sortedWordList;
-            ProgressRecord wordProgress = null, pointProgress = null;
+            ProgressRecord wordProgress = null;
+            ProgressRecord pointProgress = null;
 
             Dictionary<string, float> scaledWordSizes;
             var wordScaleDictionary = new Dictionary<string, float>(StringComparer.OrdinalIgnoreCase);
@@ -623,7 +628,8 @@ namespace PSWordCloud
                     Typeface);
 
                 scaledWordSizes = new Dictionary<string, float>(
-                    sortedWordList.Count, StringComparer.OrdinalIgnoreCase);
+                    sortedWordList.Count,
+                    StringComparer.OrdinalIgnoreCase);
 
                 maxWordWidth = AllowRotation == WordOrientations.None
                     ? drawableBounds.Width * MAX_WORD_WIDTH_PERCENT
@@ -641,10 +647,16 @@ namespace PSWordCloud
                         // Pre-test and adjust global scale based on the largest word.
                         retry = false;
                         adjustedWordSize = ScaleWordSize(
-                            wordScaleDictionary[sortedWordList[0]], _fontScale, wordScaleDictionary);
+                            wordScaleDictionary[sortedWordList[0]],
+                            _fontScale,
+                            wordScaleDictionary);
+
                         brush.NextWord(adjustedWordSize, StrokeWidth);
-                        var adjustedTextWidth = brush.MeasureText(sortedWordList[0], ref rect) * (1 + _paddingMultiplier);
-                        if ((rect.Width * rect.Height * 8) < (drawableBounds.Width * drawableBounds.Height * 0.75f))
+
+                        var textRect = brush.GetTextPath(sortedWordList[0], 0, 0).ComputeTightBounds();
+                        var adjustedTextWidth = textRect.Width * (1 + _paddingMultiplier) + StrokeWidth * 2 * STROKE_BASE_SCALE;
+                        if (adjustedTextWidth > maxWordWidth
+                                || textRect.Width * textRect.Height < drawableBounds.Width * drawableBounds.Height * MAX_WORD_AREA_PERCENT)
                         {
                             retry = true;
                             _fontScale *= 1.05f;

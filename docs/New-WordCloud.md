@@ -54,7 +54,7 @@ New-WordCloud -InputObject <PSObject> [-Path] <String> -BackgroundImage <String>
 
 ### ColorBackground-WordTable
 ```
-New-WordCloud -WordSizeTable <IDictionary> [-Path] <String> [-ImageSize <SKSizeI>] [-Typeface <SKTypeface>]
+New-WordCloud -WordSizes <IDictionary> [-Path] <String> [-ImageSize <SKSizeI>] [-Typeface <SKTypeface>]
  [-BackgroundColor <SKColor>] [-ColorSet <SKColor[]>] [-StrokeWidth <Single>] [-StrokeColor <SKColor>]
  [-ExcludeWord <String[]>] [-IncludeWord <String[]>] [-WordScale <Single>] [-AllowRotation <WordOrientations>]
  [-Padding <Single>] [-DistanceStep <Single>] [-RadialStep <Single>] [-MaxRenderedWords <Int32>]
@@ -64,7 +64,7 @@ New-WordCloud -WordSizeTable <IDictionary> [-Path] <String> [-ImageSize <SKSizeI
 
 ### ColorBackground-FocusWord-WordTable
 ```
-New-WordCloud -WordSizeTable <IDictionary> [-Path] <String> [-ImageSize <SKSizeI>] [-Typeface <SKTypeface>]
+New-WordCloud -WordSizes <IDictionary> [-Path] <String> [-ImageSize <SKSizeI>] [-Typeface <SKTypeface>]
  [-BackgroundColor <SKColor>] [-ColorSet <SKColor[]>] [-StrokeWidth <Single>] [-StrokeColor <SKColor>]
  -FocusWord <String> [-RotateFocusWord <Single>] [-ExcludeWord <String[]>] [-IncludeWord <String[]>]
  [-WordScale <Single>] [-AllowRotation <WordOrientations>] [-Padding <Single>] [-DistanceStep <Single>]
@@ -74,7 +74,7 @@ New-WordCloud -WordSizeTable <IDictionary> [-Path] <String> [-ImageSize <SKSizeI
 
 ### FileBackground-WordTable
 ```
-New-WordCloud -WordSizeTable <IDictionary> [-Path] <String> -BackgroundImage <String> [-Typeface <SKTypeface>]
+New-WordCloud -WordSizes <IDictionary> [-Path] <String> -BackgroundImage <String> [-Typeface <SKTypeface>]
  [-ColorSet <SKColor[]>] [-StrokeWidth <Single>] [-StrokeColor <SKColor>] [-ExcludeWord <String[]>]
  [-IncludeWord <String[]>] [-WordScale <Single>] [-AllowRotation <WordOrientations>] [-Padding <Single>]
  [-DistanceStep <Single>] [-RadialStep <Single>] [-MaxRenderedWords <Int32>] [-MaxColors <Int32>]
@@ -83,7 +83,7 @@ New-WordCloud -WordSizeTable <IDictionary> [-Path] <String> -BackgroundImage <St
 
 ### FileBackground-FocusWord-WordTable
 ```
-New-WordCloud -WordSizeTable <IDictionary> [-Path] <String> -BackgroundImage <String> [-Typeface <SKTypeface>]
+New-WordCloud -WordSizes <IDictionary> [-Path] <String> -BackgroundImage <String> [-Typeface <SKTypeface>]
  [-ColorSet <SKColor[]>] [-StrokeWidth <Single>] [-StrokeColor <SKColor>] -FocusWord <String>
  [-RotateFocusWord <Single>] [-ExcludeWord <String[]>] [-IncludeWord <String[]>] [-WordScale <Single>]
  [-AllowRotation <WordOrientations>] [-Padding <Single>] [-DistanceStep <Single>] [-RadialStep <Single>]
@@ -655,7 +655,7 @@ Accept pipeline input: False
 Accept wildcard characters: False
 ```
 
-### -WordSizeTable
+### -WordSizes
 
 Instead of supplying a chunk of text as the input, this parameter allows you to define your own relative word sizes.
 Supply a dictionary or hashtable object where the keys are the words you want to draw in the cloud, and the values are their relative sizes.
@@ -665,7 +665,7 @@ In other words, if you have @{ text = 10; image = 100 }, then "text" will appear
 ```yaml
 Type: IDictionary
 Parameter Sets: ColorBackground-WordTable, ColorBackground-FocusWord-WordTable, FileBackground-WordTable, FileBackground-FocusWord-WordTable
-Aliases:
+Aliases: WordSizeTable, CustomWordSizes
 
 Required: True
 Position: Named
