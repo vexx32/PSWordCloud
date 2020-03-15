@@ -34,6 +34,7 @@ namespace PSWordCloud
         private const float MIN_BRIGHTNESS_DISTANCE = 25f;
         private const float MAX_WORD_WIDTH_PERCENT = 1.0f;
         private const float PADDING_BASE_SCALE = 0.06f;
+        private const float MAX_WORD_AREA_PERCENT = 0.0575f;
 
         internal const string COLOR_BG_SET = "ColorBackground";
         internal const string COLOR_BG_FOCUS_SET = "ColorBackground-FocusWord";
@@ -664,11 +665,13 @@ namespace PSWordCloud
                                 wordScaleDictionary[word], _fontScale, wordScaleDictionary);
 
                             brush.NextWord(adjustedWordSize, StrokeWidth);
-                            var adjustedTextWidth = brush.MeasureText(word, ref rect)
-                                * (1 + _paddingMultiplier + StrokeWidth * STROKE_BASE_SCALE);
 
-                            if (adjustedTextWidth > maxWordWidth
-                                || rect.Width * rect.Height * 8 > drawableBounds.Width * drawableBounds.Height * 0.75f)
+                            var textRect = brush.GetTextPath(word, 0, 0).ComputeTightBounds();
+                            var adjustedTextWidth = textRect.Width * (1 + _paddingMultiplier) + StrokeWidth * 2 * STROKE_BASE_SCALE;
+
+                            if (!AllowOverflow.IsPresent
+                                && (adjustedTextWidth > maxWordWidth
+                                    || textRect.Width * textRect.Height > drawableBounds.Width * drawableBounds.Height * MAX_WORD_AREA_PERCENT))
                             {
                                 retry = true;
                                 _fontScale *= 0.95f;
@@ -734,7 +737,7 @@ namespace PSWordCloud
                     {
                         wordCount++;
 
-                        inflationValue = scaledWordSizes[word] * (_paddingMultiplier + StrokeWidth * STROKE_BASE_SCALE);
+                        inflationValue = 2 * scaledWordSizes[word] * (_paddingMultiplier + StrokeWidth * STROKE_BASE_SCALE);
                         targetPoint = SKPoint.Empty;
 
                         var wordColor = GetNextColor();
@@ -799,7 +802,7 @@ namespace PSWordCloud
                                 alteredPath.Transform(rotation);
                                 alteredPath.GetTightBounds(out wordBounds);
 
-                                wordBounds.Inflate(inflationValue * 2, inflationValue * 2);
+                                wordBounds.Inflate(inflationValue, inflationValue);
 
                                 if (wordCount == 1)
                                 {
@@ -1067,7 +1070,8 @@ namespace PSWordCloud
             int wordCount,
             SKTypeface typeface)
         {
-            return baseScale * Math.Max(space.Height, space.Width) / (averageWordFrequency * wordCount);
+            var FontScale = WCUtils.GetFontScale(typeface);
+            return baseScale * FontScale * Math.Max(space.Height, space.Width) / (averageWordFrequency * wordCount);
         }
 
         /// <summary>
@@ -1082,8 +1086,7 @@ namespace PSWordCloud
             float globalScale,
             IDictionary<string, float> scaleDictionary)
         {
-            return baseSize * globalScale * (((0.75f + RandomFloat()) / 2)
-                / (1 + scaleDictionary.Values.Max() - scaleDictionary.Values.Min()) + 0.68f);
+            return baseSize / scaleDictionary.Values.Max() * globalScale * (1 + RandomFloat() / 5);
         }
 
         /// <summary>
@@ -1110,8 +1113,20 @@ namespace PSWordCloud
         /// <returns>Returns a float value indicating how far to step along the radius before scanning in a circle
         /// at that radius once again for available space.</returns>
         private static float GetRadiusIncrement(
-            float wordSize, float distanceStep, float maxRadius, float padding, float percentComplete)
-            => (4 + RandomFloat() * (1 + percentComplete / 10)) * distanceStep * wordSize * (1 + padding) / maxRadius;
+            float wordSize,
+            float distanceStep,
+            float maxRadius,
+            float padding,
+            float percentComplete)
+        {
+            var wordScaleFactor = (1 + padding) * wordSize / 360;
+            var stepScale = distanceStep / 15;
+            var minRadiusIncrement = percentComplete / 100 * maxRadius / 10;
+
+            var radiusIncrement = minRadiusIncrement * stepScale + wordScaleFactor;
+
+            return radiusIncrement;
+        }
 
         /// <summary>
         /// Scans in an ovoid pattern at a given radius to get a set of points to check for sufficient drawing space.
@@ -1135,7 +1150,11 @@ namespace PSWordCloud
 
             Complex point;
             float angle = 0;
-            float angleIncrement = 360 / (radius / 6 + 1);
+
+            var baseRadialPoints = 7;
+            var baseAngleIncrement = 360 / baseRadialPoints;
+            float angleIncrement = baseAngleIncrement / (float)Math.Sqrt(radius);
+
             bool clockwise = RandomFloat() > 0.5;
 
             switch (RandomInt() % 4)
