@@ -1027,7 +1027,11 @@ namespace PSWordCloud
         /// brightness values.</param>
         /// <returns></returns>
         private static IEnumerable<SKColor> ProcessColorSet(
-            SKColor[] set, SKColor background, SKColor stroke, int maxCount, bool monochrome)
+            SKColor[] set,
+            SKColor background,
+            SKColor stroke,
+            int maxCount,
+            bool monochrome)
         {
             Shuffle(set);
             background.ToHsv(out float bh, out float bs, out float backgroundBrightness);
@@ -1257,7 +1261,9 @@ namespace PSWordCloud
         /// <param name="line">The text to split and process.</param>
         /// <returns>An enumerable string collection of all words in the input, with stopwords stripped out.</returns>
         private Task<IEnumerable<string>> ProcessInputAsync(
-            string line, string[] includeWords = null, string[] excludeWords = null)
+            string line,
+            string[] includeWords = null,
+            string[] excludeWords = null)
         {
             return Task.Run<IEnumerable<string>>(
                 () => TrimAndSplitWords(line).Where(x => SelectWord(x, includeWords, excludeWords)));
