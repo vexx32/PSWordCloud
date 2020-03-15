@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections;
 using System.Collections.Generic;
 using System.IO;
@@ -91,6 +91,16 @@ namespace PSWordCloud
         [AllowEmptyString()]
         public PSObject InputObject { get; set; }
 
+        /// <summary>
+        /// Instead of supplying a chunk of text as the input, this parameter allows you to define your own relative
+        /// word sizes.
+        /// Supply a dictionary or hashtable object where the keys are the words you want to draw in the cloud, and the
+        /// values are their relative sizes.
+        /// Words will be scaled as a percentage of the largest sized word in the table.
+        /// In other words, if you have @{ text = 10; image = 100 }, then "text" will appear 10 times smaller than
+        /// "image".
+        /// </summary>
+        /// <value></value>
         [Parameter(Mandatory = true, ParameterSetName = COLOR_BG_TABLE_SET)]
         [Parameter(Mandatory = true, ParameterSetName = COLOR_BG_FOCUS_TABLE_SET)]
         [Parameter(Mandatory = true, ParameterSetName = FILE_TABLE_SET)]
