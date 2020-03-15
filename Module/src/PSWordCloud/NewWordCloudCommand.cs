@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections;
 using System.Collections.Generic;
 using System.IO;
@@ -19,7 +19,7 @@ namespace PSWordCloud
     /// This command can be used to input large amounts of text, and will generate a word cloud based on
     /// the relative frequencies of the words in the input text.
     /// </summary>
-    [Cmdlet(VerbsCommon.New, "WordCloud", DefaultParameterSetName = "ColorBackground",
+    [Cmdlet(VerbsCommon.New, "WordCloud", DefaultParameterSetName = COLOR_BG_SET,
         HelpUri = "https://github.com/vexx32/PSWordCloud/blob/master/docs/New-WordCloud.md")]
     [Alias("wordcloud", "nwc", "wcloud")]
     [OutputType(typeof(System.IO.FileInfo))]
@@ -28,12 +28,21 @@ namespace PSWordCloud
 
         #region Constants
 
-        private const float FOCUS_WORD_SCALE = 1.2f;
+        private const float FOCUS_WORD_SCALE = 1.3f;
         private const float BLEED_AREA_SCALE = 1.2f;
         private const float MIN_SATURATION_VALUE = 5f;
         private const float MIN_BRIGHTNESS_DISTANCE = 25f;
         private const float MAX_WORD_WIDTH_PERCENT = 1.0f;
         private const float PADDING_BASE_SCALE = 0.06f;
+
+        internal const string COLOR_BG_SET = "ColorBackground";
+        internal const string COLOR_BG_FOCUS_SET = "ColorBackground-FocusWord";
+        internal const string COLOR_BG_FOCUS_TABLE_SET = "ColorBackground-FocusWord-WordTable";
+        internal const string COLOR_BG_TABLE_SET = "ColorBackground-WordTable";
+        internal const string FILE_SET = "FileBackground";
+        internal const string FILE_FOCUS_SET = "FileBackground-FocusWord";
+        internal const string FILE_FOCUS_TABLE_SET = "FileBackground-FocusWord-WordTable";
+        internal const string FILE_TABLE_SET = "FileBackground-WordTable";
 
         internal const float STROKE_BASE_SCALE = 0.02f;
 
@@ -74,21 +83,31 @@ namespace PSWordCloud
         /// as string data regardless of the input type. If you are entering complex object input, ensure they
         /// have a meaningful ToString() method override defined.
         /// </summary>
-        [Parameter(Mandatory = true, ValueFromPipeline = true, ParameterSetName = "ColorBackground")]
-        [Parameter(Mandatory = true, ValueFromPipeline = true, ParameterSetName = "ColorBackground-FocusWord")]
-        [Parameter(Mandatory = true, ValueFromPipeline = true, ParameterSetName = "FileBackground")]
-        [Parameter(Mandatory = true, ValueFromPipeline = true, ParameterSetName = "FileBackground-FocusWord")]
+        [Parameter(Mandatory = true, ValueFromPipeline = true, ParameterSetName = COLOR_BG_SET)]
+        [Parameter(Mandatory = true, ValueFromPipeline = true, ParameterSetName = COLOR_BG_FOCUS_SET)]
+        [Parameter(Mandatory = true, ValueFromPipeline = true, ParameterSetName = FILE_SET)]
+        [Parameter(Mandatory = true, ValueFromPipeline = true, ParameterSetName = FILE_FOCUS_SET)]
         [Alias("InputString", "Text", "String", "Words", "Document", "Page")]
         [AllowEmptyString()]
         public PSObject InputObject { get; set; }
 
+        [Parameter(Mandatory = true, ParameterSetName = COLOR_BG_TABLE_SET)]
+        [Parameter(Mandatory = true, ParameterSetName = COLOR_BG_FOCUS_TABLE_SET)]
+        [Parameter(Mandatory = true, ParameterSetName = FILE_TABLE_SET)]
+        [Parameter(Mandatory = true, ParameterSetName = FILE_FOCUS_TABLE_SET)]
+        public IDictionary WordSizeTable { get; set; }
+
         /// <summary>
         /// Gets or sets the output path to save the final SVG vector file to.
         /// </summary>
-        [Parameter(Mandatory = true, Position = 0, ParameterSetName = "ColorBackground")]
-        [Parameter(Mandatory = true, Position = 0, ParameterSetName = "ColorBackground-FocusWord")]
-        [Parameter(Mandatory = true, Position = 0, ParameterSetName = "FileBackground")]
-        [Parameter(Mandatory = true, Position = 0, ParameterSetName = "FileBackground-FocusWord")]
+        [Parameter(Mandatory = true, Position = 0, ParameterSetName = COLOR_BG_SET)]
+        [Parameter(Mandatory = true, Position = 0, ParameterSetName = COLOR_BG_FOCUS_SET)]
+        [Parameter(Mandatory = true, Position = 0, ParameterSetName = COLOR_BG_FOCUS_TABLE_SET)]
+        [Parameter(Mandatory = true, Position = 0, ParameterSetName = COLOR_BG_TABLE_SET)]
+        [Parameter(Mandatory = true, Position = 0, ParameterSetName = FILE_SET)]
+        [Parameter(Mandatory = true, Position = 0, ParameterSetName = FILE_FOCUS_SET)]
+        [Parameter(Mandatory = true, Position = 0, ParameterSetName = FILE_FOCUS_TABLE_SET)]
+        [Parameter(Mandatory = true, Position = 0, ParameterSetName = FILE_TABLE_SET)]
         [Alias("OutFile", "ExportPath", "ImagePath")]
         public string Path { get; set; }
 
@@ -96,8 +115,10 @@ namespace PSWordCloud
         /// <summary>
         /// Gets or sets the path to the background image to be used as a base for the final word cloud image.
         /// </summary>
-        [Parameter(Mandatory = true, ParameterSetName = "FileBackground")]
-        [Parameter(Mandatory = true, ParameterSetName = "FileBackground-FocusWord")]
+        [Parameter(Mandatory = true, ParameterSetName = FILE_SET)]
+        [Parameter(Mandatory = true, ParameterSetName = FILE_FOCUS_SET)]
+        [Parameter(Mandatory = true, ParameterSetName = FILE_FOCUS_TABLE_SET)]
+        [Parameter(Mandatory = true, ParameterSetName = FILE_TABLE_SET)]
         public string BackgroundImage
         {
             get => _backgroundFullPath;
@@ -134,8 +155,10 @@ namespace PSWordCloud
         /// integer values</para>
         /// </summary>
         /// <value>The default value is a size of 3840x2160.</value>
-        [Parameter(ParameterSetName = "ColorBackground")]
-        [Parameter(ParameterSetName = "ColorBackground-FocusWord")]
+        [Parameter(ParameterSetName = COLOR_BG_SET)]
+        [Parameter(ParameterSetName = COLOR_BG_FOCUS_SET)]
+        [Parameter(ParameterSetName = COLOR_BG_FOCUS_TABLE_SET)]
+        [Parameter(ParameterSetName = COLOR_BG_TABLE_SET)]
         [ArgumentCompleter(typeof(ImageSizeCompleter))]
         [TransformToSKSizeI()]
         public SKSizeI ImageSize { get; set; } = new SKSizeI(3840, 2160);
@@ -172,8 +195,10 @@ namespace PSWordCloud
         /// 255 (fully opaque).</para>
         /// </summary>
         /// <value>The default value is SKColors.Black.</value>
-        [Parameter(ParameterSetName = "ColorBackground")]
-        [Parameter(ParameterSetName = "ColorBackground-FocusWord")]
+        [Parameter(ParameterSetName = COLOR_BG_SET)]
+        [Parameter(ParameterSetName = COLOR_BG_FOCUS_SET)]
+        [Parameter(ParameterSetName = COLOR_BG_FOCUS_TABLE_SET)]
+        [Parameter(ParameterSetName = COLOR_BG_TABLE_SET)]
         [Alias("Backdrop", "CanvasColor")]
         [ArgumentCompleter(typeof(SKColorCompleter))]
         [TransformToSKColor()]
@@ -232,13 +257,17 @@ namespace PSWordCloud
         /// Gets or sets the focus word string to be used in the word cloud. This string will typically appear in the
         /// centre of the cloud, larger than all the other words.
         /// </summary>
-        [Parameter(Mandatory = true, ParameterSetName = "ColorBackground-FocusWord")]
-        [Parameter(Mandatory = true, ParameterSetName = "FileBackground-FocusWord")]
+        [Parameter(Mandatory = true, ParameterSetName = COLOR_BG_FOCUS_SET)]
+        [Parameter(Mandatory = true, ParameterSetName = COLOR_BG_FOCUS_TABLE_SET)]
+        [Parameter(Mandatory = true, ParameterSetName = FILE_FOCUS_SET)]
+        [Parameter(Mandatory = true, ParameterSetName = FILE_FOCUS_TABLE_SET)]
         [Alias("Title")]
         public string FocusWord { get; set; }
 
-        [Parameter(ParameterSetName = "ColorBackground-FocusWord")]
-        [Parameter(ParameterSetName = "FileBackground-FocusWord")]
+        [Parameter(ParameterSetName = COLOR_BG_FOCUS_SET)]
+        [Parameter(ParameterSetName = COLOR_BG_FOCUS_TABLE_SET)]
+        [Parameter(ParameterSetName = FILE_FOCUS_SET)]
+        [Parameter(ParameterSetName = FILE_FOCUS_TABLE_SET)]
         [Alias("RotateTitle")]
         [ArgumentCompleter(typeof(AngleCompleter))]
         [ValidateRange(-360, 360)]
@@ -471,12 +500,24 @@ namespace PSWordCloud
         /// </summary>
         protected override void ProcessRecord()
         {
-            IEnumerable<string> text = NormalizeInput(InputObject);
-            _wordProcessingTasks = _wordProcessingTasks ?? new List<Task<IEnumerable<string>>>(GetEstimatedCapacity(InputObject));
-
-            foreach (var line in text)
+            switch (ParameterSetName)
             {
-                _wordProcessingTasks.Add(ProcessInputAsync(line, IncludeWord, ExcludeWord));
+                case FILE_SET:
+                case FILE_FOCUS_SET:
+                case COLOR_BG_SET:
+                case COLOR_BG_FOCUS_SET:
+                    IEnumerable<string> text = NormalizeInput(InputObject);
+                    _wordProcessingTasks = _wordProcessingTasks ?? new List<Task<IEnumerable<string>>>(GetEstimatedCapacity(InputObject));
+
+                    foreach (var line in text)
+                    {
+                        _wordProcessingTasks.Add(ProcessInputAsync(line, IncludeWord, ExcludeWord));
+                    }
+
+                    break;
+
+                default:
+                    break;
             }
         }
 
@@ -486,27 +527,57 @@ namespace PSWordCloud
         /// </summary>
         protected override void EndProcessing()
         {
-            var lineStrings = Task.WhenAll<IEnumerable<string>>(_wordProcessingTasks);
-            lineStrings.Wait();
-
             int wordCount = 0;
             float inflationValue, maxWordWidth, highestWordFreq, aspectRatio, maxRadius;
 
-            var wordScaleDictionary = new Dictionary<string, float>(StringComparer.OrdinalIgnoreCase);
-            Dictionary<string, float> scaledWordSizes;
-            List<string> sortedWordList;
-
             SKPath wordPath = null;
             SKRegion clipRegion = null;
+            SKRect wordBounds = SKRect.Empty;
+            SKRect drawableBounds = SKRect.Empty;
             SKBitmap backgroundImage = null;
             SKPoint centrePoint;
-
-            SKRect wordBounds = SKRect.Empty, drawableBounds = SKRect.Empty;
+            List<string> sortedWordList;
             ProgressRecord wordProgress = null, pointProgress = null;
 
-            foreach (var lineWords in lineStrings.Result)
+            Dictionary<string, float> scaledWordSizes;
+            var wordScaleDictionary = new Dictionary<string, float>(StringComparer.OrdinalIgnoreCase);
+
+            switch (ParameterSetName)
             {
-                CountWords(lineWords, wordScaleDictionary);
+                case FILE_SET:
+                case FILE_FOCUS_SET:
+                case COLOR_BG_SET:
+                case COLOR_BG_FOCUS_SET:
+                    var lineStrings = Task.WhenAll<IEnumerable<string>>(_wordProcessingTasks);
+                    lineStrings.Wait();
+
+                    wordScaleDictionary = new Dictionary<string, float>(StringComparer.OrdinalIgnoreCase);
+
+                    foreach (var lineWords in lineStrings.Result)
+                    {
+                        CountWords(lineWords, wordScaleDictionary);
+                    }
+
+                    break;
+                case FILE_TABLE_SET:
+                case FILE_FOCUS_TABLE_SET:
+                case COLOR_BG_TABLE_SET:
+                case COLOR_BG_FOCUS_TABLE_SET:
+                    foreach (var word in WordSizeTable.Keys)
+                    {
+                        try
+                        {
+                            wordScaleDictionary.Add(
+                                LanguagePrimitives.ConvertTo<string>(word),
+                                LanguagePrimitives.ConvertTo<float>(WordSizeTable[word]));
+                        }
+                        catch (Exception e)
+                        {
+                            throw e;
+                        }
+                    }
+
+                    break;
             }
 
             // All words counted and in the dictionary.
@@ -539,7 +610,8 @@ namespace PSWordCloud
                     clipRegion.Bounds,
                     WordScale,
                     wordScaleDictionary.Values.Average(),
-                    Math.Min(wordScaleDictionary.Count, MaxRenderedWords));
+                    Math.Min(wordScaleDictionary.Count, MaxRenderedWords),
+                    Typeface);
 
                 scaledWordSizes = new Dictionary<string, float>(
                     sortedWordList.Count, StringComparer.OrdinalIgnoreCase);
@@ -606,7 +678,7 @@ namespace PSWordCloud
                 // Remove all words that were cut from the final rendering list
                 sortedWordList.RemoveAll(x => !scaledWordSizes.ContainsKey(x));
 
-                maxRadius = Math.Max(drawableBounds.Width, drawableBounds.Height) / 2f;
+                maxRadius = 9 * Math.Max(drawableBounds.Width, drawableBounds.Height) / 16f;
 
                 using (SKDynamicMemoryWStream outputStream = new SKDynamicMemoryWStream())
                 using (SKXmlStreamWriter xmlWriter = new SKXmlStreamWriter(outputStream))
@@ -621,7 +693,7 @@ namespace PSWordCloud
                             drawableBounds.Height * BLEED_AREA_SCALE);
                     }
 
-                    if (ParameterSetName.StartsWith("FileBackground"))
+                    if (ParameterSetName.StartsWith(FILE_SET))
                     {
                         canvas.DrawBitmap(backgroundImage, 0, 0);
                     }
@@ -703,12 +775,12 @@ namespace PSWordCloud
                                 pointProgress.StatusDescription = string.Format(
                                     "Checking [Point:{0,8:N2}, {1,8:N2}] ({2,4} / {3,4}) at [Radius: {4,8:N2}]",
                                     point.X, point.Y, pointsChecked, totalPoints, radius);
-                                //pointProgress.PercentComplete = 100 * pointsChecked / totalPoints;
+                                // pointProgress.PercentComplete = 100 * pointsChecked / totalPoints;
                                 WriteProgress(pointProgress);
 
                                 baseOffset = new SKPoint(
                                     -(wordWidth / 2),
-                                    (wordHeight / 2));
+                                    wordHeight / 2);
                                 adjustedPoint = point + baseOffset;
 
                                 SKMatrix rotation = SKMatrix.MakeRotationDegrees(drawAngle, point.X, point.Y);
@@ -759,7 +831,6 @@ namespace PSWordCloud
                                 brush.IsStroke = true;
                                 brush.Style = SKPaintStyle.Stroke;
                                 canvas.DrawPath(wordPath, brush);
-
                             }
 
                             brush.IsStroke = false;
@@ -767,6 +838,10 @@ namespace PSWordCloud
                             brush.Style = SKPaintStyle.Fill;
                             occupiedSpace.Op(wordPath, SKRegionOperation.Union);
                             canvas.DrawPath(wordPath, brush);
+                        }
+                        else
+                        {
+                            WriteWarning($"Unable to find a place to draw '{word}'; skipping to next word.");
                         }
                     }
 
@@ -840,7 +915,7 @@ namespace PSWordCloud
                 return list.Count;
             }
 
-            return 1;
+            return 8;
         }
 
         private IEnumerable<string> NormalizeInput(PSObject input)
@@ -975,7 +1050,12 @@ namespace PSWordCloud
         /// <param name="averageWordFrequency">The average frequency of words.</param>
         /// <param name="wordCount">The total number of words to account for.</param>
         /// <returns>Returns a float value representing a conservative scaling value to apply to each word.</returns>
-        private static float FontScale(SKRect space, float baseScale, float averageWordFrequency, int wordCount)
+        private static float FontScale(
+            SKRect space,
+            float baseScale,
+            float averageWordFrequency,
+            int wordCount,
+            SKTypeface typeface)
         {
             return baseScale * Math.Max(space.Height, space.Width) / (averageWordFrequency * wordCount);
         }
@@ -988,7 +1068,9 @@ namespace PSWordCloud
         /// <param name="scaleDictionary">The dictionary of word scales containing their base sizes.</param>
         /// <returns></returns>
         private static float ScaleWordSize(
-            float baseSize, float globalScale, IDictionary<string, float> scaleDictionary)
+            float baseSize,
+            float globalScale,
+            IDictionary<string, float> scaleDictionary)
         {
             return baseSize * globalScale * (((0.75f + RandomFloat()) / 2)
                 / (1 + scaleDictionary.Values.Max() - scaleDictionary.Values.Min()) + 0.68f);
@@ -1030,7 +1112,10 @@ namespace PSWordCloud
         /// <param name="aspectRatio">The aspect ratio of the canvas.</param>
         /// <returns></returns>
         private static IEnumerable<SKPoint> GetRadialPoints(
-            SKPoint centre, float radius, float radialStep, float aspectRatio = 1)
+            SKPoint centre,
+            float radius,
+            float radialStep,
+            float aspectRatio = 1)
         {
             if (radius == 0)
             {

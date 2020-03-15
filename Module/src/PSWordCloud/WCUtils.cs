@@ -35,6 +35,19 @@ namespace PSWordCloud
             return (float)(degrees * Math.PI / 180);
         }
 
+        internal static float GetFontScale(SKTypeface typeface)
+        {
+            var text = "X";
+            using (var paint = new SKPaint())
+            {
+                paint.Typeface = typeface;
+                paint.TextSize = 1;
+                var rect = paint.GetTextPath(text, 0, 0).ComputeTightBounds();
+
+                return (rect.Width + rect.Height) / 2;
+            }
+        }
+
         internal static void Shuffle<T>(this Random rng, T[] array)
         {
             int n = array.Length;
