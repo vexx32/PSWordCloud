@@ -106,7 +106,8 @@ namespace PSWordCloud
         [Parameter(Mandatory = true, ParameterSetName = COLOR_BG_FOCUS_TABLE_SET)]
         [Parameter(Mandatory = true, ParameterSetName = FILE_TABLE_SET)]
         [Parameter(Mandatory = true, ParameterSetName = FILE_FOCUS_TABLE_SET)]
-        public IDictionary WordSizeTable { get; set; }
+        [Alias("WordSizeTable", "CustomWordSizes")]
+        public IDictionary WordSizes { get; set; }
 
         /// <summary>
         /// Gets or sets the output path to save the final SVG vector file to.
@@ -574,13 +575,13 @@ namespace PSWordCloud
                 case FILE_FOCUS_TABLE_SET:
                 case COLOR_BG_TABLE_SET:
                 case COLOR_BG_FOCUS_TABLE_SET:
-                    foreach (var word in WordSizeTable.Keys)
+                    foreach (var word in WordSizes.Keys)
                     {
                         try
                         {
                             wordScaleDictionary.Add(
                                 LanguagePrimitives.ConvertTo<string>(word),
-                                LanguagePrimitives.ConvertTo<float>(WordSizeTable[word]));
+                                LanguagePrimitives.ConvertTo<float>(WordSizes[word]));
                         }
                         catch (Exception e)
                         {
