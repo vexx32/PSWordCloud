@@ -35,6 +35,11 @@ namespace PSWordCloud
             return (float)(degrees * Math.PI / 180);
         }
 
+        /// <summary>
+        /// Returns a font scale value based on the size of the letter X in a given typeface.
+        /// </summary>
+        /// <param name="typeface">The typeface to measure the scale from.</param>
+        /// <returns>A float value typically between 0 and 1. Many common typefaces have values around 0.5.</returns>
         internal static float GetFontScale(SKTypeface typeface)
         {
             var text = "X";
