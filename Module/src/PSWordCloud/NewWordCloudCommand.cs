@@ -527,9 +527,6 @@ namespace PSWordCloud
                     }
 
                     break;
-
-                default:
-                    break;
             }
         }
 
