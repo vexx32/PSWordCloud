@@ -587,7 +587,7 @@ namespace PSWordCloud
                         }
                         catch (Exception e)
                         {
-                            throw e;
+                            WriteWarning($"Skipping entry '{word}' due to error converting key or value: {e.Message}.");
                         }
                     }
 
