@@ -672,7 +672,9 @@ namespace PSWordCloud
                         foreach (string word in sortedWordList)
                         {
                             adjustedWordSize = ScaleWordSize(
-                                wordScaleDictionary[word], _fontScale, wordScaleDictionary);
+                                wordScaleDictionary[word],
+                                _fontScale,
+                                wordScaleDictionary);
 
                             brush.NextWord(adjustedWordSize, StrokeWidth);
 
@@ -769,7 +771,10 @@ namespace PSWordCloud
 
                         wordProgress.StatusDescription = string.Format(
                             "Draw: \"{0}\" [Size: {1:0}] ({2} of {3})",
-                            word, brush.TextSize, wordCount, scaledWordSizes.Count);
+                            word,
+                            brush.TextSize,
+                            wordCount,
+                            scaledWordSizes.Count);
                         wordProgress.PercentComplete = (int)Math.Round(percentComplete);
                         WriteProgress(wordProgress);
 
@@ -777,7 +782,11 @@ namespace PSWordCloud
                             float radius = 0;
                             radius <= maxRadius;
                             radius += GetRadiusIncrement(
-                                scaledWordSizes[word], DistanceStep, maxRadius, inflationValue, percentComplete))
+                                scaledWordSizes[word],
+                                DistanceStep,
+                                maxRadius,
+                                inflationValue,
+                                percentComplete))
                         {
                             SKPoint adjustedPoint, baseOffset;
 
@@ -797,7 +806,11 @@ namespace PSWordCloud
                                     drawAngle);
                                 pointProgress.StatusDescription = string.Format(
                                     "Checking [Point:{0,8:N2}, {1,8:N2}] ({2,4} / {3,4}) at [Radius: {4,8:N2}]",
-                                    point.X, point.Y, pointsChecked, totalPoints, radius);
+                                    point.X,
+                                    point.Y,
+                                    pointsChecked,
+                                    totalPoints,
+                                    radius);
                                 // pointProgress.PercentComplete = 100 * pointsChecked / totalPoints;
                                 WriteProgress(pointProgress);
 
