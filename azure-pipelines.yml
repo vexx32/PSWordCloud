@@ -186,7 +186,7 @@ stages:
 - stage: PublishModule
   displayName: 'Publish Module'
   dependsOn:
-    - LinuxTests
+    #- LinuxTests
     - WindowsTests
     - MacOSTests
   condition: and(succeeded(), startsWith(variables['Build.SourceBranch'], 'refs/tags/'))
