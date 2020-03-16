@@ -363,17 +363,12 @@ namespace PSWordCloud
 
         public override object Transform(EngineIntrinsics engineIntrinsics, object inputData)
         {
-            switch (inputData)
+            return inputData switch
             {
-                case string s:
-                    return Normalize(MatchColor(s));
-
-                case SKColor color:
-                    return color;
-
-                default:
-                    return Normalize(TransformObject(inputData));
-            }
+                string s => Normalize(MatchColor(s)),
+                SKColor color => color,
+                _ => Normalize(TransformObject(inputData)),
+            };
         }
     }
 
