@@ -224,7 +224,7 @@ stages:
 
             inputs:
               targetType: 'filePath'
-              arguments: -Key $(PSApiKey) -Path '$(GalleryDeploymentPath)'
+              arguments: -Key $(PSApiKey) -Path '$(GalleryDeploymentPath)' -ModulePath $(BuiltModulePath)
               filePath: './build/Publish-Module.ps1'
 
               errorActionPreference: 'stop'
@@ -254,6 +254,7 @@ stages:
 
     - task: DownloadPipelineArtifact@2
       inputs:
+        pattern: $(NupkgArtifactName)
         targetPath: '$(Build.ArtifactStagingDirectory)'
 
     - task: GitHubRelease@0
