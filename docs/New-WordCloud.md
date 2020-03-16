@@ -52,6 +52,45 @@ New-WordCloud -InputObject <PSObject> [-Path] <String> -BackgroundImage <String>
  [-AllowOverflow] [-PassThru] [<CommonParameters>]
 ```
 
+### ColorBackground-WordTable
+```
+New-WordCloud -WordSizes <IDictionary> [-Path] <String> [-ImageSize <SKSizeI>] [-Typeface <SKTypeface>]
+ [-BackgroundColor <SKColor>] [-ColorSet <SKColor[]>] [-StrokeWidth <Single>] [-StrokeColor <SKColor>]
+ [-ExcludeWord <String[]>] [-IncludeWord <String[]>] [-WordScale <Single>] [-AllowRotation <WordOrientations>]
+ [-Padding <Single>] [-DistanceStep <Single>] [-RadialStep <Single>] [-MaxRenderedWords <Int32>]
+ [-MaxColors <Int32>] [-RandomSeed <Int32>] [-Monochrome] [-AllowStopWords] [-AllowOverflow] [-PassThru]
+ [<CommonParameters>]
+```
+
+### ColorBackground-FocusWord-WordTable
+```
+New-WordCloud -WordSizes <IDictionary> [-Path] <String> [-ImageSize <SKSizeI>] [-Typeface <SKTypeface>]
+ [-BackgroundColor <SKColor>] [-ColorSet <SKColor[]>] [-StrokeWidth <Single>] [-StrokeColor <SKColor>]
+ -FocusWord <String> [-RotateFocusWord <Single>] [-ExcludeWord <String[]>] [-IncludeWord <String[]>]
+ [-WordScale <Single>] [-AllowRotation <WordOrientations>] [-Padding <Single>] [-DistanceStep <Single>]
+ [-RadialStep <Single>] [-MaxRenderedWords <Int32>] [-MaxColors <Int32>] [-RandomSeed <Int32>] [-Monochrome]
+ [-AllowStopWords] [-AllowOverflow] [-PassThru] [<CommonParameters>]
+```
+
+### FileBackground-WordTable
+```
+New-WordCloud -WordSizes <IDictionary> [-Path] <String> -BackgroundImage <String> [-Typeface <SKTypeface>]
+ [-ColorSet <SKColor[]>] [-StrokeWidth <Single>] [-StrokeColor <SKColor>] [-ExcludeWord <String[]>]
+ [-IncludeWord <String[]>] [-WordScale <Single>] [-AllowRotation <WordOrientations>] [-Padding <Single>]
+ [-DistanceStep <Single>] [-RadialStep <Single>] [-MaxRenderedWords <Int32>] [-MaxColors <Int32>]
+ [-RandomSeed <Int32>] [-Monochrome] [-AllowStopWords] [-AllowOverflow] [-PassThru] [<CommonParameters>]
+```
+
+### FileBackground-FocusWord-WordTable
+```
+New-WordCloud -WordSizes <IDictionary> [-Path] <String> -BackgroundImage <String> [-Typeface <SKTypeface>]
+ [-ColorSet <SKColor[]>] [-StrokeWidth <Single>] [-StrokeColor <SKColor>] -FocusWord <String>
+ [-RotateFocusWord <Single>] [-ExcludeWord <String[]>] [-IncludeWord <String[]>] [-WordScale <Single>]
+ [-AllowRotation <WordOrientations>] [-Padding <Single>] [-DistanceStep <Single>] [-RadialStep <Single>]
+ [-MaxRenderedWords <Int32>] [-MaxColors <Int32>] [-RandomSeed <Int32>] [-Monochrome] [-AllowStopWords]
+ [-AllowOverflow] [-PassThru] [<CommonParameters>]
+```
+
 ## DESCRIPTION
 
 New-WordCloud takes input text either over the pipeline or directly to its -InputObject parameter,
@@ -204,7 +243,7 @@ Accepts input as a complete SKColor object, or one of the following formats:
 
 ```yaml
 Type: SKColor
-Parameter Sets: ColorBackground, ColorBackground-FocusWord
+Parameter Sets: ColorBackground, ColorBackground-FocusWord, ColorBackground-WordTable, ColorBackground-FocusWord-WordTable
 Aliases: Backdrop, CanvasColor
 
 Required: False
@@ -220,7 +259,7 @@ Specifies the path to the background image to be used as a base for the final wo
 
 ```yaml
 Type: String
-Parameter Sets: FileBackground, FileBackground-FocusWord
+Parameter Sets: FileBackground, FileBackground-FocusWord, FileBackground-WordTable, FileBackground-FocusWord-WordTable
 Aliases:
 
 Required: True
@@ -295,7 +334,7 @@ the centre of the cloud, larger than all the other words.
 
 ```yaml
 Type: String
-Parameter Sets: ColorBackground-FocusWord, FileBackground-FocusWord
+Parameter Sets: ColorBackground-FocusWord, FileBackground-FocusWord, ColorBackground-FocusWord-WordTable, FileBackground-FocusWord-WordTable
 Aliases: Title
 
 Required: True
@@ -326,7 +365,7 @@ Input can be passed directly as a [SkiaSharp.SKSizeI] object, or in one of the f
 
 ```yaml
 Type: SKSizeI
-Parameter Sets: ColorBackground, ColorBackground-FocusWord
+Parameter Sets: ColorBackground, ColorBackground-FocusWord, ColorBackground-WordTable, ColorBackground-FocusWord-WordTable
 Aliases:
 
 Required: False
@@ -362,7 +401,7 @@ If you are entering complex object input, ensure the objects have a meaningful T
 
 ```yaml
 Type: PSObject
-Parameter Sets: (All)
+Parameter Sets: ColorBackground, ColorBackground-FocusWord, FileBackground, FileBackground-FocusWord
 Aliases: InputString, Text, String, Words, Document, Page
 
 Required: True
@@ -516,7 +555,7 @@ Values from -360 to 360, including sub-degree increments, are permitted.
 
 ```yaml
 Type: Single
-Parameter Sets: ColorBackground-FocusWord, FileBackground-FocusWord
+Parameter Sets: ColorBackground-FocusWord, FileBackground-FocusWord, ColorBackground-FocusWord-WordTable, FileBackground-FocusWord-WordTable
 Aliases: RotateTitle
 
 Required: False
@@ -612,6 +651,25 @@ Aliases: ScaleFactor
 Required: False
 Position: Named
 Default value: 1.0
+Accept pipeline input: False
+Accept wildcard characters: False
+```
+
+### -WordSizes
+
+Instead of supplying a chunk of text as the input, this parameter allows you to define your own relative word sizes.
+Supply a dictionary or hashtable object where the keys are the words you want to draw in the cloud, and the values are their relative sizes.
+Words will be scaled as a percentage of the largest sized word in the table.
+In other words, if you have @{ text = 10; image = 100 }, then "text" will appear 10 times smaller than "image".
+
+```yaml
+Type: IDictionary
+Parameter Sets: ColorBackground-WordTable, ColorBackground-FocusWord-WordTable, FileBackground-WordTable, FileBackground-FocusWord-WordTable
+Aliases: WordSizeTable, CustomWordSizes
+
+Required: True
+Position: Named
+Default value: None
 Accept pipeline input: False
 Accept wildcard characters: False
 ```
