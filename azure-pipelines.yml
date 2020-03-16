@@ -225,7 +225,7 @@ stages:
             inputs:
               targetType: 'filePath'
               arguments: -Key $(PSApiKey) -Path '$(GalleryDeploymentPath)'
-              filePath: './build/Publish.ps1'
+              filePath: './build/Publish-Module.ps1'
 
               errorActionPreference: 'stop'
               failOnStderr: true
