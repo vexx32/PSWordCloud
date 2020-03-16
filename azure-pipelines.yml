@@ -254,7 +254,7 @@ stages:
 
     - task: DownloadPipelineArtifact@2
       inputs:
-        pattern: $(NupkgArtifactName)
+        itemPattern: $(NupkgArtifactName)
         targetPath: '$(Build.ArtifactStagingDirectory)'
 
     - task: GitHubRelease@0
