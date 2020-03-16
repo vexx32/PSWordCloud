@@ -1,8 +1,11 @@
 Describe 'PSWordCloud Tests' {
 
     BeforeAll {
-        $File = New-TemporaryFile |
-            Rename-Item -NewName { "$($_.BaseName).svg" } -PassThru
+        $FileName = New-TemporaryFile |
+            Rename-Item -NewName { "$($_.BaseName).svg" } -PassThru |
+            Select-Object -ExpandProperty FullName
+
+        Remove-Item -Path $FileName -Force
     }
 
     It 'should be able to import the PSWordCloud module successfully' {
@@ -13,20 +16,20 @@ Describe 'PSWordCloud Tests' {
         It 'should run New-WordCloud without errors' {
             Get-ChildItem -Path "$PSScriptRoot/../" -Recurse -File -Include "*.cs", "*.ps*1", "*.md" |
                 Get-Content |
-                New-WordCloud -Path $File.FullName
+                New-WordCloud -Path $FileName
         }
 
         It 'should create a new SVG file' {
-            $File | Should -Exist
+            $FileName | Should -Exist
         }
 
         It 'should create a non-empty file' {
-            $File = Get-Item -Path $File.FullName
-            $File.Length | Should -BeGreaterThan 0
+            $FileName = Get-Item -Path $FileName
+            (Get-Item -Path $FileName).Length | Should -BeGreaterThan 0
         }
 
         It 'should have SVG data in the file' {
-            Select-String -Pattern '<svg.*>'  -Path $File.FullName | Should -Not -BeNullOrEmpty
+            Select-String -Pattern '<svg.*>' -Path $FileName | Should -Not -BeNullOrEmpty
         }
     }
 
