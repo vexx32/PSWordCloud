@@ -1,6 +1,6 @@
 Deploy Module {
     By PSGalleryModule {
-        FromSource "$PSScriptRoot/../PSWordCloud"
+        FromSource "$env:BUILD_ARTIFACTSTAGINGDIRECTORY/PSWordCloud"
         To PSGallery
         WithOptions @{
             ApiKey = $env:NugetApiKey
