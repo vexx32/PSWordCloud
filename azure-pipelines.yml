@@ -204,6 +204,7 @@ stages:
 
     variables:
       GalleryDeploymentPath: '$(System.DefaultWorkingDirectory)/build/PSGallery'
+      ModuleDownloadPath: '$(Build.ArtifactStagingDirectory)/PSWordCloud'
 
     strategy:
       runOnce:
@@ -217,14 +218,14 @@ stages:
             displayName: 'Download Built Module Artifact'
             inputs:
               artifact: '$(ModuleArtifactName)'
-              path: '$(BuiltModulePath)'
+              path: '$(ModuleDownloadPath)'
 
           - task: PowerShell@2
             displayName: 'Publish Module to PSGallery'
 
             inputs:
               targetType: 'filePath'
-              arguments: -Key $(PSApiKey) -Path '$(GalleryDeploymentPath)' -ModulePath $(BuiltModulePath)
+              arguments: -Key $(PSApiKey) -Path '$(GalleryDeploymentPath)' -ModulePath $(ModuleDownloadPath)
               filePath: './build/Publish-Module.ps1'
 
               errorActionPreference: 'stop'
@@ -255,13 +256,13 @@ stages:
     - task: DownloadPipelineArtifact@2
       inputs:
         itemPattern: $(NupkgArtifactName)
-        targetPath: '$(Build.ArtifactStagingDirectory)'
+        targetPath: $(PackageDownloadPath)
 
     - task: GitHubRelease@0
       inputs:
         gitHubConnection: github.com_vexx32
-        repositoryName: '$(Build.Repository.Name)'
+        repositoryName: $(Build.Repository.Name)
         action: 'edit' # Options: create, edit, delete
-        tag: '$(TagName)' # Required when action == Edit || Action == Delete || TagSource == Manual
-        assets: '$(Build.ArtifactStagingDirectory)/**' # Optional
+        tag: $(TagName) # Required when action == Edit || Action == Delete || TagSource == Manual
+        assets: '$(PackageDownloadPath)/**' # Optional
         assetUploadMode: 'replace' # Optional. Options: delete, replace
