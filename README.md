@@ -12,24 +12,20 @@ Install-Module PSWordCloud
 
 ```powershell
 
-#Simply Provide a list of words (in this case, randomly adding picking one hundred animals)
-$animals = New-Object System.Collections.ArrayList
-1..100 | %{
-    $x = get-random -Maximum 7 -Minimum 1 
-    $y = switch ($x){
-        1 {"dragon"}
-        2 {"rabbit"}
-        3{"horse"}
-        4{"cow"}
-        5{"cat"}
-        6{"fox"}
-        }
+# Simply provide a list of words (in this case, supplied with a simple hashtable depicting words and
+# their relative sizes.
 
-    [void]$animals.add( $y )
+New-WordCloud -Path .\wordcloud.svg -Typeface Consolas -WordSizes @{
+    dragon = Get-Random -Maximum 10 -Minimum 1 
+    rabbit = Get-Random -Maximum 15 -Minimum 1 
+    horse = Get-Random -Maximum 18 -Minimum 1 
+    cow = Get-Random -Maximum 20 -Minimum 1 
+    cat = Get-Random -Maximum 8 -Minimum 1 
+    fox = Get-Random -Maximum 12 -Minimum 1 
 }
 
-$animals | New-WordCloud -Path .\wordcloud.svg -Typeface Consolas
-
+# Alternately, get a chunk of text (doesn't matter where), and pipe it directly to the cmdlet to create
+# a word-frequency word cloud.
 Get-ClipBoard | New-WordCloud -Path .\wordcloud.svg -Typeface Georgia
 
 Get-Content .\words.txt | New-WordCloud -Path .\wordcloud2.svg -ImageSize 1080p
