@@ -43,14 +43,14 @@ namespace PSWordCloud
         internal static float GetFontScale(SKTypeface typeface)
         {
             var text = "X";
-            using (var paint = new SKPaint())
+            using var paint = new SKPaint
             {
-                paint.Typeface = typeface;
-                paint.TextSize = 1;
-                var rect = paint.GetTextPath(text, 0, 0).ComputeTightBounds();
+                Typeface = typeface,
+                TextSize = 1
+            };
+            var rect = paint.GetTextPath(text, 0, 0).ComputeTightBounds();
 
-                return (rect.Width + rect.Height) / 2;
-            }
+            return (rect.Width + rect.Height) / 2;
         }
 
         internal static void Shuffle<T>(this Random rng, T[] array)
@@ -104,11 +104,10 @@ namespace PSWordCloud
         {
             if (usePathBounds && path.GetBounds(out SKRect bounds))
             {
-                using (SKRegion clip = new SKRegion())
-                {
-                    clip.SetRect(SKRectI.Ceiling(bounds));
-                    return region.SetPath(path, clip);
-                }
+                using SKRegion clip = new SKRegion();
+
+                clip.SetRect(SKRectI.Ceiling(bounds));
+                return region.SetPath(path, clip);
             }
             else
             {
@@ -118,11 +117,10 @@ namespace PSWordCloud
 
         internal static bool Op(this SKRegion region, SKPath path, SKRegionOperation operation)
         {
-            using (SKRegion pathRegion = new SKRegion())
-            {
-                pathRegion.SetPath(path, true);
-                return region.Op(pathRegion, operation);
-            }
+            using SKRegion pathRegion = new SKRegion();
+
+            pathRegion.SetPath(path, true);
+            return region.Op(pathRegion, operation);
         }
 
         internal static bool IntersectsRect(this SKRegion region, SKRect rect)
@@ -132,11 +130,10 @@ namespace PSWordCloud
                 return false;
             }
 
-            using (SKRegion rectRegion = new SKRegion())
-            {
-                rectRegion.SetRect(SKRectI.Round(rect));
-                return region.Intersects(rectRegion);
-            }
+            using SKRegion rectRegion = new SKRegion();
+
+            rectRegion.SetRect(SKRectI.Round(rect));
+            return region.Intersects(rectRegion);
         }
 
         internal static bool IntersectsPath(this SKRegion region, SKPath path)
@@ -146,11 +143,10 @@ namespace PSWordCloud
                 return false;
             }
 
-            using (SKRegion pathRegion = new SKRegion())
-            {
-                pathRegion.SetPath(path, region);
-                return region.Intersects(pathRegion);
-            }
+            using SKRegion pathRegion = new SKRegion();
+
+            pathRegion.SetPath(path, region);
+            return region.Intersects(pathRegion);
         }
 
         internal static readonly ReadOnlyDictionary<string, SKColor> ColorLibrary =
@@ -172,21 +168,17 @@ namespace PSWordCloud
 
         internal static object GetValue(this IEnumerable collection, string key)
         {
-            switch (collection)
+            return collection switch
             {
-                case PSMemberInfoCollection<PSPropertyInfo> properties:
-                    return properties[key].Value;
-                case IDictionary dictionary:
-                    return dictionary[key];
-                case IDictionary<string, dynamic> dictT:
-                    return dictT[key];
-                default:
-                    throw new ArgumentException(
-                        string.Format(
-                            "GetValue method only accepts {0} or {1}",
-                            typeof(PSMemberInfoCollection<PSPropertyInfo>).ToString(),
-                            typeof(IDictionary).ToString()));
-            }
+                PSMemberInfoCollection<PSPropertyInfo> properties => properties[key].Value,
+                IDictionary dictionary => dictionary[key],
+                IDictionary<string, dynamic> dictT => dictT[key],
+                _ => throw new ArgumentException(
+                    string.Format(
+                    "GetValue method only accepts {0} or {1}",
+                    typeof(PSMemberInfoCollection<PSPropertyInfo>).ToString(),
+                    typeof(IDictionary).ToString())),
+            };
         }
 
         internal static SKFontManager FontManager = SKFontManager.Default;

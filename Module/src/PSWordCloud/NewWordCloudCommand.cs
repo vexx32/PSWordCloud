@@ -73,7 +73,7 @@ namespace PSWordCloud
 
         private static readonly object _randomLock = new object();
         private static Random _random;
-        private static Random Random => _random = _random ?? new Random();
+        private static Random Random => _random ??= new Random();
 
         #endregion StaticMembers
 
@@ -428,57 +428,43 @@ namespace PSWordCloud
 
         private float NextDrawAngle()
         {
-            switch (AllowRotation)
+            return AllowRotation switch
             {
-                case WordOrientations.Vertical:
-                    return RandomFloat() > 0.5 ? 0 : 90;
-                case WordOrientations.FlippedVertical:
-                    return RandomFloat() < 0.5 ? 0 : -90;
-                case WordOrientations.EitherVertical:
-                    return RandomFloat() < 0.5
-                        ? 0
-                        : RandomFloat() > 0.5
-                            ? 90
-                            : -90;
-                case WordOrientations.UprightDiagonals:
-                    switch (RandomInt(0, 5))
-                    {
-                        case 0: return -90;
-                        case 1: return -45;
-                        case 2: return 45;
-                        case 3: return 90;
-                        case 4: default: return 0;
-                    }
-                case WordOrientations.InvertedDiagonals:
-                    switch (RandomInt(0, 5))
-                    {
-                        case 0: return 90;
-                        case 1: return 135;
-                        case 2: return -135;
-                        case 3: return -90;
-                        case 4: default: return 180;
-                    }
-                case WordOrientations.AllDiagonals:
-                    switch (RandomInt(0, 8))
-                    {
-                        case 0: return 45;
-                        case 1: return 90;
-                        case 2: return 135;
-                        case 3: return 180;
-                        case 4: return -135;
-                        case 5: return -90;
-                        case 6: return -45;
-                        case 7: default: return 0;
-                    }
-                case WordOrientations.AllUpright:
-                    return RandomInt(-90, 91);
-                case WordOrientations.AllInverted:
-                    return RandomInt(90, 271);
-                case WordOrientations.All:
-                    return RandomInt(0, 361);
-                default:
-                    return 0;
-            }
+                WordOrientations.Vertical => RandomChoice() ? 0 : 90,
+                WordOrientations.FlippedVertical => RandomChoice() ? 0 : -90,
+                WordOrientations.EitherVertical => RandomChoice() ? 0 : RandomChoice() ? 90 : -90,
+                WordOrientations.UprightDiagonals => (RandomInt(0, 5)) switch
+                {
+                    0 => -90,
+                    1 => -45,
+                    2 => 45,
+                    3 => 90,
+                    _ => 0,
+                },
+                WordOrientations.InvertedDiagonals => (RandomInt(0, 5)) switch
+                {
+                    0 => 90,
+                    1 => 135,
+                    2 => -135,
+                    3 => -90,
+                    _ => 180,
+                },
+                WordOrientations.AllDiagonals => (RandomInt(0, 8)) switch
+                {
+                    0 => 45,
+                    1 => 90,
+                    2 => 135,
+                    3 => 180,
+                    4 => -135,
+                    5 => -90,
+                    6 => -45,
+                    _ => 0,
+                },
+                WordOrientations.AllUpright => RandomInt(-90, 91),
+                WordOrientations.AllInverted => RandomInt(90, 271),
+                WordOrientations.All => RandomInt(0, 361),
+                _ => 0,
+            };
         }
 
         private float _paddingMultiplier => Padding * PADDING_BASE_SCALE;
@@ -519,7 +505,7 @@ namespace PSWordCloud
                 case COLOR_BG_SET:
                 case COLOR_BG_FOCUS_SET:
                     IEnumerable<string> text = NormalizeInput(InputObject);
-                    _wordProcessingTasks = _wordProcessingTasks ?? new List<Task<IEnumerable<string>>>(GetEstimatedCapacity(InputObject));
+                    _wordProcessingTasks ??= new List<Task<IEnumerable<string>>>(GetEstimatedCapacity(InputObject));
 
                     foreach (var line in text)
                     {
@@ -928,13 +914,12 @@ namespace PSWordCloud
                     literalPath: true);
             }
 
-            using (SKData data = outputStream.CopyToData())
-            using (var reader = new StreamReader(data.AsStream()))
-            using (var writer = InvokeProvider.Content.GetWriter(path, force: false, literalPath: true).First())
-            {
-                writer.Write(new[] { reader.ReadToEnd() });
-                writer.Close();
-            }
+            using SKData data = outputStream.CopyToData();
+            using var reader = new StreamReader(data.AsStream());
+            using var writer = InvokeProvider.Content.GetWriter(path, force: false, literalPath: true).First();
+
+            writer.Write(new[] { reader.ReadToEnd() });
+            writer.Close();
         }
 
         #region HelperMethods
@@ -1228,6 +1213,14 @@ namespace PSWordCloud
             lock (_randomLock)
             {
                 return (float)Random.NextDouble();
+            }
+        }
+
+        private static bool RandomChoice()
+        {
+            lock (_randomLock)
+            {
+                return Random.NextDouble() >= 0.5;
             }
         }
 
