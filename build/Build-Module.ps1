@@ -62,12 +62,24 @@ foreach ($rid in $SupportedPlatforms) {
 
     $nativeLib = Join-Path $OutputPath -ChildPath 'bin' |
         Get-ChildItem -Recurse -File -Filter '*libSkiaSharp*'
+
+    <#
+        SkiaSharp designates the 'osx' RID, but pwsh only recognises the
+        'osx-64' RID when looking for native library folders in the module
+        directory.
+    #>
+    if ($rid -eq 'osx') {
+        $rid = 'osx-x64'
+    }
+
     $destinationPath = Join-Path $ModulePath -ChildPath $rid |
         New-Item -Path { $_ } -ItemType Directory |
         Select-Object -ExpandProperty FullName
 
     Write-Host "Moving $nativeLib to $destinationPath"
-    $nativeLib | Move-Item -Destination $destinationPath -Force -PassThru
+    $nativeLib = $nativeLib | Move-Item -Destination $destinationPath -Force -PassThru
+
+    $nativeLib
 }
 
 Write-Host $Line
