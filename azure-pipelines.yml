@@ -200,7 +200,7 @@ stages:
       name: 'pskoans-releases'
 
     pool:
-      vmImage: ubuntu-latest
+      vmImage: macOS-latest
 
     variables:
       GalleryDeploymentPath: '$(System.DefaultWorkingDirectory)/build/PSGallery'
@@ -255,7 +255,7 @@ stages:
 
     - task: DownloadPipelineArtifact@2
       inputs:
-        itemPattern: $(NupkgArtifactName)
+        artifactName: $(NupkgArtifactName)
         targetPath: $(PackageDownloadPath)
 
     - task: GitHubRelease@0
