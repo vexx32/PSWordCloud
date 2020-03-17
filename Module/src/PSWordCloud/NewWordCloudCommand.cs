@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections;
 using System.Collections.Generic;
 using System.IO;
@@ -35,6 +35,8 @@ namespace PSWordCloud
         private const float MAX_WORD_WIDTH_PERCENT = 1.0f;
         private const float PADDING_BASE_SCALE = 0.06f;
         private const float MAX_WORD_AREA_PERCENT = 0.0575f;
+
+        private const char ELLIPSIS = '…';
 
         internal const string COLOR_BG_SET = "ColorBackground";
         internal const string COLOR_BG_FOCUS_SET = "ColorBackground-FocusWord";
@@ -509,6 +511,7 @@ namespace PSWordCloud
 
                     foreach (var line in text)
                     {
+                        WriteDebug($"Processing input text: {shortLine}");
                         _wordProcessingTasks.Add(ProcessInputAsync(line, IncludeWord, ExcludeWord));
                     }
 
@@ -548,11 +551,13 @@ namespace PSWordCloud
                 case FILE_FOCUS_SET:
                 case COLOR_BG_SET:
                 case COLOR_BG_FOCUS_SET:
-                    var lineStrings = Task.WhenAll<IEnumerable<string>>(_wordProcessingTasks);
+                    WriteDebug("Waiting for word processing tasks to finish.");
                     lineStrings.Wait();
+                    WriteDebug("Word processing tasks complete.");
 
                     wordScaleDictionary = new Dictionary<string, float>(StringComparer.OrdinalIgnoreCase);
 
+                    WriteDebug("Counting words and populating scaling dictionary.");
                     foreach (var lineWords in lineStrings.Result)
                     {
                         CountWords(lineWords, wordScaleDictionary);
@@ -565,6 +570,7 @@ namespace PSWordCloud
                 case COLOR_BG_FOCUS_TABLE_SET:
                     foreach (var word in WordSizes.Keys)
                     {
+                        WriteDebug("Processing -WordSizes input.");
                         try
                         {
                             wordScaleDictionary.Add(
@@ -574,6 +580,7 @@ namespace PSWordCloud
                         catch (Exception e)
                         {
                             WriteWarning($"Skipping entry '{word}' due to error converting key or value: {e.Message}.");
+                            WriteDebug($"Entry type: key - {word.GetType().FullName} ; value - {WordSizes[word].GetType().FullName}");
                         }
                     }
 
@@ -585,6 +592,7 @@ namespace PSWordCloud
 
             if (MyInvocation.BoundParameters.ContainsKey(nameof(FocusWord)))
             {
+                WriteDebug($"Adding focus word '{FocusWord}' to the dictionary.");
                 wordScaleDictionary[FocusWord] = highestWordFreq *= FOCUS_WORD_SCALE;
             }
 
@@ -594,6 +602,7 @@ namespace PSWordCloud
             {
                 if (MyInvocation.BoundParameters.ContainsKey(nameof(BackgroundImage)))
                 {
+                    WriteDebug($"Importing background image from '{_backgroundFullPath}'.");
                     backgroundImage = SKBitmap.Decode(_backgroundFullPath);
                     drawableBounds = new SKRectI(0, 0, backgroundImage.Width, backgroundImage.Height);
                 }
@@ -651,6 +660,8 @@ namespace PSWordCloud
 
                     // Apply manual scaling from the user
                     _fontScale *= WordScale;
+
+                WriteDebug($"Global font scale: {_fontScale}");
 
                     do
                     {
@@ -734,6 +745,8 @@ namespace PSWordCloud
                     foreach (string word in sortedWordList.OrderByDescending(x => scaledWordSizes[x]))
                     {
                         wordCount++;
+
+                    WriteDebug($"Scanning for draw location for '{word}'.");
 
                         inflationValue = 2 * scaledWordSizes[word] * (_paddingMultiplier + StrokeWidth * STROKE_BASE_SCALE);
                         targetPoint = SKPoint.Empty;
@@ -846,6 +859,8 @@ namespace PSWordCloud
                     nextWord:
                         if (targetPoint != SKPoint.Empty)
                         {
+                        WriteDebug($"Drawing '{word}' at [{targetPoint.X}, {targetPoint.Y}].");
+
                             wordPath.FillType = SKPathFillType.EvenOdd;
                             if (MyInvocation.BoundParameters.ContainsKey(nameof(StrokeWidth)))
                             {
@@ -867,6 +882,7 @@ namespace PSWordCloud
                         }
                     }
 
+                WriteDebug("Saving canvas data.");
                     canvas.Flush();
                     canvas.Dispose();
                     outputStream.Flush();
@@ -885,6 +901,7 @@ namespace PSWordCloud
             }
             finally
             {
+                WriteDebug("Disposing SkiaSharp objects.");
                 clipRegion?.Dispose();
                 wordPath?.Dispose();
                 backgroundImage?.Dispose();
@@ -909,15 +926,14 @@ namespace PSWordCloud
 
             if (InvokeProvider.Item.Exists(Path, force: true, literalPath: true))
             {
-                InvokeProvider.Content.Clear(path,
-                    force: false,
-                    literalPath: true);
+                WriteDebug($"Clearing existing content from '{Path}'.");
             }
 
             using SKData data = outputStream.CopyToData();
             using var reader = new StreamReader(data.AsStream());
             using var writer = InvokeProvider.Content.GetWriter(path, force: false, literalPath: true).First();
 
+            WriteDebug($"Saving data to '{Path}'.");
             writer.Write(new[] { reader.ReadToEnd() });
             writer.Close();
         }
