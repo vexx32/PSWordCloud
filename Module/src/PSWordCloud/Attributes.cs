@@ -167,8 +167,8 @@ namespace PSWordCloud
             string matchString = wordToComplete.TrimStart('"').TrimEnd('"');
             foreach (string font in WCUtils.FontList)
             {
-                if (string.IsNullOrEmpty(wordToComplete) ||
-                    font.StartsWith(matchString, StringComparison.OrdinalIgnoreCase))
+                if (string.IsNullOrEmpty(wordToComplete)
+                    || font.StartsWith(matchString, StringComparison.OrdinalIgnoreCase))
                 {
                     if (font.Contains(' ') || font.Contains('#') || wordToComplete.StartsWith("\""))
                     {
@@ -188,50 +188,56 @@ namespace PSWordCloud
     {
         public override object Transform(EngineIntrinsics engineIntrinsics, object inputData)
         {
-            switch (inputData)
+            return inputData switch
             {
-                case SKTypeface t:
-                    return t;
-                case string s:
-                    return WCUtils.FontManager.MatchFamily(s, SKFontStyle.Normal);
-                default:
-                    IEnumerable properties;
-                    if (inputData is Hashtable ht)
-                    {
-                        properties = ht;
-                    }
-                    else
-                    {
-                        properties = PSObject.AsPSObject(inputData).Properties;
-                    }
-
-                    SKFontStyle style;
-                    if (properties.GetValue("FontWeight") == null
-                        || properties.GetValue("FontSlant") == null
-                        || properties.GetValue("FontWidth") == null)
-                    {
-                        SKFontStyleWeight weight = properties.GetValue("FontWeight") == null ?
-                            SKFontStyleWeight.Normal : LanguagePrimitives.ConvertTo<SKFontStyleWeight>(
-                                properties.GetValue("FontWeight"));
-                        SKFontStyleSlant slant = properties.GetValue("FontSlant") == null ?
-                            SKFontStyleSlant.Upright : LanguagePrimitives.ConvertTo<SKFontStyleSlant>(
-                                properties.GetValue("FontSlant"));
-                        SKFontStyleWidth width = properties.GetValue("FontWidth") == null ?
-                            SKFontStyleWidth.Normal : LanguagePrimitives.ConvertTo<SKFontStyleWidth>(
-                                properties.GetValue("FontWidth"));
-                        style = new SKFontStyle(weight, width, slant);
-                    }
-                    else
-                    {
-                        style = properties.GetValue("FontStyle") is SKFontStyle customStyle
-                            ? customStyle
-                            : SKFontStyle.Normal;
-                    }
-
-                    string familyName = LanguagePrimitives.ConvertTo<string>(properties.GetValue("FamilyName"));
-                    return WCUtils.FontManager.MatchFamily(familyName, style);
-            }
+                SKTypeface t => t,
+                string s => WCUtils.FontManager.MatchFamily(s, SKFontStyle.Normal),
+                _ => CreateTypefaceFromObject(inputData),
+            };
         }
+
+        private static SKTypeface CreateTypefaceFromObject(object input)
+        {
+            IEnumerable properties;
+            if (input is Hashtable ht)
+            {
+                properties = ht;
+            }
+            else
+            {
+                properties = PSObject.AsPSObject(input).Properties;
+            }
+
+            SKFontStyle style;
+            if (properties.GetValue("FontWeight") != null
+                || properties.GetValue("FontSlant") != null
+                || properties.GetValue("FontWidth") != null)
+            {
+                SKFontStyleWeight weight = properties.GetValue("FontWeight") == null
+                    ? SKFontStyleWeight.Normal
+                    : LanguagePrimitives.ConvertTo<SKFontStyleWeight>(properties.GetValue("FontWeight"));
+
+                SKFontStyleSlant slant = properties.GetValue("FontSlant") == null
+                    ? SKFontStyleSlant.Upright
+                    : LanguagePrimitives.ConvertTo<SKFontStyleSlant>(properties.GetValue("FontSlant"));
+
+                SKFontStyleWidth width = properties.GetValue("FontWidth") == null
+                    ? SKFontStyleWidth.Normal
+                    : LanguagePrimitives.ConvertTo<SKFontStyleWidth>(properties.GetValue("FontWidth"));
+
+                style = new SKFontStyle(weight, width, slant);
+            }
+            else
+            {
+                style = properties.GetValue("FontStyle") is SKFontStyle customStyle
+                    ? customStyle
+                    : SKFontStyle.Normal;
+            }
+
+            string familyName = LanguagePrimitives.ConvertTo<string>(properties.GetValue("FamilyName"));
+            return WCUtils.FontManager.MatchFamily(familyName, style);
+        }
+
     }
 
     public class SKColorCompleter : IArgumentCompleter
@@ -245,13 +251,16 @@ namespace PSWordCloud
         {
             foreach (string color in WCUtils.ColorNames)
             {
-                if (string.IsNullOrEmpty(wordToComplete) ||
-                    color.StartsWith(wordToComplete, StringComparison.OrdinalIgnoreCase))
+                if (string.IsNullOrEmpty(wordToComplete)
+                    || color.StartsWith(wordToComplete, StringComparison.OrdinalIgnoreCase))
                 {
                     SKColor colorValue = WCUtils.ColorLibrary[color];
                     yield return new CompletionResult(
-                        color, color, CompletionResultType.ParameterValue,
-                        string.Format("{0} (R: {1}, G: {2}, B: {3}, A: {4})",
+                        completionText: color,
+                        listItemText: color,
+                        CompletionResultType.ParameterValue,
+                        toolTip: string.Format(
+                            "{0} (R: {1}, G: {2}, B: {3}, A: {4})",
                             color, colorValue.Red, colorValue.Green, colorValue.Blue, colorValue.Alpha));
                 }
             }
@@ -260,6 +269,60 @@ namespace PSWordCloud
 
     public class TransformToSKColorAttribute : ArgumentTransformationAttribute
     {
+        private IEnumerable<SKColor> TransformObject(object input)
+        {
+            object[] array;
+            if (input is object[] o)
+            {
+                array = o;
+            }
+            else
+            {
+                array = new[] { input };
+            }
+
+            foreach (object item in array)
+            {
+                if (item is string str)
+                {
+                    foreach (var color in MatchColor(str))
+                    {
+                        yield return color;
+                    }
+
+                    continue;
+                }
+
+                IEnumerable properties;
+                if (item is Hashtable ht)
+                {
+                    properties = ht;
+                }
+                else
+                {
+                    properties = PSObject.AsPSObject(item).Properties;
+                }
+
+                byte red = properties.GetValue("red") == null
+                    ? (byte)0
+                    : LanguagePrimitives.ConvertTo<byte>(properties.GetValue("red"));
+
+                byte green = properties.GetValue("green") == null
+                    ? (byte)0
+                    : LanguagePrimitives.ConvertTo<byte>(properties.GetValue("green"));
+
+                byte blue = properties.GetValue("blue") == null
+                    ? (byte)0
+                    : LanguagePrimitives.ConvertTo<byte>(properties.GetValue("blue"));
+
+                byte alpha = properties.GetValue("alpha") == null
+                    ? (byte)255
+                    : LanguagePrimitives.ConvertTo<byte>(properties.GetValue("alpha"));
+
+                yield return new SKColor(red, green, blue, alpha);
+            }
+        }
+
         private IEnumerable<SKColor> MatchColor(string name)
         {
             if (WCUtils.ColorNames.Contains(name))
@@ -278,6 +341,7 @@ namespace PSWordCloud
             {
                 bool foundMatch = false;
                 var pattern = new WildcardPattern(name, WildcardOptions.IgnoreCase);
+
                 foreach (var color in WCUtils.ColorLibrary)
                 {
                     if (pattern.IsMatch(color.Key))
@@ -300,53 +364,6 @@ namespace PSWordCloud
             }
 
             throw new ArgumentTransformationMetadataException();
-        }
-
-        private IEnumerable<SKColor> TransformObject(object input)
-        {
-            object[] array;
-            if (input is object[] o)
-            {
-                array = o;
-            }
-            else
-            {
-                array = new[] { input };
-            }
-
-            foreach (object item in array)
-            {
-                if (item is string s)
-                {
-                    foreach (var color in MatchColor(s))
-                    {
-                        yield return color;
-                    }
-
-                    continue;
-                }
-
-                IEnumerable properties;
-                if (item is Hashtable ht)
-                {
-                    properties = ht;
-                }
-                else
-                {
-                    properties = PSObject.AsPSObject(item).Properties;
-                }
-
-                byte red = properties.GetValue("red") == null ?
-                    (byte)0 : (byte)LanguagePrimitives.ConvertTo<byte>(properties.GetValue("red"));
-                byte green = properties.GetValue("green") == null ?
-                    (byte)0 : (byte)LanguagePrimitives.ConvertTo<byte>(properties.GetValue("green"));
-                byte blue = properties.GetValue("blue") == null ?
-                    (byte)0 : (byte)LanguagePrimitives.ConvertTo<byte>(properties.GetValue("blue"));
-                byte alpha = properties.GetValue("alpha") == null ?
-                    (byte)255 : (byte)LanguagePrimitives.ConvertTo<byte>(properties.GetValue("alpha"));
-
-                yield return new SKColor(red, green, blue, alpha);
-            }
         }
 
         private object Normalize(IEnumerable<SKColor> results)
