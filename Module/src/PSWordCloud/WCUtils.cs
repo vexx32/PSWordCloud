@@ -31,9 +31,7 @@ namespace PSWordCloud
             => new SKPoint(point.X * factor, point.Y * factor);
 
         internal static float ToRadians(this float degrees)
-        {
-            return (float)(degrees * Math.PI / 180);
-        }
+            => (float)(degrees * Math.PI / 180);
 
         /// <summary>
         /// Returns a font scale value based on the size of the letter X in a given typeface.
@@ -97,6 +95,7 @@ namespace PSWordCloud
         {
             color.ToHsv(out _, out float saturation, out float brightness);
             var rand = brightness * (sortAdjustment - 0.5f) / (1 - saturation);
+
             return brightness + rand;
         }
 
