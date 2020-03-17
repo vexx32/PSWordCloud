@@ -536,7 +536,7 @@ namespace PSWordCloud
             SKPath wordPath = null;
             SKRegion clipRegion = null;
             SKRect wordBounds = SKRect.Empty;
-            SKRect drawableBounds = SKRect.Empty;
+            SKRect viewbox = SKRect.Empty;
             SKBitmap backgroundImage = null;
             SKPoint centrePoint;
             List<string> sortedWordList;
@@ -606,16 +606,16 @@ namespace PSWordCloud
                 {
                     WriteDebug($"Importing background image from '{_backgroundFullPath}'.");
                     backgroundImage = SKBitmap.Decode(_backgroundFullPath);
-                    drawableBounds = new SKRectI(0, 0, backgroundImage.Width, backgroundImage.Height);
+                    viewbox = new SKRectI(0, 0, backgroundImage.Width, backgroundImage.Height);
                 }
                 else
                 {
-                    drawableBounds = new SKRectI(0, 0, ImageSize.Width, ImageSize.Height);
+                    viewbox = new SKRectI(0, 0, ImageSize.Width, ImageSize.Height);
                 }
 
                 wordPath = new SKPath();
                 clipRegion = new SKRegion();
-                clipRegion.SetRect(SKRectI.Round(drawableBounds));
+                clipRegion.SetRect(SKRectI.Round(viewbox));
 
                 _fontScale = FontScale(
                     clipRegion.Bounds,
@@ -629,8 +629,8 @@ namespace PSWordCloud
                     StringComparer.OrdinalIgnoreCase);
 
                 maxWordWidth = AllowRotation == WordOrientations.None
-                    ? drawableBounds.Width * MAX_WORD_WIDTH_PERCENT
-                    : Math.Max(drawableBounds.Width, drawableBounds.Height) * MAX_WORD_WIDTH_PERCENT;
+                    ? viewbox.Width * MAX_WORD_WIDTH_PERCENT
+                    : Math.Max(viewbox.Width, viewbox.Height) * MAX_WORD_WIDTH_PERCENT;
 
                 using SKPaint brush = new SKPaint
                 {
@@ -656,7 +656,7 @@ namespace PSWordCloud
                     var adjustedTextWidth = textRect.Width * (1 + _paddingMultiplier) + StrokeWidth * 2 * STROKE_BASE_SCALE;
 
                     if (adjustedTextWidth > maxWordWidth
-                            || textRect.Width * textRect.Height < drawableBounds.Width * drawableBounds.Height * MAX_WORD_AREA_PERCENT)
+                        || textRect.Width * textRect.Height < viewbox.Width * viewbox.Height * MAX_WORD_AREA_PERCENT)
                     {
                         retry = true;
                         _fontScale *= 1.05f;
@@ -685,7 +685,7 @@ namespace PSWordCloud
 
                         if (!AllowOverflow.IsPresent
                             && (adjustedTextWidth > maxWordWidth
-                                || textRect.Width * textRect.Height > drawableBounds.Width * drawableBounds.Height * MAX_WORD_AREA_PERCENT))
+                                || textRect.Width * textRect.Height > viewbox.Width * viewbox.Height * MAX_WORD_AREA_PERCENT))
                         {
                             retry = true;
                             _fontScale *= 0.95f;
@@ -698,28 +698,33 @@ namespace PSWordCloud
                 }
                 while (retry);
 
-                aspectRatio = drawableBounds.Width / (float)drawableBounds.Height;
-                centrePoint = new SKPoint(drawableBounds.MidX, drawableBounds.MidY);
+                aspectRatio = viewbox.Width / viewbox.Height;
+                centrePoint = new SKPoint(viewbox.MidX, viewbox.MidY);
 
                 // Remove all words that were cut from the final rendering list
                 sortedWordList.RemoveAll(x => !scaledWordSizes.ContainsKey(x));
 
-                maxRadius = 9 * Math.Max(drawableBounds.Width, drawableBounds.Height) / 16f;
+                maxRadius = 9 * Math.Max(viewbox.Width, viewbox.Height) / 16f;
 
                 using SKDynamicMemoryWStream outputStream = new SKDynamicMemoryWStream();
                 using SKXmlStreamWriter xmlWriter = new SKXmlStreamWriter(outputStream);
-                using SKCanvas canvas = SKSvgCanvas.Create(drawableBounds, xmlWriter);
+                using SKCanvas canvas = SKSvgCanvas.Create(viewbox, xmlWriter);
                 using SKRegion occupiedSpace = new SKRegion();
 
                 brush.IsAutohinted = true;
                 brush.IsAntialias = true;
                 brush.Typeface = Typeface;
 
+                SKRect drawableBounds;
                 if (MyInvocation.BoundParameters.ContainsKey(nameof(AllowOverflow)))
                 {
-                    drawableBounds.Inflate(
-                        drawableBounds.Width * BLEED_AREA_SCALE,
-                        drawableBounds.Height * BLEED_AREA_SCALE);
+                    drawableBounds = SKRect.Create(
+                        viewbox.Location,
+                        new SKSize(viewbox.Width * BLEED_AREA_SCALE, viewbox.Height * BLEED_AREA_SCALE));
+                }
+                else
+                {
+                    drawableBounds = viewbox;
                 }
 
                 if (ParameterSetName.StartsWith(FILE_SET))
@@ -799,7 +804,7 @@ namespace PSWordCloud
                         foreach (var point in radialPoints)
                         {
                             pointsChecked++;
-                            if (!drawableBounds.Contains(point) && point != centrePoint)
+                            if (!viewbox.Contains(point) && point != centrePoint)
                             {
                                 continue;
                             }
@@ -893,7 +898,7 @@ namespace PSWordCloud
                 canvas.Dispose();
                 outputStream.Flush();
 
-                SaveSvgData(outputStream);
+                SaveSvgData(outputStream, viewbox);
 
                 if (PassThru.IsPresent)
                 {
@@ -928,7 +933,7 @@ namespace PSWordCloud
 
         #region HelperMethods
 
-        private void SaveSvgData(SKDynamicMemoryWStream outputStream)
+        private void SaveSvgData(SKDynamicMemoryWStream outputStream, SKRect viewbox)
         {
             string[] path = new[] { Path };
 
@@ -942,8 +947,16 @@ namespace PSWordCloud
             using var reader = new StreamReader(data.AsStream());
             using var writer = InvokeProvider.Content.GetWriter(path, force: false, literalPath: true).First();
 
+            string svg = reader.ReadToEnd();
+            if (!Regex.IsMatch(svg, "<svg[^>]+viewbox[^>]+>"))
+            {
+                var viewboxAttribute = $"viewbox=\"{viewbox.Location.X} {viewbox.Location.Y} {viewbox.Width} {viewbox.Height}\">";
+                WriteDebug("Adding missing viewbox attribute: {viewboxStr}");
+                svg = Regex.Replace(svg, "<svg([^>]+)>", $"<svg$1 {viewboxAttribute}");
+            }
+
             WriteDebug($"Saving data to '{Path}'.");
-            writer.Write(new[] { reader.ReadToEnd() });
+            writer.Write(new[] { svg });
             writer.Close();
         }
 
