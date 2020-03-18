@@ -838,7 +838,7 @@ namespace PSWordCloud
                         foreach (var point in radialPoints)
                         {
                             pointsChecked++;
-                            if (!viewbox.Contains(point) && point != centrePoint)
+                            if (!drawableBounds.Contains(point) && point != centrePoint)
                             {
                                 continue;
                             }
