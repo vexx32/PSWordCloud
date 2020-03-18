@@ -31,11 +31,10 @@ namespace PSWordCloud
 
         private const float FOCUS_WORD_SCALE = 1.3f;
         private const float BLEED_AREA_SCALE = 1.2f;
-        private const float MIN_SATURATION_VALUE = 5f;
-        private const float MIN_BRIGHTNESS_DISTANCE = 25f;
         private const float MAX_WORD_WIDTH_PERCENT = 1.0f;
         private const float PADDING_BASE_SCALE = 0.06f;
         private const float MAX_WORD_AREA_PERCENT = 0.0575f;
+        private const float BUBBLE_INFLATION_SCALE = 0.25f;
 
         private const char ELLIPSIS = '…';
 
@@ -96,6 +95,7 @@ namespace PSWordCloud
         public PSObject InputObject { get; set; }
 
         /// <summary>
+        /// Gets or sets the input word dictionary.
         /// Instead of supplying a chunk of text as the input, this parameter allows you to define your own relative
         /// word sizes.
         /// Supply a dictionary or hashtable object where the keys are the words you want to draw in the cloud, and the
@@ -332,6 +332,17 @@ namespace PSWordCloud
         public float Padding { get; set; } = 5;
 
         /// <summary>
+        /// Get or sets the shape of backdrop to place behind each word.
+        /// The default is no bubble.
+        /// Be aware that circle or square bubbles will take up a lot more space than most words typically do;
+        /// you may need to reduce the `-WordSize` parameter accordingly if you start getting warnings about words
+        /// being skipped due to insufficient space.
+
+        /// </summary>
+        [Parameter()]
+        public WordBubbleShape WordBubble { get; set; } = WordBubbleShape.None;
+
+        /// <summary>
         /// Gets or sets the value to scale the distance step by. Larger numbers will result in more radially spaced
         /// out clouds.
         /// </summary>
@@ -429,6 +440,18 @@ namespace PSWordCloud
             return color;
         }
 
+        private SKColor GetContrastingColor(SKColor reference)
+        {
+            SKColor result;
+            do
+            {
+                result = GetNextColor();
+            }
+            while (!result.IsDistinctColor(reference));
+
+            return result;
+        }
+
         private float NextDrawAngle()
         {
             return AllowRotation switch
@@ -470,7 +493,7 @@ namespace PSWordCloud
             };
         }
 
-        private float _paddingMultiplier => Padding * PADDING_BASE_SCALE;
+        private float _paddingMultiplier { get => Padding * PADDING_BASE_SCALE; }
 
         #endregion privateVariables
 
@@ -606,18 +629,21 @@ namespace PSWordCloud
                 wordScaleDictionary[FocusWord] = highestWordFreq *= FOCUS_WORD_SCALE;
             }
 
+            // Get a sorted list of words by their sizes
             sortedWordList = new List<string>(SortWordList(wordScaleDictionary, MaxRenderedWords));
 
             try
             {
                 if (MyInvocation.BoundParameters.ContainsKey(nameof(BackgroundImage)))
                 {
+                    // Set image size from the background size
                     WriteDebug($"Importing background image from '{_backgroundFullPath}'.");
                     backgroundImage = SKBitmap.Decode(_backgroundFullPath);
                     viewbox = new SKRectI(0, 0, backgroundImage.Width, backgroundImage.Height);
                 }
                 else
                 {
+                    // Set image size from default or specified size
                     viewbox = new SKRectI(0, 0, ImageSize.Width, ImageSize.Height);
                 }
 
@@ -889,10 +915,56 @@ namespace PSWordCloud
                         }
 
                         brush.IsStroke = false;
-                        brush.Color = wordColor;
                         brush.Style = SKPaintStyle.Fill;
 
-                        occupiedSpace.Op(wordPath, SKRegionOperation.Union);
+                        if (WordBubble != WordBubbleShape.None)
+                        {
+                            SKRect bubbleRect = wordPath.ComputeTightBounds();
+                            bubbleRect.Inflate(
+                                bubbleRect.Width * BUBBLE_INFLATION_SCALE,
+                                bubbleRect.Height * BUBBLE_INFLATION_SCALE);
+
+                            using SKPath bubblePath = new SKPath();
+                            SKRoundRect wordBubble;
+                            float radius;
+
+                            switch (WordBubble)
+                            {
+                                case WordBubbleShape.Rectangle:
+                                    radius = bubbleRect.Height / 8;
+                                    wordBubble = new SKRoundRect(bubbleRect, radius, radius);
+                                    bubblePath.AddRoundRect(wordBubble);
+                                    break;
+
+                                case WordBubbleShape.Square:
+                                    radius = Math.Max(bubbleRect.Width, bubbleRect.Height) / 8;
+                                    wordBubble = new SKRoundRect(bubbleRect.GetEnclosingSquare(), radius, radius);
+                                    bubblePath.AddRoundRect(wordBubble);
+                                    break;
+
+                                case WordBubbleShape.Circle:
+                                    radius = Math.Max(bubbleRect.Width, bubbleRect.Height) / 2;
+                                    bubblePath.AddCircle(bubbleRect.MidX, bubbleRect.MidY, radius);
+                                    break;
+
+                                case WordBubbleShape.Oval:
+                                    bubblePath.AddOval(bubbleRect);
+                                    break;
+                            }
+
+                            // If we're using word bubbles, the bubbles should more or less enclose the words.
+                            occupiedSpace.Op(bubblePath, SKRegionOperation.Union);
+
+                            brush.Color = GetContrastingColor(wordColor);
+                            canvas.DrawPath(bubblePath, brush);
+                        }
+                        else
+                        {
+                            // If we're not using bubbles, record the exact space the word occupies.
+                            occupiedSpace.Op(wordPath, SKRegionOperation.Union);
+                        }
+
+                        brush.Color = wordColor;
                         canvas.DrawPath(wordPath, brush);
                     }
                     else
@@ -1071,15 +1143,12 @@ namespace PSWordCloud
             bool monochrome)
         {
             Shuffle(set);
-            background.ToHsv(out _, out _, out float backgroundBrightness);
 
             foreach (var color in set.Where(x => x != stroke && x != background).Take(maxCount))
             {
                 if (!monochrome)
                 {
-                    color.ToHsv(out _, out float saturation, out float brightness);
-                    if (saturation >= MIN_SATURATION_VALUE
-                        && Math.Abs(brightness - backgroundBrightness) > MIN_BRIGHTNESS_DISTANCE)
+                    if (color.IsDistinctColor(background))
                     {
                         yield return color;
                     }
