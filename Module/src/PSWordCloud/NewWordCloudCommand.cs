@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections;
 using System.Collections.Generic;
 using System.IO;
@@ -526,6 +526,13 @@ namespace PSWordCloud
         /// </summary>
         protected override void EndProcessing()
         {
+            if ((WordSizes == null || WordSizes.Count == 0)
+                && (_wordProcessingTasks == null || _wordProcessingTasks.Count == 0))
+            {
+                // No input was supplied; exit stage left.
+                return;
+            }
+
             int wordCount = 0;
             float inflationValue;
             float maxWordWidth;
@@ -940,10 +947,23 @@ namespace PSWordCloud
             if (InvokeProvider.Item.Exists(Path, force: true, literalPath: true))
             {
                 WriteDebug($"Clearing existing content from '{Path}'.");
+                try
+                {
                 InvokeProvider.Content.Clear(path, force: false, literalPath: true);
             }
+                catch (Exception e)
+                {
+                    // Unconditionally suppress errors from the Content.Clear() operation. Errors here may indicate that
+                    // a provider is being written to that does not support the Content.Clear() interface, or that there
+                    // is no existing item to clear.
+                    // In either case, an error here does not necessarily mean we cannot write the data, so we can
+                    // ignore this error. If there is an access denied error, it will be more clear to the user if we
+                    // surface that from the Content.Write() interface in any case.
+                    WriteDebug($"Error encountered while clearing content for item '{path}'. {e.Message}");
+                }
+            }
 
-            using SKData data = outputStream.CopyToData();
+            using SKData data = outputStream.DetachAsData();
             using var reader = new StreamReader(data.AsStream());
             using var writer = InvokeProvider.Content.GetWriter(path, force: false, literalPath: true).First();
 
