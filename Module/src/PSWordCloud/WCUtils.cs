@@ -6,6 +6,8 @@ using System.Linq;
 using System.Management.Automation;
 using System.Reflection;
 using System.Runtime.CompilerServices;
+using System.Text;
+using System.Xml;
 using SkiaSharp;
 
 [assembly: InternalsVisibleTo("PSWordCloud.Tests")]
@@ -163,6 +165,23 @@ namespace PSWordCloud
         internal static SKColor GetColorByName(string colorName)
         {
             return ColorLibrary[colorName];
+        }
+
+        internal static string GetPrettyString(this XmlDocument document)
+        {
+            var stringBuilder = new StringBuilder();
+
+            var settings = new XmlWriterSettings
+            {
+                Indent = true
+            };
+
+            using (var xmlWriter = XmlWriter.Create(stringBuilder, settings))
+            {
+                document.Save(xmlWriter);
+            }
+
+            return stringBuilder.ToString();
         }
 
         internal static object GetValue(this IEnumerable collection, string key)

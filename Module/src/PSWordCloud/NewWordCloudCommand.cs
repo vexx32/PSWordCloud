@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections;
 using System.Collections.Generic;
 using System.IO;
@@ -8,6 +8,7 @@ using System.Numerics;
 using System.Runtime.CompilerServices;
 using System.Text.RegularExpressions;
 using System.Threading.Tasks;
+using System.Xml;
 using SkiaSharp;
 
 [assembly: InternalsVisibleTo("PSWordCloud.Tests")]
@@ -949,8 +950,8 @@ namespace PSWordCloud
                 WriteDebug($"Clearing existing content from '{Path}'.");
                 try
                 {
-                InvokeProvider.Content.Clear(path, force: false, literalPath: true);
-            }
+                    InvokeProvider.Content.Clear(path, force: false, literalPath: true);
+                }
                 catch (Exception e)
                 {
                     // Unconditionally suppress errors from the Content.Clear() operation. Errors here may indicate that
@@ -967,16 +968,19 @@ namespace PSWordCloud
             using var reader = new StreamReader(data.AsStream());
             using var writer = InvokeProvider.Content.GetWriter(path, force: false, literalPath: true).First();
 
-            string svg = reader.ReadToEnd();
-            if (!Regex.IsMatch(svg, "<svg[^>]+viewbox[^>]+>"))
+            var imageXml = new XmlDocument();
+            imageXml.LoadXml(reader.ReadToEnd());
+
+            var svgElement = imageXml.GetElementsByTagName("svg")[0] as XmlElement;
+            if (svgElement.GetAttribute("viewbox") == string.Empty)
             {
-                var viewboxAttribute = $"viewbox=\"{viewbox.Location.X} {viewbox.Location.Y} {viewbox.Width} {viewbox.Height}\">";
-                WriteDebug("Adding missing viewbox attribute: {viewboxStr}");
-                svg = Regex.Replace(svg, "<svg([^>]+)>", $"<svg$1 {viewboxAttribute}");
+                svgElement.SetAttribute(
+                    "viewbox",
+                    $"{viewbox.Location.X} {viewbox.Location.Y} {viewbox.Width} {viewbox.Height}");
             }
 
             WriteDebug($"Saving data to '{Path}'.");
-            writer.Write(new[] { svg });
+            writer.Write(new[] { imageXml.GetPrettyString() });
             writer.Close();
         }
 
