@@ -6,6 +6,8 @@ using System.Linq;
 using System.Management.Automation;
 using System.Reflection;
 using System.Runtime.CompilerServices;
+using System.Text;
+using System.Xml;
 using SkiaSharp;
 
 [assembly: InternalsVisibleTo("PSWordCloud.Tests")]
@@ -23,6 +25,15 @@ namespace PSWordCloud
         AllUpright,
         AllInverted,
         All,
+    }
+
+    public enum WordBubbleShape : sbyte
+    {
+        None,
+        Rectangle,
+        Square,
+        Circle,
+        Oval
     }
 
     internal static class WCUtils
@@ -49,6 +60,35 @@ namespace PSWordCloud
             var rect = paint.GetTextPath(text, 0, 0).ComputeTightBounds();
 
             return (rect.Width + rect.Height) / 2;
+        }
+
+        internal static bool IsDistinctColor(this SKColor target, SKColor backdrop)
+        {
+            backdrop.ToHsv(out float refHue, out float refSaturation, out float refBrightness);
+            target.ToHsv(out float hue, out float saturation, out float brightness);
+
+            float brightnessDistance = Math.Abs(refBrightness - brightness);
+            if (brightnessDistance > 24)
+            {
+                return true;
+            }
+
+            if (Math.Abs(refHue - hue) > 18 && brightnessDistance > 24)
+            {
+                return true;
+            }
+
+            if (Math.Abs(refSaturation - saturation) > 24 && brightnessDistance > 12)
+            {
+                return true;
+            }
+
+            if (target.Alpha == 0)
+            {
+                return false;
+            }
+
+            return false;
         }
 
         internal static void Shuffle<T>(this Random rng, T[] array)
@@ -148,6 +188,23 @@ namespace PSWordCloud
             return region.Intersects(pathRegion);
         }
 
+        internal static SKRect GetEnclosingSquare(this SKRect rect)
+        {
+            // Inflate the smaller dimension
+            if (rect.Width > rect.Height)
+            {
+                return SKRect.Inflate(rect, x: 0, y: (rect.Width - rect.Height) / 2);
+            }
+
+            if (rect.Height > rect.Width)
+            {
+                return SKRect.Inflate(rect, x: (rect.Height - rect.Width) / 2, y: 0);
+            }
+
+            // It was already a square, but we need to return a copy
+            return SKRect.Create(rect.Location, rect.Size);
+        }
+
         internal static readonly ReadOnlyDictionary<string, SKColor> ColorLibrary =
             new ReadOnlyDictionary<string, SKColor>(typeof(SKColors)
             .GetFields(BindingFlags.Static | BindingFlags.Public)
@@ -163,6 +220,23 @@ namespace PSWordCloud
         internal static SKColor GetColorByName(string colorName)
         {
             return ColorLibrary[colorName];
+        }
+
+        internal static string GetPrettyString(this XmlDocument document)
+        {
+            var stringBuilder = new StringBuilder();
+
+            var settings = new XmlWriterSettings
+            {
+                Indent = true
+            };
+
+            using (var xmlWriter = XmlWriter.Create(stringBuilder, settings))
+            {
+                document.Save(xmlWriter);
+            }
+
+            return stringBuilder.ToString();
         }
 
         internal static object GetValue(this IEnumerable collection, string key)
