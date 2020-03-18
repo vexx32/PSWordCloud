@@ -116,9 +116,6 @@ stages:
   dependsOn:
   - Build
 
-  # DISABLED: Linux Runner does not have PS7 installed currently.
-  condition: false
-
   jobs:
   - job: Linux
     displayName: 'Pester Tests'
@@ -186,7 +183,7 @@ stages:
 - stage: PublishModule
   displayName: 'Publish Module'
   dependsOn:
-    #- LinuxTests
+    - LinuxTests
     - WindowsTests
     - MacOSTests
   condition: and(succeeded(), startsWith(variables['Build.SourceBranch'], 'refs/tags/'))
