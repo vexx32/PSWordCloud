@@ -73,17 +73,17 @@ namespace PSWordCloud
             target.ToHsv(out float hue, out float saturation, out float brightness);
 
             float brightnessDistance = Math.Abs(refBrightness - brightness);
-            if (brightnessDistance > 24)
+            if (brightnessDistance > 30)
             {
                 return true;
             }
 
-            if (Math.Abs(refHue - hue) > 18 && brightnessDistance > 24)
+            if (Math.Abs(refHue - hue) > 24 && brightnessDistance > 20)
             {
                 return true;
             }
 
-            if (Math.Abs(refSaturation - saturation) > 24 && brightnessDistance > 12)
+            if (Math.Abs(refSaturation - saturation) > 24 && brightnessDistance > 18)
             {
                 return true;
             }

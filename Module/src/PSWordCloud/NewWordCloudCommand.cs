@@ -34,7 +34,6 @@ namespace PSWordCloud
         private const float MAX_WORD_WIDTH_PERCENT = 1.0f;
         private const float PADDING_BASE_SCALE = 0.06f;
         private const float MAX_WORD_AREA_PERCENT = 0.0575f;
-        private const float BUBBLE_INFLATION_SCALE = 0.15f;
 
         private const char ELLIPSIS = '…';
 
@@ -47,7 +46,7 @@ namespace PSWordCloud
         internal const string FILE_FOCUS_TABLE_SET = "FileBackground-FocusWord-WordTable";
         internal const string FILE_TABLE_SET = "FileBackground-WordTable";
 
-        internal const float STROKE_BASE_SCALE = 0.02f;
+        internal const float STROKE_BASE_SCALE = 0.01f;
 
         #endregion Constants
 
@@ -926,19 +925,19 @@ namespace PSWordCloud
                             occupiedSpace.CombineWithPath(wordPath, SKRegionOperation.Union);
                         }
 
-                        if (MyInvocation.BoundParameters.ContainsKey(nameof(StrokeWidth)))
-                        {
-                            brush.Color = StrokeColor;
-                            brush.IsStroke = true;
-                            brush.Style = SKPaintStyle.Stroke;
-
-                            canvas.DrawPath(wordPath, brush);
-                        }
-
                         brush.IsStroke = false;
                         brush.Style = SKPaintStyle.Fill;
                         brush.Color = wordColor;
                         canvas.DrawPath(wordPath, brush);
+
+                        if (MyInvocation.BoundParameters.ContainsKey(nameof(StrokeWidth)))
+                        {
+                            brush.IsStroke = true;
+                            brush.Style = SKPaintStyle.Stroke;
+                            brush.Color = StrokeColor;
+
+                            canvas.DrawPath(wordPath, brush);
+                        }
                     }
                     else
                     {
@@ -1456,7 +1455,7 @@ namespace PSWordCloud
         {
             foreach (var word in text.Split(_splitChars, StringSplitOptions.RemoveEmptyEntries))
             {
-                yield return Regex.Replace(word, @"^[^a-zA-Z0-9]|[^a-zA-Z0-9]$", string.Empty);
+                yield return Regex.Replace(word, @"^[^a-zA-Z0-9]+|[^a-zA-Z0-9]+$", string.Empty);
             }
         }
 
