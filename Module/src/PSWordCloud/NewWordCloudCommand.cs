@@ -746,7 +746,7 @@ namespace PSWordCloud
                         wordColor = GetContrastingColor(bubbleColor);
                     }
 
-                    brush.Dip(scaledWordSizes[word], StrokeWidth, wordColor);
+                    brush.Prepare(scaledWordSizes[word], StrokeWidth, wordColor);
 
                     wordPath.Dispose();
                     wordPath = brush.GetTextPath(word, 0, 0);

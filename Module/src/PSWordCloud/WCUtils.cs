@@ -62,6 +62,11 @@ namespace PSWordCloud
             return (rect.Width + rect.Height) / 2;
         }
 
+        /// <summary>
+        /// Determines whether a given color is considered sufficiently visually distinct from a backdrop color.
+        /// </summary>
+        /// <param name="target">The target color.</param>
+        /// <param name="backdrop">A reference color to compare against.</param>
         internal static bool IsDistinctColor(this SKColor target, SKColor backdrop)
         {
             backdrop.ToHsv(out float refHue, out float refSaturation, out float refBrightness);
@@ -91,6 +96,13 @@ namespace PSWordCloud
             return false;
         }
 
+        /// <summary>
+        /// Performs an in-place random shuffle on an array by swapping elements.
+        /// This algorithm is pretty commonly used, but effective and fast enough for our purposes.
+        /// </summary>
+        /// <param name="rng">Random number generator.</param>
+        /// <param name="array">The array to shuffle.</param>
+        /// <typeparam name="T">The element type of the array.</typeparam>
         internal static void Shuffle<T>(this Random rng, T[] array)
         {
             int n = array.Length;
@@ -118,10 +130,24 @@ namespace PSWordCloud
                 || other.Right > bounds.Right;
         }
 
-        internal static void NextWord(this SKPaint brush, float wordSize, float strokeWidth)
-            => brush.NextWord(wordSize, strokeWidth, SKColors.Black);
+        /// <summary>
+        /// Prepares the brush to draw the next word.
+        /// This overload assumes the text to be drawn will be black.
+        /// </summary>
+        /// <param name="brush"></param>
+        /// <param name="wordSize"></param>
+        /// <param name="strokeWidth"></param>
+        internal static void Prepare(this SKPaint brush, float wordSize, float strokeWidth)
+            => brush.Prepare(wordSize, strokeWidth, SKColors.Black);
 
-        internal static void NextWord(this SKPaint brush, float wordSize, float strokeWidth, SKColor color)
+        /// <summary>
+        /// Prepares the brush to draw the next word.
+        /// </summary>
+        /// <param name="brush">The brush to prepare.</param>
+        /// <param name="wordSize">The size of the word we'll be drawing.</param>
+        /// <param name="strokeWidth">Width of the stroke we'll be drawing.</param>
+        /// <param name="color">Color of the word we'll be drawing.</param>
+        internal static void Prepare(this SKPaint brush, float wordSize, float strokeWidth, SKColor color)
         {
             brush.TextSize = wordSize;
             brush.IsStroke = false;
@@ -131,14 +157,12 @@ namespace PSWordCloud
             brush.Color = color;
         }
 
-        internal static float SortValue(this SKColor color, float sortAdjustment)
-        {
-            color.ToHsv(out _, out float saturation, out float brightness);
-            var rand = brightness * (sortAdjustment - 0.5f) / (1 - saturation);
-
-            return brightness + rand;
-        }
-
+        /// <summary>
+        /// Sets the contents of the region to the specified path.
+        /// </summary>
+        /// <param name="region">The region to set the path into.</param>
+        /// <param name="path">The path object.</param>
+        /// <param name="usePathBounds">Whether to set the region's new bounds to the bounds of the path itself.</param>
         internal static bool SetPath(this SKRegion region, SKPath path, bool usePathBounds)
         {
             if (usePathBounds && path.GetBounds(out SKRect bounds))
@@ -154,14 +178,26 @@ namespace PSWordCloud
             }
         }
 
-        internal static bool Op(this SKRegion region, SKPath path, SKRegionOperation operation)
+        /// <summary>
+        /// Combines the region with a given path, specifying the operation used to combine.
+        /// </summary>
+        /// <param name="region">The region to perform the operation on.</param>
+        /// <param name="path">The path to perform the operation with.</param>
+        /// <param name="operation">The type of operation to perform.</param>
+        /// <returns></returns>
+        internal static bool CombineWithPath(this SKRegion region, SKPath path, SKRegionOperation operation)
         {
             using SKRegion pathRegion = new SKRegion();
 
-            pathRegion.SetPath(path, true);
+            pathRegion.SetPath(path, usePathBounds: true);
             return region.Op(pathRegion, operation);
         }
 
+        /// <summary>
+        /// Checks whether the region intersects the given rectangle.
+        /// </summary>
+        /// <param name="region">The region to check collision with.</param>
+        /// <param name="rect">The rectangle to check for intersection.</param>
         internal static bool IntersectsRect(this SKRegion region, SKRect rect)
         {
             if (region.Bounds.IsEmpty)
@@ -175,6 +211,11 @@ namespace PSWordCloud
             return region.Intersects(rectRegion);
         }
 
+        /// <summary>
+        /// Checks whether the region intersects the given path.
+        /// </summary>
+        /// <param name="region">The region to check collision with.</param>
+        /// <param name="rect">The rectangle to check for intersection.</param>
         internal static bool IntersectsPath(this SKRegion region, SKPath path)
         {
             if (region.Bounds.IsEmpty)
@@ -188,6 +229,11 @@ namespace PSWordCloud
             return region.Intersects(pathRegion);
         }
 
+        /// <summary>
+        /// Gets the smallest square that would completely contain the given rectangle, with the rectangle positioned
+        /// at its centre.
+        /// </summary>
+        /// <param name="rect">The rectangle to find the containing square for.</param>
         internal static SKRect GetEnclosingSquare(this SKRect rect)
         {
             // Inflate the smaller dimension
@@ -205,18 +251,21 @@ namespace PSWordCloud
             return SKRect.Create(rect.Location, rect.Size);
         }
 
-        internal static readonly ReadOnlyDictionary<string, SKColor> ColorLibrary =
-            new ReadOnlyDictionary<string, SKColor>(typeof(SKColors)
-            .GetFields(BindingFlags.Static | BindingFlags.Public)
-            .ToDictionary(
-                (field => field.Name),
-                (field => (SKColor)field.GetValue(null)),
-                StringComparer.OrdinalIgnoreCase));
-
+        /// <summary>
+        /// A list of standard color names supported for tab completion.
+        /// </summary>
         internal static readonly IEnumerable<string> ColorNames = ColorLibrary.Keys;
 
+        /// <summary>
+        /// The complete set of standard colors.
+        /// </summary>
         internal static readonly IEnumerable<SKColor> StandardColors = ColorLibrary.Values;
 
+        /// <summary>
+        /// Gets a color from the library by name.
+        /// </summary>
+        /// <param name="colorName"></param>
+        /// <returns></returns>
         internal static SKColor GetColorByName(string colorName)
         {
             return ColorLibrary[colorName];
