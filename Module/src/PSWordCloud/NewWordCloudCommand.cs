@@ -1053,6 +1053,12 @@ namespace PSWordCloud
 
         #region HelperMethods
 
+        /// <summary>
+        /// Save the written SVG data to the provided PSProvider path.
+        /// Since SkiaSharp does not write a viewbox attribute into the SVG, this method handles that as well.
+        /// </summary>
+        /// <param name="outputStream">The memory stream containing the SVG data.</param>
+        /// <param name="viewbox">The visible area of the image.</param>
         private void SaveSvgData(SKDynamicMemoryWStream outputStream, SKRect viewbox)
         {
             string[] path = new[] { Path };
@@ -1096,6 +1102,12 @@ namespace PSWordCloud
             writer.Close();
         }
 
+        /// <summary>
+        /// Check the type of the input object and return a probable count so we can reasonably estimate necessary
+        /// capacity for processing.
+        /// </summary>
+        /// <param name="inputObject"></param>
+        /// <returns></returns>
         private int GetEstimatedCapacity(PSObject inputObject) => inputObject.BaseObject switch
         {
             string _ => 1,
@@ -1103,6 +1115,10 @@ namespace PSWordCloud
             _ => 8
         };
 
+        /// <summary>
+        /// Process a given input object and convert it to a string (or multiple strings, if there are more than one).
+        /// </summary>
+        /// <param name="input">One or more input objects.</param>
         private IEnumerable<string> NormalizeInput(PSObject input)
         {
             string value;
@@ -1359,6 +1375,9 @@ namespace PSWordCloud
             }
         }
 
+        /// <summary>
+        /// Retrieves a random true or false selection.
+        /// </summary>
         private static bool RandomChoice()
         {
             lock (_randomLock)
@@ -1367,6 +1386,9 @@ namespace PSWordCloud
             }
         }
 
+        /// <summary>
+        /// Retrieves a random int value.
+        /// </summary>
         private static int RandomInt()
         {
             lock (_randomLock)
@@ -1375,6 +1397,11 @@ namespace PSWordCloud
             }
         }
 
+        /// <summary>
+        /// Retrieves a random int value within the specified bounds.
+        /// </summary>
+        /// <param name="min">The minimum bound.</param>
+        /// <param name="max">The maximum bound.</param>
         private static int RandomInt(int min, int max)
         {
             lock (_randomLock)
@@ -1383,6 +1410,11 @@ namespace PSWordCloud
             }
         }
 
+        /// <summary>
+        /// Performs an in-place shuffle of the input array, randomly shuffling its contents.
+        /// </summary>
+        /// <param name="items">The array of items to be shuffled.</param>
+        /// <typeparam name="T">The type of the array.</typeparam>
         private static void Shuffle<T>(T[] items)
         {
             lock (_randomLock)
@@ -1401,9 +1433,14 @@ namespace PSWordCloud
             string[] includeWords = null,
             string[] excludeWords = null)
         {
-            return Task.Run(() => TrimAndSplitWords(line).Where(x => SelectWord(x, includeWords, excludeWords)));
+            return Task.Run(() => TrimAndSplitWords(line)
+                .Where(x => SelectWord(x, includeWords, excludeWords, AllowStopWords.IsPresent)));
         }
 
+        /// <summary>
+        /// Enumerates and returns each word from the input text.
+        /// </summary>
+        /// <param name="text">A string of text to extract words from.</param>
         private IEnumerable<string> TrimAndSplitWords(string text)
         {
             foreach (var word in text.Split(_splitChars, StringSplitOptions.RemoveEmptyEntries))
@@ -1412,7 +1449,14 @@ namespace PSWordCloud
             }
         }
 
-        private bool SelectWord(string word, string[] includeWords, string[] excludeWords)
+        /// <summary>
+        /// Determines whether a given word is usable for the word cloud, taking into account stopwords and
+        /// user selected include or exclude word lists.
+        /// </summary>
+        /// <param name="word">The word in question.</param>
+        /// <param name="includeWords">A reference list of desired words, overridingthe stopwords or exclude list.</param>
+        /// <param name="excludeWords">A reference list of undesired words, effectively impromptu stopwords.</param>
+        private static bool SelectWord(string word, string[] includeWords, string[] excludeWords, bool allowStopWords)
         {
             if (includeWords?.Contains(word, StringComparer.OrdinalIgnoreCase) == true)
             {
@@ -1424,7 +1468,7 @@ namespace PSWordCloud
                 return false;
             }
 
-            if (!AllowStopWords && _stopWords.Contains(word, StringComparer.OrdinalIgnoreCase))
+            if (!allowStopWords && _stopWords.Contains(word, StringComparer.OrdinalIgnoreCase))
             {
                 return false;
             }
