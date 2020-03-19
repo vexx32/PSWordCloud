@@ -34,7 +34,6 @@ namespace PSWordCloud
         private const float MAX_WORD_WIDTH_PERCENT = 1.0f;
         private const float PADDING_BASE_SCALE = 0.06f;
         private const float MAX_WORD_AREA_PERCENT = 0.0575f;
-        private const float BUBBLE_INFLATION_SCALE = 0.25f;
 
         private const char ELLIPSIS = '…';
 
@@ -47,7 +46,7 @@ namespace PSWordCloud
         internal const string FILE_FOCUS_TABLE_SET = "FileBackground-FocusWord-WordTable";
         internal const string FILE_TABLE_SET = "FileBackground-WordTable";
 
-        internal const float STROKE_BASE_SCALE = 0.02f;
+        internal const float STROKE_BASE_SCALE = 0.01f;
 
         #endregion Constants
 
@@ -219,7 +218,6 @@ namespace PSWordCloud
         [TransformToSKColor()]
         public SKColor BackgroundColor { get; set; } = SKColors.Black;
 
-        private List<SKColor> _colors;
         /// <summary>
         /// <para>Gets or sets the SKColor values used for the words in the cloud. Multiple values are accepted, and
         /// each new word pulls the next color from the set. If the end of the set is reached, the next word will
@@ -239,7 +237,8 @@ namespace PSWordCloud
         [SupportsWildcards()]
         [TransformToSKColor()]
         [ArgumentCompleter(typeof(SKColorCompleter))]
-        public SKColor[] ColorSet { get; set; } = WCUtils.StandardColors.ToArray();
+        public SKColor[] ColorSet { get; set; } = WCUtils.StandardColors
+            .Where(c => c != SKColor.Empty && c.Alpha != 0).ToArray();
 
         /// <summary>
         /// Gets or sets the width of the word outline. Values from 0-10 are permitted. A zero value indicates the
@@ -427,72 +426,6 @@ namespace PSWordCloud
 
         private int _colorIndex = 0;
 
-        private SKColor GetNextColor()
-        {
-            if (_colorIndex == _colors.Count)
-            {
-                _colorIndex = 0;
-            }
-
-            var color = _colors[_colorIndex];
-            _colorIndex++;
-
-            return color;
-        }
-
-        private SKColor GetContrastingColor(SKColor reference)
-        {
-            SKColor result;
-            do
-            {
-                result = GetNextColor();
-            }
-            while (!result.IsDistinctColor(reference));
-
-            return result;
-        }
-
-        private float NextDrawAngle()
-        {
-            return AllowRotation switch
-            {
-                WordOrientations.Vertical => RandomChoice() ? 0 : 90,
-                WordOrientations.FlippedVertical => RandomChoice() ? 0 : -90,
-                WordOrientations.EitherVertical => RandomChoice() ? 0 : RandomChoice() ? 90 : -90,
-                WordOrientations.UprightDiagonals => (RandomInt(0, 5)) switch
-                {
-                    0 => -90,
-                    1 => -45,
-                    2 => 45,
-                    3 => 90,
-                    _ => 0,
-                },
-                WordOrientations.InvertedDiagonals => (RandomInt(0, 5)) switch
-                {
-                    0 => 90,
-                    1 => 135,
-                    2 => -135,
-                    3 => -90,
-                    _ => 180,
-                },
-                WordOrientations.AllDiagonals => (RandomInt(0, 8)) switch
-                {
-                    0 => 45,
-                    1 => 90,
-                    2 => 135,
-                    3 => 180,
-                    4 => -135,
-                    5 => -90,
-                    6 => -45,
-                    _ => 0,
-                },
-                WordOrientations.AllUpright => RandomInt(-90, 91),
-                WordOrientations.AllInverted => RandomInt(90, 271),
-                WordOrientations.All => RandomInt(0, 361),
-                _ => 0,
-            };
-        }
-
         private float _paddingMultiplier { get => Padding * PADDING_BASE_SCALE; }
 
         #endregion privateVariables
@@ -512,9 +445,12 @@ namespace PSWordCloud
 
             _progressID = RandomInt();
 
-            _colors = ProcessColorSet(ColorSet, BackgroundColor, StrokeColor, MaxRenderedWords, Monochrome)
-                .OrderByDescending(x => x.SortValue(RandomFloat()))
-                .ToList();
+            if (Monochrome.IsPresent)
+            {
+                ColorSet = ConvertToMonochrome(ColorSet).ToArray();
+            }
+
+            Shuffle(ColorSet);
         }
 
         /// <summary>
@@ -535,7 +471,8 @@ namespace PSWordCloud
 
                     foreach (var line in text)
                     {
-                        var shortLine = line.Length < 32 ? line : line.Substring(0, 31) + ELLIPSIS;
+                        var shortLine = Regex.Split(line, @"\r?\n")[0];
+                        shortLine = shortLine.Length <= 32 ? shortLine : shortLine.Substring(0, 31) + ELLIPSIS;
                         WriteDebug($"Processing input text: {shortLine}");
                         _wordProcessingTasks.Add(ProcessInputAsync(line, IncludeWord, ExcludeWord));
                     }
@@ -564,6 +501,7 @@ namespace PSWordCloud
             float aspectRatio;
             float maxRadius;
 
+            SKPath bubblePath = null;
             SKPath wordPath = null;
             SKRegion clipRegion = null;
             SKRect wordBounds = SKRect.Empty;
@@ -684,7 +622,7 @@ namespace PSWordCloud
                         _fontScale,
                         wordScaleDictionary);
 
-                    brush.NextWord(adjustedWordSize, StrokeWidth);
+                    brush.Prepare(adjustedWordSize, StrokeWidth);
 
                     var textRect = brush.GetTextPath(sortedWordList[0], 0, 0).ComputeTightBounds();
                     var adjustedTextWidth = textRect.Width * (1 + _paddingMultiplier) + StrokeWidth * 2 * STROKE_BASE_SCALE;
@@ -712,7 +650,7 @@ namespace PSWordCloud
                             _fontScale,
                             wordScaleDictionary);
 
-                        brush.NextWord(adjustedWordSize, StrokeWidth);
+                        brush.Prepare(adjustedWordSize, StrokeWidth);
 
                         var textRect = brush.GetTextPath(word, 0, 0).ComputeTightBounds();
                         var adjustedTextWidth = textRect.Width * (1 + _paddingMultiplier) + StrokeWidth * 2 * STROKE_BASE_SCALE;
@@ -794,8 +732,20 @@ namespace PSWordCloud
                     inflationValue = 2 * scaledWordSizes[word] * (_paddingMultiplier + StrokeWidth * STROKE_BASE_SCALE);
                     targetPoint = SKPoint.Empty;
 
-                    var wordColor = GetNextColor();
-                    brush.NextWord(scaledWordSizes[word], StrokeWidth, wordColor);
+                    SKColor wordColor;
+                    SKColor bubbleColor = SKColor.Empty;
+
+                    if (WordBubble == WordBubbleShape.None)
+                    {
+                        wordColor = GetContrastingColor(BackgroundColor);
+                    }
+                    else
+                    {
+                        bubbleColor = GetContrastingColor(BackgroundColor);
+                        wordColor = GetContrastingColor(bubbleColor);
+                    }
+
+                    brush.Prepare(scaledWordSizes[word], StrokeWidth, wordColor);
 
                     wordPath.Dispose();
                     wordPath = brush.GetTextPath(word, 0, 0);
@@ -807,7 +757,7 @@ namespace PSWordCloud
                     float drawAngle = wordCount == 1
                         && MyInvocation.BoundParameters.ContainsKey(nameof(RotateFocusWord))
                             ? drawAngle = RotateFocusWord
-                            : drawAngle = NextDrawAngle();
+                            : drawAngle = NextDrawAngle(AllowRotation);
 
                     var percentComplete = 100f * wordCount / scaledWordSizes.Count;
 
@@ -853,7 +803,7 @@ namespace PSWordCloud
                                 pointsChecked,
                                 totalPoints,
                                 radius);
-                            // pointProgress.PercentComplete = 100 * pointsChecked / totalPoints;
+
                             WriteProgress(pointProgress);
 
                             baseOffset = new SKPoint(
@@ -869,21 +819,74 @@ namespace PSWordCloud
 
                             wordBounds.Inflate(inflationValue, inflationValue);
 
-                            if (wordCount == 1)
+                            if (WordBubble == WordBubbleShape.None)
                             {
-                                // First word will always be drawn in the centre.
-                                wordPath = alteredPath;
-                                targetPoint = adjustedPoint;
-                                goto nextWord;
-                            }
-                            else
-                            {
+                                if (wordCount == 1)
+                                {
+                                    // First word will always be drawn in the centre.
+                                    wordPath = alteredPath;
+                                    targetPoint = adjustedPoint;
+                                    goto nextWord;
+                                }
+
                                 if (wordBounds.FallsOutside(clipRegion))
                                 {
                                     continue;
                                 }
 
                                 if (!occupiedSpace.IntersectsRect(wordBounds))
+                                {
+                                    wordPath = alteredPath;
+                                    targetPoint = adjustedPoint;
+                                    goto nextWord;
+                                }
+                            }
+                            else
+                            {
+                                bubblePath?.Dispose();
+                                bubblePath = new SKPath();
+
+                                SKRoundRect wordBubble;
+                                float bubbleRadius;
+
+                                switch (WordBubble)
+                                {
+                                    case WordBubbleShape.Rectangle:
+                                        bubbleRadius = wordBounds.Height / 16;
+                                        wordBubble = new SKRoundRect(wordBounds, bubbleRadius, bubbleRadius);
+                                        bubblePath.AddRoundRect(wordBubble);
+                                        break;
+
+                                    case WordBubbleShape.Square:
+                                        bubbleRadius = Math.Max(wordBounds.Width, wordBounds.Height) / 16;
+                                        wordBubble = new SKRoundRect(wordBounds.GetEnclosingSquare(), bubbleRadius, bubbleRadius);
+                                        bubblePath.AddRoundRect(wordBubble);
+                                        break;
+
+                                    case WordBubbleShape.Circle:
+                                        bubbleRadius = Math.Max(wordBounds.Width, wordBounds.Height) / 2;
+                                        bubblePath.AddCircle(wordBounds.MidX, wordBounds.MidY, bubbleRadius);
+                                        break;
+
+                                    case WordBubbleShape.Oval:
+                                        bubblePath.AddOval(wordBounds);
+                                        break;
+                                }
+
+                                if (wordCount == 1)
+                                {
+                                    // First word will always be drawn in the centre.
+                                    wordPath = alteredPath;
+                                    targetPoint = adjustedPoint;
+                                    goto nextWord;
+                                }
+
+                                if (wordBounds.FallsOutside(clipRegion))
+                                {
+                                    continue;
+                                }
+
+                                if (!occupiedSpace.IntersectsPath(bubblePath))
                                 {
                                     wordPath = alteredPath;
                                     targetPoint = adjustedPoint;
@@ -905,67 +908,36 @@ namespace PSWordCloud
                         WriteDebug($"Drawing '{word}' at [{targetPoint.X}, {targetPoint.Y}].");
 
                         wordPath.FillType = SKPathFillType.EvenOdd;
-                        if (MyInvocation.BoundParameters.ContainsKey(nameof(StrokeWidth)))
-                        {
-                            brush.Color = StrokeColor;
-                            brush.IsStroke = true;
-                            brush.Style = SKPaintStyle.Stroke;
-
-                            canvas.DrawPath(wordPath, brush);
-                        }
-
-                        brush.IsStroke = false;
-                        brush.Style = SKPaintStyle.Fill;
 
                         if (WordBubble != WordBubbleShape.None)
                         {
-                            SKRect bubbleRect = wordPath.ComputeTightBounds();
-                            bubbleRect.Inflate(
-                                bubbleRect.Width * BUBBLE_INFLATION_SCALE,
-                                bubbleRect.Height * BUBBLE_INFLATION_SCALE);
-
-                            using SKPath bubblePath = new SKPath();
-                            SKRoundRect wordBubble;
-                            float radius;
-
-                            switch (WordBubble)
-                            {
-                                case WordBubbleShape.Rectangle:
-                                    radius = bubbleRect.Height / 8;
-                                    wordBubble = new SKRoundRect(bubbleRect, radius, radius);
-                                    bubblePath.AddRoundRect(wordBubble);
-                                    break;
-
-                                case WordBubbleShape.Square:
-                                    radius = Math.Max(bubbleRect.Width, bubbleRect.Height) / 8;
-                                    wordBubble = new SKRoundRect(bubbleRect.GetEnclosingSquare(), radius, radius);
-                                    bubblePath.AddRoundRect(wordBubble);
-                                    break;
-
-                                case WordBubbleShape.Circle:
-                                    radius = Math.Max(bubbleRect.Width, bubbleRect.Height) / 2;
-                                    bubblePath.AddCircle(bubbleRect.MidX, bubbleRect.MidY, radius);
-                                    break;
-
-                                case WordBubbleShape.Oval:
-                                    bubblePath.AddOval(bubbleRect);
-                                    break;
-                            }
-
                             // If we're using word bubbles, the bubbles should more or less enclose the words.
-                            occupiedSpace.Op(bubblePath, SKRegionOperation.Union);
+                            occupiedSpace.CombineWithPath(bubblePath, SKRegionOperation.Union);
 
-                            brush.Color = GetContrastingColor(wordColor);
+                            brush.IsStroke = false;
+                            brush.Style = SKPaintStyle.Fill;
+                            brush.Color = bubbleColor;
                             canvas.DrawPath(bubblePath, brush);
                         }
                         else
                         {
                             // If we're not using bubbles, record the exact space the word occupies.
-                            occupiedSpace.Op(wordPath, SKRegionOperation.Union);
+                            occupiedSpace.CombineWithPath(wordPath, SKRegionOperation.Union);
                         }
 
+                        brush.IsStroke = false;
+                        brush.Style = SKPaintStyle.Fill;
                         brush.Color = wordColor;
                         canvas.DrawPath(wordPath, brush);
+
+                        if (MyInvocation.BoundParameters.ContainsKey(nameof(StrokeWidth)))
+                        {
+                            brush.IsStroke = true;
+                            brush.Style = SKPaintStyle.Stroke;
+                            brush.Color = StrokeColor;
+
+                            canvas.DrawPath(wordPath, brush);
+                        }
                     }
                     else
                     {
@@ -995,6 +967,7 @@ namespace PSWordCloud
 
                 clipRegion?.Dispose();
                 wordPath?.Dispose();
+                bubblePath?.Dispose();
                 backgroundImage?.Dispose();
 
                 if (wordProgress != null)
@@ -1013,6 +986,89 @@ namespace PSWordCloud
 
         #region HelperMethods
 
+        /// <summary>
+        /// Gets the next available color from the current set.
+        /// If the set's end is reached, it will loop back to the beginning of the set again.
+        /// </summary>
+        private SKColor GetNextColor()
+        {
+            if (_colorIndex == ColorSet.Length)
+            {
+                _colorIndex = 0;
+            }
+
+            var color = ColorSet[_colorIndex];
+            _colorIndex++;
+
+            return color;
+        }
+
+        /// <summary>
+        /// Gets the next available color that is sufficiently visually distinct from the reference color.
+        /// </summary>
+        /// <param name="reference">A color that should contrast with the returned color.</param>
+        private SKColor GetContrastingColor(SKColor reference)
+        {
+            SKColor result;
+            do
+            {
+                result = GetNextColor();
+            }
+            while (!result.IsDistinctColor(reference));
+
+            return result;
+        }
+
+        /// <summary>
+        /// Calculates a random possible angle from a set determined by the WordOrientations value provided.
+        /// </summary>
+        private static float NextDrawAngle(WordOrientations permittedRotations)
+        {
+            return permittedRotations switch
+            {
+                WordOrientations.Vertical => RandomChoice() ? 0 : 90,
+                WordOrientations.FlippedVertical => RandomChoice() ? 0 : -90,
+                WordOrientations.EitherVertical => RandomChoice() ? 0 : RandomChoice() ? 90 : -90,
+                WordOrientations.UprightDiagonals => (RandomInt(0, 5)) switch
+                {
+                    0 => -90,
+                    1 => -45,
+                    2 => 45,
+                    3 => 90,
+                    _ => 0,
+                },
+                WordOrientations.InvertedDiagonals => (RandomInt(0, 5)) switch
+                {
+                    0 => 90,
+                    1 => 135,
+                    2 => -135,
+                    3 => -90,
+                    _ => 180,
+                },
+                WordOrientations.AllDiagonals => (RandomInt(0, 8)) switch
+                {
+                    0 => 45,
+                    1 => 90,
+                    2 => 135,
+                    3 => 180,
+                    4 => -135,
+                    5 => -90,
+                    6 => -45,
+                    _ => 0,
+                },
+                WordOrientations.AllUpright => RandomInt(-90, 91),
+                WordOrientations.AllInverted => RandomInt(90, 271),
+                WordOrientations.All => RandomInt(0, 361),
+                _ => 0,
+            };
+        }
+
+        /// <summary>
+        /// Save the written SVG data to the provided PSProvider path.
+        /// Since SkiaSharp does not write a viewbox attribute into the SVG, this method handles that as well.
+        /// </summary>
+        /// <param name="outputStream">The memory stream containing the SVG data.</param>
+        /// <param name="viewbox">The visible area of the image.</param>
         private void SaveSvgData(SKDynamicMemoryWStream outputStream, SKRect viewbox)
         {
             string[] path = new[] { Path };
@@ -1056,6 +1112,12 @@ namespace PSWordCloud
             writer.Close();
         }
 
+        /// <summary>
+        /// Check the type of the input object and return a probable count so we can reasonably estimate necessary
+        /// capacity for processing.
+        /// </summary>
+        /// <param name="inputObject"></param>
+        /// <returns></returns>
         private int GetEstimatedCapacity(PSObject inputObject) => inputObject.BaseObject switch
         {
             string _ => 1,
@@ -1063,6 +1125,10 @@ namespace PSWordCloud
             _ => 8
         };
 
+        /// <summary>
+        /// Process a given input object and convert it to a string (or multiple strings, if there are more than one).
+        /// </summary>
+        /// <param name="input">One or more input objects.</param>
         private IEnumerable<string> NormalizeInput(PSObject input)
         {
             string value;
@@ -1125,40 +1191,18 @@ namespace PSWordCloud
         }
 
         /// <summary>
-        /// Processes the color set to ensure no colors identical to the background or stroke colors are re-used,
-        /// and picks out a random selection of colors to use up to the maximum count.
+        /// Reduces all the colors in the set to monochrome, taking their brightness values and assigning
+        /// them a corresponding shade of grey.
         /// </summary>
         /// <param name="set">The base set of colors to operate on.</param>
-        /// <param name="background">The background color, which will be excluded from the final set.</param>
-        /// <param name="stroke">The stroke color, which will be excluded from the final set.</param>
-        /// <param name="maxCount">The maximum number of colors to return.</param>
-        /// <param name="monochrome">If true, indicates to translate all colors to greyscale according to their overall
-        /// brightness values.</param>
         /// <returns></returns>
-        private static IEnumerable<SKColor> ProcessColorSet(
-            SKColor[] set,
-            SKColor background,
-            SKColor stroke,
-            int maxCount,
-            bool monochrome)
+        private static IEnumerable<SKColor> ConvertToMonochrome(SKColor[] set)
         {
-            Shuffle(set);
-
-            foreach (var color in set.Where(x => x != stroke && x != background).Take(maxCount))
+            foreach (var color in set)
             {
-                if (!monochrome)
-                {
-                    if (color.IsDistinctColor(background))
-                    {
-                        yield return color;
-                    }
-                }
-                else
-                {
-                    color.ToHsv(out _, out _, out float brightness);
-                    byte level = (byte)Math.Floor(255 * brightness / 100f);
-                    yield return new SKColor(level, level, level);
-                }
+                color.ToHsv(out _, out _, out float brightness);
+                byte level = (byte)Math.Floor(255 * brightness / 100f);
+                yield return new SKColor(level, level, level);
             }
         }
 
@@ -1330,6 +1374,9 @@ namespace PSWordCloud
             } while (clockwise ? angle <= maxAngle : angle >= maxAngle);
         }
 
+        /// <summary>
+        /// Retrieves a random floating-point number between 0 and 1.
+        /// </summary>
         private static float RandomFloat()
         {
             lock (_randomLock)
@@ -1338,6 +1385,9 @@ namespace PSWordCloud
             }
         }
 
+        /// <summary>
+        /// Retrieves a random true or false selection.
+        /// </summary>
         private static bool RandomChoice()
         {
             lock (_randomLock)
@@ -1346,6 +1396,9 @@ namespace PSWordCloud
             }
         }
 
+        /// <summary>
+        /// Retrieves a random int value.
+        /// </summary>
         private static int RandomInt()
         {
             lock (_randomLock)
@@ -1354,6 +1407,11 @@ namespace PSWordCloud
             }
         }
 
+        /// <summary>
+        /// Retrieves a random int value within the specified bounds.
+        /// </summary>
+        /// <param name="min">The minimum bound.</param>
+        /// <param name="max">The maximum bound.</param>
         private static int RandomInt(int min, int max)
         {
             lock (_randomLock)
@@ -1362,6 +1420,11 @@ namespace PSWordCloud
             }
         }
 
+        /// <summary>
+        /// Performs an in-place shuffle of the input array, randomly shuffling its contents.
+        /// </summary>
+        /// <param name="items">The array of items to be shuffled.</param>
+        /// <typeparam name="T">The type of the array.</typeparam>
         private static void Shuffle<T>(T[] items)
         {
             lock (_randomLock)
@@ -1380,18 +1443,30 @@ namespace PSWordCloud
             string[] includeWords = null,
             string[] excludeWords = null)
         {
-            return Task.Run(() => TrimAndSplitWords(line).Where(x => SelectWord(x, includeWords, excludeWords)));
+            return Task.Run(() => TrimAndSplitWords(line)
+                .Where(x => SelectWord(x, includeWords, excludeWords, AllowStopWords.IsPresent)));
         }
 
+        /// <summary>
+        /// Enumerates and returns each word from the input text.
+        /// </summary>
+        /// <param name="text">A string of text to extract words from.</param>
         private IEnumerable<string> TrimAndSplitWords(string text)
         {
             foreach (var word in text.Split(_splitChars, StringSplitOptions.RemoveEmptyEntries))
             {
-                yield return Regex.Replace(word, @"^[^a-zA-Z0-9]|[^a-zA-Z0-9]$", string.Empty);
+                yield return Regex.Replace(word, @"^[^a-zA-Z0-9]+|[^a-zA-Z0-9]+$", string.Empty);
             }
         }
 
-        private bool SelectWord(string word, string[] includeWords, string[] excludeWords)
+        /// <summary>
+        /// Determines whether a given word is usable for the word cloud, taking into account stopwords and
+        /// user selected include or exclude word lists.
+        /// </summary>
+        /// <param name="word">The word in question.</param>
+        /// <param name="includeWords">A reference list of desired words, overridingthe stopwords or exclude list.</param>
+        /// <param name="excludeWords">A reference list of undesired words, effectively impromptu stopwords.</param>
+        private static bool SelectWord(string word, string[] includeWords, string[] excludeWords, bool allowStopWords)
         {
             if (includeWords?.Contains(word, StringComparer.OrdinalIgnoreCase) == true)
             {
@@ -1403,7 +1478,7 @@ namespace PSWordCloud
                 return false;
             }
 
-            if (!AllowStopWords && _stopWords.Contains(word, StringComparer.OrdinalIgnoreCase))
+            if (!allowStopWords && _stopWords.Contains(word, StringComparer.OrdinalIgnoreCase))
             {
                 return false;
             }
