@@ -427,72 +427,6 @@ namespace PSWordCloud
 
         private int _colorIndex = 0;
 
-        private SKColor GetNextColor()
-        {
-            if (_colorIndex == ColorSet.Length)
-            {
-                _colorIndex = 0;
-            }
-
-            var color = ColorSet[_colorIndex];
-            _colorIndex++;
-
-            return color;
-        }
-
-        private SKColor GetContrastingColor(SKColor reference)
-        {
-            SKColor result;
-            do
-            {
-                result = GetNextColor();
-            }
-            while (!result.IsDistinctColor(reference));
-
-            return result;
-        }
-
-        private float NextDrawAngle()
-        {
-            return AllowRotation switch
-            {
-                WordOrientations.Vertical => RandomChoice() ? 0 : 90,
-                WordOrientations.FlippedVertical => RandomChoice() ? 0 : -90,
-                WordOrientations.EitherVertical => RandomChoice() ? 0 : RandomChoice() ? 90 : -90,
-                WordOrientations.UprightDiagonals => (RandomInt(0, 5)) switch
-                {
-                    0 => -90,
-                    1 => -45,
-                    2 => 45,
-                    3 => 90,
-                    _ => 0,
-                },
-                WordOrientations.InvertedDiagonals => (RandomInt(0, 5)) switch
-                {
-                    0 => 90,
-                    1 => 135,
-                    2 => -135,
-                    3 => -90,
-                    _ => 180,
-                },
-                WordOrientations.AllDiagonals => (RandomInt(0, 8)) switch
-                {
-                    0 => 45,
-                    1 => 90,
-                    2 => 135,
-                    3 => 180,
-                    4 => -135,
-                    5 => -90,
-                    6 => -45,
-                    _ => 0,
-                },
-                WordOrientations.AllUpright => RandomInt(-90, 91),
-                WordOrientations.AllInverted => RandomInt(90, 271),
-                WordOrientations.All => RandomInt(0, 361),
-                _ => 0,
-            };
-        }
-
         private float _paddingMultiplier { get => Padding * PADDING_BASE_SCALE; }
 
         #endregion privateVariables
@@ -689,7 +623,7 @@ namespace PSWordCloud
                         _fontScale,
                         wordScaleDictionary);
 
-                    brush.NextWord(adjustedWordSize, StrokeWidth);
+                    brush.Prepare(adjustedWordSize, StrokeWidth);
 
                     var textRect = brush.GetTextPath(sortedWordList[0], 0, 0).ComputeTightBounds();
                     var adjustedTextWidth = textRect.Width * (1 + _paddingMultiplier) + StrokeWidth * 2 * STROKE_BASE_SCALE;
@@ -717,7 +651,7 @@ namespace PSWordCloud
                             _fontScale,
                             wordScaleDictionary);
 
-                        brush.NextWord(adjustedWordSize, StrokeWidth);
+                        brush.Prepare(adjustedWordSize, StrokeWidth);
 
                         var textRect = brush.GetTextPath(word, 0, 0).ComputeTightBounds();
                         var adjustedTextWidth = textRect.Width * (1 + _paddingMultiplier) + StrokeWidth * 2 * STROKE_BASE_SCALE;
@@ -812,7 +746,7 @@ namespace PSWordCloud
                         wordColor = GetContrastingColor(bubbleColor);
                     }
 
-                    brush.NextWord(scaledWordSizes[word], StrokeWidth, wordColor);
+                    brush.Dip(scaledWordSizes[word], StrokeWidth, wordColor);
 
                     wordPath.Dispose();
                     wordPath = brush.GetTextPath(word, 0, 0);
@@ -824,7 +758,7 @@ namespace PSWordCloud
                     float drawAngle = wordCount == 1
                         && MyInvocation.BoundParameters.ContainsKey(nameof(RotateFocusWord))
                             ? drawAngle = RotateFocusWord
-                            : drawAngle = NextDrawAngle();
+                            : drawAngle = NextDrawAngle(AllowRotation);
 
                     var percentComplete = 100f * wordCount / scaledWordSizes.Count;
 
@@ -979,7 +913,7 @@ namespace PSWordCloud
                         if (WordBubble != WordBubbleShape.None)
                         {
                             // If we're using word bubbles, the bubbles should more or less enclose the words.
-                            occupiedSpace.Op(bubblePath, SKRegionOperation.Union);
+                            occupiedSpace.CombineWithPath(bubblePath, SKRegionOperation.Union);
 
                             brush.IsStroke = false;
                             brush.Style = SKPaintStyle.Fill;
@@ -989,7 +923,7 @@ namespace PSWordCloud
                         else
                         {
                             // If we're not using bubbles, record the exact space the word occupies.
-                            occupiedSpace.Op(wordPath, SKRegionOperation.Union);
+                            occupiedSpace.CombineWithPath(wordPath, SKRegionOperation.Union);
                         }
 
                         if (MyInvocation.BoundParameters.ContainsKey(nameof(StrokeWidth)))
@@ -1052,6 +986,83 @@ namespace PSWordCloud
         }
 
         #region HelperMethods
+
+        /// <summary>
+        /// Gets the next available color from the current set.
+        /// If the set's end is reached, it will loop back to the beginning of the set again.
+        /// </summary>
+        private SKColor GetNextColor()
+        {
+            if (_colorIndex == ColorSet.Length)
+            {
+                _colorIndex = 0;
+            }
+
+            var color = ColorSet[_colorIndex];
+            _colorIndex++;
+
+            return color;
+        }
+
+        /// <summary>
+        /// Gets the next available color that is sufficiently visually distinct from the reference color.
+        /// </summary>
+        /// <param name="reference">A color that should contrast with the returned color.</param>
+        private SKColor GetContrastingColor(SKColor reference)
+        {
+            SKColor result;
+            do
+            {
+                result = GetNextColor();
+            }
+            while (!result.IsDistinctColor(reference));
+
+            return result;
+        }
+
+        /// <summary>
+        /// Calculates a random possible angle from a set determined by the WordOrientations value provided.
+        /// </summary>
+        private static float NextDrawAngle(WordOrientations permittedRotations)
+        {
+            return permittedRotations switch
+            {
+                WordOrientations.Vertical => RandomChoice() ? 0 : 90,
+                WordOrientations.FlippedVertical => RandomChoice() ? 0 : -90,
+                WordOrientations.EitherVertical => RandomChoice() ? 0 : RandomChoice() ? 90 : -90,
+                WordOrientations.UprightDiagonals => (RandomInt(0, 5)) switch
+                {
+                    0 => -90,
+                    1 => -45,
+                    2 => 45,
+                    3 => 90,
+                    _ => 0,
+                },
+                WordOrientations.InvertedDiagonals => (RandomInt(0, 5)) switch
+                {
+                    0 => 90,
+                    1 => 135,
+                    2 => -135,
+                    3 => -90,
+                    _ => 180,
+                },
+                WordOrientations.AllDiagonals => (RandomInt(0, 8)) switch
+                {
+                    0 => 45,
+                    1 => 90,
+                    2 => 135,
+                    3 => 180,
+                    4 => -135,
+                    5 => -90,
+                    6 => -45,
+                    _ => 0,
+                },
+                WordOrientations.AllUpright => RandomInt(-90, 91),
+                WordOrientations.AllInverted => RandomInt(90, 271),
+                WordOrientations.All => RandomInt(0, 361),
+                _ => 0,
+            };
+        }
 
         /// <summary>
         /// Save the written SVG data to the provided PSProvider path.
