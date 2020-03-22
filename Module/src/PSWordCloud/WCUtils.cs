@@ -103,7 +103,7 @@ namespace PSWordCloud
         /// <param name="rng">Random number generator.</param>
         /// <param name="array">The array to shuffle.</param>
         /// <typeparam name="T">The element type of the array.</typeparam>
-        internal static void Shuffle<T>(this Random rng, T[] array)
+        internal static T[] Shuffle<T>(this Random rng, T[] array)
         {
             int n = array.Length;
             while (n > 1)
@@ -113,6 +113,8 @@ namespace PSWordCloud
                 array[n] = array[k];
                 array[k] = temp;
             }
+
+            return array;
         }
 
         /// <summary>

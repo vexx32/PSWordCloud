@@ -635,9 +635,6 @@ namespace PSWordCloud
                     }
                 } while (retry);
 
-                // Apply manual scaling from the user
-                _fontScale *= WordScale;
-
                 WriteDebug($"Global font scale: {_fontScale}");
 
                 do
@@ -669,6 +666,9 @@ namespace PSWordCloud
                     }
                 }
                 while (retry);
+
+                // Apply manual scaling from the user
+                _fontScale *= WordScale;
 
                 aspectRatio = viewbox.Width / viewbox.Height;
                 centrePoint = new SKPoint(viewbox.MidX, viewbox.MidY);
@@ -727,6 +727,11 @@ namespace PSWordCloud
                 {
                     wordCount++;
 
+                    IEnumerable<float> availableAngles = wordCount == 1
+                        && MyInvocation.BoundParameters.ContainsKey(nameof(RotateFocusWord))
+                            ? new[] { RotateFocusWord }
+                            : GetDrawAngles(AllowRotation);
+
                     WriteDebug($"Scanning for draw location for '{word}'.");
 
                     inflationValue = 2 * scaledWordSizes[word] * (_paddingMultiplier + StrokeWidth * STROKE_BASE_SCALE);
@@ -754,11 +759,6 @@ namespace PSWordCloud
                     var wordWidth = wordBounds.Width;
                     var wordHeight = wordBounds.Height;
 
-                    float drawAngle = wordCount == 1
-                        && MyInvocation.BoundParameters.ContainsKey(nameof(RotateFocusWord))
-                            ? drawAngle = RotateFocusWord
-                            : drawAngle = NextDrawAngle(AllowRotation);
-
                     var percentComplete = 100f * wordCount / scaledWordSizes.Count;
 
                     wordProgress.StatusDescription = string.Format(
@@ -770,134 +770,137 @@ namespace PSWordCloud
                     wordProgress.PercentComplete = (int)Math.Round(percentComplete);
                     WriteProgress(wordProgress);
 
-                    for (
-                        float radius = 0;
-                        radius <= maxRadius;
-                        radius += GetRadiusIncrement(
-                            scaledWordSizes[word],
-                            DistanceStep,
-                            maxRadius,
-                            inflationValue,
-                            percentComplete))
+                    foreach (var drawAngle in availableAngles)
                     {
-                        SKPoint adjustedPoint, baseOffset;
-
-                        var radialPoints = GetRadialPoints(centrePoint, radius, RadialStep, aspectRatio);
-                        var totalPoints = radialPoints.Count();
-                        var pointsChecked = 0;
-                        foreach (var point in radialPoints)
+                        for (
+                            float radius = 0;
+                            radius <= maxRadius;
+                            radius += GetRadiusIncrement(
+                                scaledWordSizes[word],
+                                DistanceStep,
+                                maxRadius,
+                                inflationValue,
+                                percentComplete))
                         {
-                            pointsChecked++;
-                            if (!drawableBounds.Contains(point) && point != centrePoint)
+                            SKPoint adjustedPoint, baseOffset;
+
+                            var radialPoints = GetRadialPoints(centrePoint, radius, RadialStep, aspectRatio);
+                            var totalPoints = radialPoints.Count();
+                            var pointsChecked = 0;
+                            foreach (var point in radialPoints)
                             {
-                                continue;
-                            }
-
-                            pointProgress.Activity = string.Format(
-                                "Finding available space to draw at angle: {0}",
-                                drawAngle);
-                            pointProgress.StatusDescription = string.Format(
-                                "Checking [Point:{0,8:N2}, {1,8:N2}] ({2,4} / {3,4}) at [Radius: {4,8:N2}]",
-                                point.X,
-                                point.Y,
-                                pointsChecked,
-                                totalPoints,
-                                radius);
-
-                            WriteProgress(pointProgress);
-
-                            baseOffset = new SKPoint(
-                                -(wordWidth / 2),
-                                wordHeight / 2);
-                            adjustedPoint = point + baseOffset;
-
-                            SKMatrix rotation = SKMatrix.MakeRotationDegrees(drawAngle, point.X, point.Y);
-
-                            SKPath alteredPath = brush.GetTextPath(word, adjustedPoint.X, adjustedPoint.Y);
-                            alteredPath.Transform(rotation);
-                            alteredPath.GetTightBounds(out wordBounds);
-
-                            wordBounds.Inflate(inflationValue, inflationValue);
-
-                            if (WordBubble == WordBubbleShape.None)
-                            {
-                                if (wordCount == 1)
-                                {
-                                    // First word will always be drawn in the centre.
-                                    wordPath = alteredPath;
-                                    targetPoint = adjustedPoint;
-                                    goto nextWord;
-                                }
-
-                                if (wordBounds.FallsOutside(clipRegion))
+                                pointsChecked++;
+                                if (!drawableBounds.Contains(point) && point != centrePoint)
                                 {
                                     continue;
                                 }
 
-                                if (!occupiedSpace.IntersectsRect(wordBounds))
+                                pointProgress.Activity = string.Format(
+                                    "Finding available space to draw at angle: {0}",
+                                    drawAngle);
+                                pointProgress.StatusDescription = string.Format(
+                                    "Checking [Point:{0,8:N2}, {1,8:N2}] ({2,4} / {3,4}) at [Radius: {4,8:N2}]",
+                                    point.X,
+                                    point.Y,
+                                    pointsChecked,
+                                    totalPoints,
+                                    radius);
+
+                                WriteProgress(pointProgress);
+
+                                baseOffset = new SKPoint(
+                                    -(wordWidth / 2),
+                                    wordHeight / 2);
+                                adjustedPoint = point + baseOffset;
+
+                                SKMatrix rotation = SKMatrix.MakeRotationDegrees(drawAngle, point.X, point.Y);
+
+                                SKPath alteredPath = brush.GetTextPath(word, adjustedPoint.X, adjustedPoint.Y);
+                                alteredPath.Transform(rotation);
+                                alteredPath.GetTightBounds(out wordBounds);
+
+                                wordBounds.Inflate(inflationValue, inflationValue);
+
+                                if (WordBubble == WordBubbleShape.None)
                                 {
-                                    wordPath = alteredPath;
-                                    targetPoint = adjustedPoint;
-                                    goto nextWord;
+                                    if (wordCount == 1)
+                                    {
+                                        // First word will always be drawn in the centre.
+                                        wordPath = alteredPath;
+                                        targetPoint = adjustedPoint;
+                                        goto nextWord;
+                                    }
+
+                                    if (wordBounds.FallsOutside(clipRegion))
+                                    {
+                                        continue;
+                                    }
+
+                                    if (!occupiedSpace.IntersectsRect(wordBounds))
+                                    {
+                                        wordPath = alteredPath;
+                                        targetPoint = adjustedPoint;
+                                        goto nextWord;
+                                    }
                                 }
-                            }
-                            else
-                            {
-                                bubblePath?.Dispose();
-                                bubblePath = new SKPath();
-
-                                SKRoundRect wordBubble;
-                                float bubbleRadius;
-
-                                switch (WordBubble)
+                                else
                                 {
-                                    case WordBubbleShape.Rectangle:
-                                        bubbleRadius = wordBounds.Height / 16;
-                                        wordBubble = new SKRoundRect(wordBounds, bubbleRadius, bubbleRadius);
-                                        bubblePath.AddRoundRect(wordBubble);
-                                        break;
+                                    bubblePath?.Dispose();
+                                    bubblePath = new SKPath();
 
-                                    case WordBubbleShape.Square:
-                                        bubbleRadius = Math.Max(wordBounds.Width, wordBounds.Height) / 16;
-                                        wordBubble = new SKRoundRect(wordBounds.GetEnclosingSquare(), bubbleRadius, bubbleRadius);
-                                        bubblePath.AddRoundRect(wordBubble);
-                                        break;
+                                    SKRoundRect wordBubble;
+                                    float bubbleRadius;
 
-                                    case WordBubbleShape.Circle:
-                                        bubbleRadius = Math.Max(wordBounds.Width, wordBounds.Height) / 2;
-                                        bubblePath.AddCircle(wordBounds.MidX, wordBounds.MidY, bubbleRadius);
-                                        break;
+                                    switch (WordBubble)
+                                    {
+                                        case WordBubbleShape.Rectangle:
+                                            bubbleRadius = wordBounds.Height / 16;
+                                            wordBubble = new SKRoundRect(wordBounds, bubbleRadius, bubbleRadius);
+                                            bubblePath.AddRoundRect(wordBubble);
+                                            break;
 
-                                    case WordBubbleShape.Oval:
-                                        bubblePath.AddOval(wordBounds);
-                                        break;
+                                        case WordBubbleShape.Square:
+                                            bubbleRadius = Math.Max(wordBounds.Width, wordBounds.Height) / 16;
+                                            wordBubble = new SKRoundRect(wordBounds.GetEnclosingSquare(), bubbleRadius, bubbleRadius);
+                                            bubblePath.AddRoundRect(wordBubble);
+                                            break;
+
+                                        case WordBubbleShape.Circle:
+                                            bubbleRadius = Math.Max(wordBounds.Width, wordBounds.Height) / 2;
+                                            bubblePath.AddCircle(wordBounds.MidX, wordBounds.MidY, bubbleRadius);
+                                            break;
+
+                                        case WordBubbleShape.Oval:
+                                            bubblePath.AddOval(wordBounds);
+                                            break;
+                                    }
+
+                                    if (wordCount == 1)
+                                    {
+                                        // First word will always be drawn in the centre.
+                                        wordPath = alteredPath;
+                                        targetPoint = adjustedPoint;
+                                        goto nextWord;
+                                    }
+
+                                    if (wordBounds.FallsOutside(clipRegion))
+                                    {
+                                        continue;
+                                    }
+
+                                    if (!occupiedSpace.IntersectsPath(bubblePath))
+                                    {
+                                        wordPath = alteredPath;
+                                        targetPoint = adjustedPoint;
+                                        goto nextWord;
+                                    }
                                 }
 
-                                if (wordCount == 1)
+                                if (point == centrePoint)
                                 {
-                                    // First word will always be drawn in the centre.
-                                    wordPath = alteredPath;
-                                    targetPoint = adjustedPoint;
-                                    goto nextWord;
+                                    // No point checking more than a single point at the origin
+                                    break;
                                 }
-
-                                if (wordBounds.FallsOutside(clipRegion))
-                                {
-                                    continue;
-                                }
-
-                                if (!occupiedSpace.IntersectsPath(bubblePath))
-                                {
-                                    wordPath = alteredPath;
-                                    targetPoint = adjustedPoint;
-                                    goto nextWord;
-                                }
-                            }
-
-                            if (point == centrePoint)
-                            {
-                                // No point checking more than a single point at the origin
-                                break;
                             }
                         }
                     }
@@ -1020,47 +1023,34 @@ namespace PSWordCloud
         }
 
         /// <summary>
-        /// Calculates a random possible angle from a set determined by the WordOrientations value provided.
+        /// Returns a shuffled set of possible angles determined by the WordOrientations value provided.
         /// </summary>
-        private static float NextDrawAngle(WordOrientations permittedRotations)
+        private static IEnumerable<float> GetDrawAngles(WordOrientations permittedRotations)
         {
             return permittedRotations switch
             {
-                WordOrientations.Vertical => RandomChoice() ? 0 : 90,
-                WordOrientations.FlippedVertical => RandomChoice() ? 0 : -90,
-                WordOrientations.EitherVertical => RandomChoice() ? 0 : RandomChoice() ? 90 : -90,
-                WordOrientations.UprightDiagonals => (RandomInt(0, 5)) switch
-                {
-                    0 => -90,
-                    1 => -45,
-                    2 => 45,
-                    3 => 90,
-                    _ => 0,
-                },
-                WordOrientations.InvertedDiagonals => (RandomInt(0, 5)) switch
-                {
-                    0 => 90,
-                    1 => 135,
-                    2 => -135,
-                    3 => -90,
-                    _ => 180,
-                },
-                WordOrientations.AllDiagonals => (RandomInt(0, 8)) switch
-                {
-                    0 => 45,
-                    1 => 90,
-                    2 => 135,
-                    3 => 180,
-                    4 => -135,
-                    5 => -90,
-                    6 => -45,
-                    _ => 0,
-                },
-                WordOrientations.AllUpright => RandomInt(-90, 91),
-                WordOrientations.AllInverted => RandomInt(90, 271),
-                WordOrientations.All => RandomInt(0, 361),
-                _ => 0,
+                WordOrientations.Vertical => Shuffle(new float[] { 0, 90 }),
+                WordOrientations.FlippedVertical => Shuffle(new float[] { 0, -90 }),
+                WordOrientations.EitherVertical => Shuffle(new float[] { 0, 90, -90 }),
+                WordOrientations.UprightDiagonals => Shuffle(new float[] { 0, -90, -45, 45, 90 }),
+                WordOrientations.InvertedDiagonals => Shuffle(new float[] { 90, 135, -135, -90, 180 }),
+                WordOrientations.AllDiagonals => Shuffle(new float[] { 45, 90, 135, 180, -135, -90, -45, 0 }),
+                WordOrientations.AllUpright => RandomAngles(-90, 91),
+                WordOrientations.AllInverted => RandomAngles(90, 271),
+                WordOrientations.All => RandomAngles(0, 361),
+                _ => new float[] { 0 },
             };
+        }
+
+        /// <summary>
+        /// Yields a set of random angles between <paramref name="minAngle"/> and <paramref name="maxAngle"/>.
+        /// </summary>
+        private static IEnumerable<float> RandomAngles(int minAngle, int maxAngle)
+        {
+            for (var i = 0; i < RandomInt(4, 16); i++)
+            {
+                yield return RandomFloat(minAngle, maxAngle);
+            }
         }
 
         /// <summary>
@@ -1386,13 +1376,19 @@ namespace PSWordCloud
         }
 
         /// <summary>
-        /// Retrieves a random true or false selection.
+        /// Retrieves a random floating-point number between <paramref name="min"/> and <paramref name="max"/>.
         /// </summary>
-        private static bool RandomChoice()
+        private static float RandomFloat(float min, float max)
         {
+            if (min > max)
+            {
+                return max;
+            }
+
             lock (_randomLock)
             {
-                return Random.NextDouble() >= 0.5;
+                var range = max - min;
+                return (float)Random.NextDouble() * range + min;
             }
         }
 
@@ -1425,11 +1421,11 @@ namespace PSWordCloud
         /// </summary>
         /// <param name="items">The array of items to be shuffled.</param>
         /// <typeparam name="T">The type of the array.</typeparam>
-        private static void Shuffle<T>(T[] items)
+        private static T[] Shuffle<T>(T[] items)
         {
             lock (_randomLock)
             {
-                Random.Shuffle(items);
+                return Random.Shuffle(items);
             }
         }
 
