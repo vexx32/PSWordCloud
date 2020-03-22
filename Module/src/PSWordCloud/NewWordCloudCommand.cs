@@ -30,7 +30,7 @@ namespace PSWordCloud
         #region Constants
 
         private const float FOCUS_WORD_SCALE = 1.3f;
-        private const float BLEED_AREA_SCALE = 1.2f;
+        private const float BLEED_AREA_SCALE = 1.5f;
         private const float MAX_WORD_WIDTH_PERCENT = 1.0f;
         private const float PADDING_BASE_SCALE = 0.06f;
         private const float MAX_WORD_AREA_PERCENT = 0.0575f;
@@ -587,7 +587,18 @@ namespace PSWordCloud
 
                 wordPath = new SKPath();
                 clipRegion = new SKRegion();
-                clipRegion.SetRect(SKRectI.Round(viewbox));
+                if (AllowOverflow)
+                {
+                    clipRegion.SetRect(
+                        SKRectI.Round(SKRect.Inflate(
+                            viewbox,
+                            viewbox.Width * (BLEED_AREA_SCALE - 1),
+                            viewbox.Height * (BLEED_AREA_SCALE - 1))));
+                }
+                else
+                {
+                    clipRegion.SetRect(SKRectI.Round(viewbox));
+                }
 
                 _fontScale = FontScale(
                     clipRegion.Bounds,
@@ -635,6 +646,8 @@ namespace PSWordCloud
                     }
                 } while (retry);
 
+                // Apply manual scaling from the user
+                _fontScale *= WordScale;
                 WriteDebug($"Global font scale: {_fontScale}");
 
                 do
@@ -667,9 +680,6 @@ namespace PSWordCloud
                 }
                 while (retry);
 
-                // Apply manual scaling from the user
-                _fontScale *= WordScale;
-
                 aspectRatio = viewbox.Width / viewbox.Height;
                 centrePoint = new SKPoint(viewbox.MidX, viewbox.MidY);
 
@@ -677,6 +687,11 @@ namespace PSWordCloud
                 sortedWordList.RemoveAll(x => !scaledWordSizes.ContainsKey(x));
 
                 maxRadius = 9 * Math.Max(viewbox.Width, viewbox.Height) / 16f;
+
+                if (AllowOverflow)
+                {
+                    maxRadius *= BLEED_AREA_SCALE;
+                }
 
                 using SKDynamicMemoryWStream outputStream = new SKDynamicMemoryWStream();
                 using SKXmlStreamWriter xmlWriter = new SKXmlStreamWriter(outputStream);
@@ -686,18 +701,6 @@ namespace PSWordCloud
                 brush.IsAutohinted = true;
                 brush.IsAntialias = true;
                 brush.Typeface = Typeface;
-
-                SKRect drawableBounds;
-                if (MyInvocation.BoundParameters.ContainsKey(nameof(AllowOverflow)))
-                {
-                    drawableBounds = SKRect.Create(
-                        viewbox.Location,
-                        new SKSize(viewbox.Width * BLEED_AREA_SCALE, viewbox.Height * BLEED_AREA_SCALE));
-                }
-                else
-                {
-                    drawableBounds = viewbox;
-                }
 
                 if (ParameterSetName.StartsWith(FILE_SET))
                 {
@@ -790,7 +793,7 @@ namespace PSWordCloud
                             foreach (var point in radialPoints)
                             {
                                 pointsChecked++;
-                                if (!drawableBounds.Contains(point) && point != centrePoint)
+                                if (!clipRegion.Contains(point) && point != centrePoint)
                                 {
                                     continue;
                                 }

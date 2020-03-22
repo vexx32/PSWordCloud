@@ -133,6 +133,19 @@ namespace PSWordCloud
         }
 
         /// <summary>
+        /// Checks if the given <paramref name="point"/> lies somewhere inside the <paramref name="region"/>.
+        /// </summary>
+        /// <param name="region">The region that defines the bounds.</param>
+        /// <param name="point">The point to check.</param>
+        /// <returns></returns>
+        internal static bool Contains(this SKRegion region, SKPoint point)
+        {
+            SKRectI bounds = region.Bounds;
+            return bounds.Left < point.X && point.X < bounds.Right
+                && bounds.Top < point.Y && point.Y < bounds.Bottom;
+        }
+
+        /// <summary>
         /// Prepares the brush to draw the next word.
         /// This overload assumes the text to be drawn will be black.
         /// </summary>
