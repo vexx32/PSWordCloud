@@ -7,7 +7,7 @@
   </PropertyGroup>
 
 <ItemGroup>
-  <ProjectReference Include="..\PSWordCloudCmdlet.csproj" />
+  <ProjectReference Include="..\Module\PSWordCloudCmdlet.csproj" />
 </ItemGroup>
 
   <ItemGroup>
