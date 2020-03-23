@@ -686,7 +686,8 @@ namespace PSWordCloud
                 // Remove all words that were cut from the final rendering list
                 sortedWordList.RemoveAll(x => !scaledWordSizes.ContainsKey(x));
 
-                maxRadius = 9 * Math.Max(viewbox.Width, viewbox.Height) / 16f;
+                // Max radius should reach to the corner of the image; location is top-left of the box
+                maxRadius = SKPoint.Distance(viewbox.Location, centrePoint);
 
                 if (AllowOverflow)
                 {
