@@ -151,7 +151,8 @@ namespace PSWordCloud
                 return new SKSizeI(sideLength, sideLength);
             }
 
-            throw new ArgumentTransformationMetadataException();
+            var errorMessage = $"Unrecognisable input '{inputData}' for SKSize parameter. See the help documentation for the parameter for allowed values.";
+            throw new ArgumentTransformationMetadataException(errorMessage);
         }
     }
 
@@ -325,6 +326,7 @@ namespace PSWordCloud
 
         private IEnumerable<SKColor> MatchColor(string name)
         {
+            string errorMessage;
             if (WCUtils.ColorNames.Contains(name))
             {
                 yield return WCUtils.ColorLibrary[name];
@@ -355,6 +357,9 @@ namespace PSWordCloud
                 {
                     yield break;
                 }
+
+                errorMessage = $"Wildcard pattern '{name}' did not match any known color names.";
+                throw new ArgumentTransformationMetadataException(errorMessage);
             }
 
             if (SKColor.TryParse(name, out SKColor c))
@@ -363,7 +368,8 @@ namespace PSWordCloud
                 yield break;
             }
 
-            throw new ArgumentTransformationMetadataException();
+            errorMessage = $"Unrecognised color name: '{name}'.";
+            throw new ArgumentTransformationMetadataException(errorMessage);
         }
 
         private object Normalize(IEnumerable<SKColor> results)
