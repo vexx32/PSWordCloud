@@ -1050,7 +1050,8 @@ namespace PSWordCloud
         /// </summary>
         private static IEnumerable<float> RandomAngles(int minAngle, int maxAngle)
         {
-            for (var i = 0; i < RandomInt(4, 16); i++)
+            var angleCount = RandomInt(4, 12);
+            for (var i = 0; i < angleCount; i++)
             {
                 yield return RandomFloat(minAngle, maxAngle);
             }
