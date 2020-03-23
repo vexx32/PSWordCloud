@@ -77,7 +77,7 @@ foreach ($rid in $SupportedPlatforms) {
         Select-Object -ExpandProperty FullName
 
     Write-Host "Moving $nativeLib to $destinationPath"
-    $nativeLib = $nativeLib | Move-Item -Destination $destinationPath -Force -PassThru
+    $nativeLib = $nativeLib | Copy-Item -Destination $destinationPath -Force -PassThru
 
     $nativeLib
 }

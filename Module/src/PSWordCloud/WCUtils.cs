@@ -103,7 +103,7 @@ namespace PSWordCloud
         /// <param name="rng">Random number generator.</param>
         /// <param name="array">The array to shuffle.</param>
         /// <typeparam name="T">The element type of the array.</typeparam>
-        internal static void Shuffle<T>(this Random rng, T[] array)
+        internal static T[] Shuffle<T>(this Random rng, T[] array)
         {
             int n = array.Length;
             while (n > 1)
@@ -113,6 +113,8 @@ namespace PSWordCloud
                 array[n] = array[k];
                 array[k] = temp;
             }
+
+            return array;
         }
 
         /// <summary>
@@ -128,6 +130,19 @@ namespace PSWordCloud
                 || other.Bottom > bounds.Bottom
                 || other.Left < bounds.Left
                 || other.Right > bounds.Right;
+        }
+
+        /// <summary>
+        /// Checks if the given <paramref name="point"/> lies somewhere inside the <paramref name="region"/>.
+        /// </summary>
+        /// <param name="region">The region that defines the bounds.</param>
+        /// <param name="point">The point to check.</param>
+        /// <returns></returns>
+        internal static bool Contains(this SKRegion region, SKPoint point)
+        {
+            SKRectI bounds = region.Bounds;
+            return bounds.Left < point.X && point.X < bounds.Right
+                && bounds.Top < point.Y && point.Y < bounds.Bottom;
         }
 
         /// <summary>
