@@ -678,7 +678,7 @@ namespace PSWordCloud
 
                     // Reduce the font scale proportionately to fit in the reduced draw area.
                     var area = CloudShape.GetEnclosedArea();
-                    _fontScale *= area / (clipRegion.Bounds.Width * clipRegion.Bounds.Height);
+                    _fontScale *= (float)Math.Sqrt(area) / (float)Math.Sqrt(clipRegion.Bounds.Width * clipRegion.Bounds.Height));
                 }
 
                 WriteDebug($"Global font scale: {_fontScale}");
@@ -728,8 +728,7 @@ namespace PSWordCloud
                 }
 
                 using SKDynamicMemoryWStream outputStream = new SKDynamicMemoryWStream();
-                using SKXmlStreamWriter xmlWriter = new SKXmlStreamWriter(outputStream);
-                using SKCanvas canvas = SKSvgCanvas.Create(viewbox, xmlWriter);
+                using SKCanvas canvas = SKSvgCanvas.Create(viewbox, outputStream);
                 using SKRegion occupiedSpace = new SKRegion();
 
                 if (MyInvocation.BoundParameters.ContainsKey(nameof(CloudShape)))
