@@ -412,4 +412,25 @@ namespace PSWordCloud
         }
     }
 
+    public class TransformToSKPathAttribute : ArgumentTransformationAttribute
+    {
+        public override object Transform(EngineIntrinsics engineIntrinsics, object inputData)
+        {
+            var exceptionMessage = $"Unrecognised input for SKPath-type parameter: '{inputData}'.";
+            return inputData switch
+            {
+                SKPath _ => inputData,
+                string s => ConvertStringToSKPath(s),
+                _ => throw new ArgumentTransformationMetadataException(exceptionMessage)
+            };
+        }
+
+        private SKPath ConvertStringToSKPath(string input)
+        {
+            using var brush = new SKPaint();
+            brush.Prepare(wordSize: 1, strokeWidth: 0);
+
+            return brush.GetTextPath(input, x: 0, y: 0);
+        }
+    }
 }
