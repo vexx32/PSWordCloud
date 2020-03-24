@@ -456,7 +456,7 @@ namespace PSWordCloud
         }
 
         /// <summary>
-        /// Implements the ProcessRecord method for PSWordCloud.
+        /// Implements the ProcessRecord method for New-WordCloud.
         /// Spins up a Task&lt;IEnumerable&lt;string&gt;&gt; for each input text string to split them all
         /// asynchronously.
         /// </summary>
