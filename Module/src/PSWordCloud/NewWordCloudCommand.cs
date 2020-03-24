@@ -287,16 +287,6 @@ namespace PSWordCloud
         [ValidateRange(-360, 360)]
         public float RotateFocusWord { get; set; }
 
-        [Parameter()]
-        public string CloudShape { get; set; }
-
-        /// <summary>
-        /// Gets or sets whether or not to allow words to overflow the base canvas.
-        /// </summary>
-        [Parameter()]
-        [Alias("AllowBleed")]
-        public SwitchParameter AllowOverflow { get; set; }
-
         /// <summary>
         /// <para>Gets or sets the words to be explicitly ignored when rendering the word cloud.</para>
         /// <para>This is usually used to exclude irrelevant words, link segments, etc.</para>
@@ -352,6 +342,16 @@ namespace PSWordCloud
         public WordBubbleShape WordBubble { get; set; } = WordBubbleShape.None;
 
         /// <summary>
+        /// Gets or sets a path which defines the final shape of the cloud.
+        /// If a string is provided, it will be drawn as a text path to the largest possible scale within the image
+        /// or the overflow bounds.
+        /// This path determines the enclosed area within which text can be drawn.
+        /// </summary>
+        [Parameter()]
+        [TransformToSKPath]
+        public SKPath CloudShape { get; set; }
+
+        /// <summary>
         /// Gets or sets the value to scale the distance step by. Larger numbers will result in more radially spaced
         /// out clouds.
         /// </summary>
@@ -367,6 +367,13 @@ namespace PSWordCloud
         [Parameter()]
         [ValidateRange(1, 50)]
         public float RadialStep { get; set; } = 15;
+
+        /// <summary>
+        /// Gets or sets whether or not to allow words to overflow the base canvas.
+        /// </summary>
+        [Parameter()]
+        [Alias("AllowBleed")]
+        public SwitchParameter AllowOverflow { get; set; }
 
         /// <summary>
         /// Gets or sets the maximum number of words to render as part of the cloud.
@@ -650,6 +657,30 @@ namespace PSWordCloud
 
                 // Apply manual scaling from the user
                 _fontScale *= WordScale;
+
+                if (MyInvocation.BoundParameters.ContainsKey(nameof(CloudShape)))
+                {
+                    // We want to scale the shape word as large as possible, keeping it inside the image bounds.
+                    // We use clipRegion instead of viewbox so that we can work along with -AllowOverflow if needed.
+                    var shapeBounds = CloudShape.TightBounds;
+                    var largestSide = Math.Max(shapeBounds.Width, shapeBounds.Height);
+                    var scaleFactor = Math.Min(clipRegion.Bounds.Width, clipRegion.Bounds.Height) / largestSide;
+                    var centreX = clipRegion.Bounds.MidX;
+                    var centreY = clipRegion.Bounds.MidY;
+
+                    // Move the shape word path to the centre of the image and scale to the proper size.
+                    // Note that we shift LEFT to align width, but DOWN to align height as words are
+                    // drawn relative to their baseline, not the top-left point of their bounds.
+                    CloudShape.Transform(SKMatrix.MakeTranslation(
+                        centreX - shapeBounds.Width / 2,
+                        centreY + shapeBounds.Height / 2));
+                    CloudShape.Transform(SKMatrix.MakeScale(scaleFactor, scaleFactor, centreX, centreY));
+
+                    // Reduce the font scale proportionately to fit in the reduced draw area.
+                    var area = CloudShape.GetEnclosedArea();
+                    _fontScale *= area / (clipRegion.Bounds.Width * clipRegion.Bounds.Height);
+                }
+
                 WriteDebug($"Global font scale: {_fontScale}");
 
                 do
@@ -700,6 +731,12 @@ namespace PSWordCloud
                 using SKXmlStreamWriter xmlWriter = new SKXmlStreamWriter(outputStream);
                 using SKCanvas canvas = SKSvgCanvas.Create(viewbox, xmlWriter);
                 using SKRegion occupiedSpace = new SKRegion();
+
+                if (MyInvocation.BoundParameters.ContainsKey(nameof(CloudShape)))
+                {
+                    occupiedSpace.SetRect(clipRegion.Bounds);
+                    occupiedSpace.CombineWithPath(CloudShape, SKRegionOperation.XOR);
+                }
 
                 brush.IsAutohinted = true;
                 brush.IsAntialias = true;
@@ -977,6 +1014,7 @@ namespace PSWordCloud
                 clipRegion?.Dispose();
                 wordPath?.Dispose();
                 bubblePath?.Dispose();
+                CloudShape?.Dispose();
                 backgroundImage?.Dispose();
 
                 if (wordProgress != null)

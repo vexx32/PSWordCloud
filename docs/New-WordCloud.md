@@ -18,9 +18,9 @@ Describes the syntax and behaviour of the New-WordCloud cmdlet.
 New-WordCloud -InputObject <PSObject> [-Path] <String> [-ImageSize <SKSizeI>] [-Typeface <SKTypeface>]
  [-BackgroundColor <SKColor>] [-ColorSet <SKColor[]>] [-StrokeWidth <Single>] [-StrokeColor <SKColor>]
  [-ExcludeWord <String[]>] [-IncludeWord <String[]>] [-WordScale <Single>] [-AllowRotation <WordOrientations>]
- [-Padding <Single>] [-WordBubble <WordBubbleShape>] [-DistanceStep <Single>] [-RadialStep <Single>]
- [-MaxRenderedWords <Int32>] [-MaxColors <Int32>] [-RandomSeed <Int32>] [-Monochrome] [-AllowStopWords]
- [-AllowOverflow] [-PassThru] [<CommonParameters>]
+ [-Padding <Single>] [-WordBubble <WordBubbleShape>] [-CloudShape <SKPath>] [-DistanceStep <Single>]
+ [-RadialStep <Single>] [-AllowOverflow] [-MaxRenderedWords <Int32>] [-MaxColors <Int32>] [-RandomSeed <Int32>]
+ [-Monochrome] [-AllowStopWords] [-PassThru] [<CommonParameters>]
 ```
 
 ### ColorBackground-FocusWord
@@ -29,8 +29,9 @@ New-WordCloud -InputObject <PSObject> [-Path] <String> [-ImageSize <SKSizeI>] [-
  [-BackgroundColor <SKColor>] [-ColorSet <SKColor[]>] [-StrokeWidth <Single>] [-StrokeColor <SKColor>]
  -FocusWord <String> [-RotateFocusWord <Single>] [-ExcludeWord <String[]>] [-IncludeWord <String[]>]
  [-WordScale <Single>] [-AllowRotation <WordOrientations>] [-Padding <Single>] [-WordBubble <WordBubbleShape>]
- [-DistanceStep <Single>] [-RadialStep <Single>] [-MaxRenderedWords <Int32>] [-MaxColors <Int32>]
- [-RandomSeed <Int32>] [-Monochrome] [-AllowStopWords] [-AllowOverflow] [-PassThru] [<CommonParameters>]
+ [-CloudShape <SKPath>] [-DistanceStep <Single>] [-RadialStep <Single>] [-AllowOverflow]
+ [-MaxRenderedWords <Int32>] [-MaxColors <Int32>] [-RandomSeed <Int32>] [-Monochrome] [-AllowStopWords]
+ [-PassThru] [<CommonParameters>]
 ```
 
 ### FileBackground
@@ -38,9 +39,9 @@ New-WordCloud -InputObject <PSObject> [-Path] <String> [-ImageSize <SKSizeI>] [-
 New-WordCloud -InputObject <PSObject> [-Path] <String> -BackgroundImage <String> [-Typeface <SKTypeface>]
  [-ColorSet <SKColor[]>] [-StrokeWidth <Single>] [-StrokeColor <SKColor>] [-ExcludeWord <String[]>]
  [-IncludeWord <String[]>] [-WordScale <Single>] [-AllowRotation <WordOrientations>] [-Padding <Single>]
- [-WordBubble <WordBubbleShape>] [-DistanceStep <Single>] [-RadialStep <Single>] [-MaxRenderedWords <Int32>]
- [-MaxColors <Int32>] [-RandomSeed <Int32>] [-Monochrome] [-AllowStopWords] [-AllowOverflow] [-PassThru]
- [<CommonParameters>]
+ [-WordBubble <WordBubbleShape>] [-CloudShape <SKPath>] [-DistanceStep <Single>] [-RadialStep <Single>]
+ [-AllowOverflow] [-MaxRenderedWords <Int32>] [-MaxColors <Int32>] [-RandomSeed <Int32>] [-Monochrome]
+ [-AllowStopWords] [-PassThru] [<CommonParameters>]
 ```
 
 ### FileBackground-FocusWord
@@ -48,9 +49,9 @@ New-WordCloud -InputObject <PSObject> [-Path] <String> -BackgroundImage <String>
 New-WordCloud -InputObject <PSObject> [-Path] <String> -BackgroundImage <String> [-Typeface <SKTypeface>]
  [-ColorSet <SKColor[]>] [-StrokeWidth <Single>] [-StrokeColor <SKColor>] -FocusWord <String>
  [-RotateFocusWord <Single>] [-ExcludeWord <String[]>] [-IncludeWord <String[]>] [-WordScale <Single>]
- [-AllowRotation <WordOrientations>] [-Padding <Single>] [-WordBubble <WordBubbleShape>]
- [-DistanceStep <Single>] [-RadialStep <Single>] [-MaxRenderedWords <Int32>] [-MaxColors <Int32>]
- [-RandomSeed <Int32>] [-Monochrome] [-AllowStopWords] [-AllowOverflow] [-PassThru] [<CommonParameters>]
+ [-AllowRotation <WordOrientations>] [-Padding <Single>] [-WordBubble <WordBubbleShape>] [-CloudShape <SKPath>]
+ [-DistanceStep <Single>] [-RadialStep <Single>] [-AllowOverflow] [-MaxRenderedWords <Int32>]
+ [-MaxColors <Int32>] [-RandomSeed <Int32>] [-Monochrome] [-AllowStopWords] [-PassThru] [<CommonParameters>]
 ```
 
 ### ColorBackground-WordTable
@@ -58,9 +59,9 @@ New-WordCloud -InputObject <PSObject> [-Path] <String> -BackgroundImage <String>
 New-WordCloud -WordSizes <IDictionary> [-Path] <String> [-ImageSize <SKSizeI>] [-Typeface <SKTypeface>]
  [-BackgroundColor <SKColor>] [-ColorSet <SKColor[]>] [-StrokeWidth <Single>] [-StrokeColor <SKColor>]
  [-ExcludeWord <String[]>] [-IncludeWord <String[]>] [-WordScale <Single>] [-AllowRotation <WordOrientations>]
- [-Padding <Single>] [-WordBubble <WordBubbleShape>] [-DistanceStep <Single>] [-RadialStep <Single>]
- [-MaxRenderedWords <Int32>] [-MaxColors <Int32>] [-RandomSeed <Int32>] [-Monochrome] [-AllowStopWords]
- [-AllowOverflow] [-PassThru] [<CommonParameters>]
+ [-Padding <Single>] [-WordBubble <WordBubbleShape>] [-CloudShape <SKPath>] [-DistanceStep <Single>]
+ [-RadialStep <Single>] [-AllowOverflow] [-MaxRenderedWords <Int32>] [-MaxColors <Int32>] [-RandomSeed <Int32>]
+ [-Monochrome] [-AllowStopWords] [-PassThru] [<CommonParameters>]
 ```
 
 ### ColorBackground-FocusWord-WordTable
@@ -69,8 +70,9 @@ New-WordCloud -WordSizes <IDictionary> [-Path] <String> [-ImageSize <SKSizeI>] [
  [-BackgroundColor <SKColor>] [-ColorSet <SKColor[]>] [-StrokeWidth <Single>] [-StrokeColor <SKColor>]
  -FocusWord <String> [-RotateFocusWord <Single>] [-ExcludeWord <String[]>] [-IncludeWord <String[]>]
  [-WordScale <Single>] [-AllowRotation <WordOrientations>] [-Padding <Single>] [-WordBubble <WordBubbleShape>]
- [-DistanceStep <Single>] [-RadialStep <Single>] [-MaxRenderedWords <Int32>] [-MaxColors <Int32>]
- [-RandomSeed <Int32>] [-Monochrome] [-AllowStopWords] [-AllowOverflow] [-PassThru] [<CommonParameters>]
+ [-CloudShape <SKPath>] [-DistanceStep <Single>] [-RadialStep <Single>] [-AllowOverflow]
+ [-MaxRenderedWords <Int32>] [-MaxColors <Int32>] [-RandomSeed <Int32>] [-Monochrome] [-AllowStopWords]
+ [-PassThru] [<CommonParameters>]
 ```
 
 ### FileBackground-WordTable
@@ -78,9 +80,9 @@ New-WordCloud -WordSizes <IDictionary> [-Path] <String> [-ImageSize <SKSizeI>] [
 New-WordCloud -WordSizes <IDictionary> [-Path] <String> -BackgroundImage <String> [-Typeface <SKTypeface>]
  [-ColorSet <SKColor[]>] [-StrokeWidth <Single>] [-StrokeColor <SKColor>] [-ExcludeWord <String[]>]
  [-IncludeWord <String[]>] [-WordScale <Single>] [-AllowRotation <WordOrientations>] [-Padding <Single>]
- [-WordBubble <WordBubbleShape>] [-DistanceStep <Single>] [-RadialStep <Single>] [-MaxRenderedWords <Int32>]
- [-MaxColors <Int32>] [-RandomSeed <Int32>] [-Monochrome] [-AllowStopWords] [-AllowOverflow] [-PassThru]
- [<CommonParameters>]
+ [-WordBubble <WordBubbleShape>] [-CloudShape <SKPath>] [-DistanceStep <Single>] [-RadialStep <Single>]
+ [-AllowOverflow] [-MaxRenderedWords <Int32>] [-MaxColors <Int32>] [-RandomSeed <Int32>] [-Monochrome]
+ [-AllowStopWords] [-PassThru] [<CommonParameters>]
 ```
 
 ### FileBackground-FocusWord-WordTable
@@ -88,9 +90,9 @@ New-WordCloud -WordSizes <IDictionary> [-Path] <String> -BackgroundImage <String
 New-WordCloud -WordSizes <IDictionary> [-Path] <String> -BackgroundImage <String> [-Typeface <SKTypeface>]
  [-ColorSet <SKColor[]>] [-StrokeWidth <Single>] [-StrokeColor <SKColor>] -FocusWord <String>
  [-RotateFocusWord <Single>] [-ExcludeWord <String[]>] [-IncludeWord <String[]>] [-WordScale <Single>]
- [-AllowRotation <WordOrientations>] [-Padding <Single>] [-WordBubble <WordBubbleShape>]
- [-DistanceStep <Single>] [-RadialStep <Single>] [-MaxRenderedWords <Int32>] [-MaxColors <Int32>]
- [-RandomSeed <Int32>] [-Monochrome] [-AllowStopWords] [-AllowOverflow] [-PassThru] [<CommonParameters>]
+ [-AllowRotation <WordOrientations>] [-Padding <Single>] [-WordBubble <WordBubbleShape>] [-CloudShape <SKPath>]
+ [-DistanceStep <Single>] [-RadialStep <Single>] [-AllowOverflow] [-MaxRenderedWords <Int32>]
+ [-MaxColors <Int32>] [-RandomSeed <Int32>] [-Monochrome] [-AllowStopWords] [-PassThru] [<CommonParameters>]
 ```
 
 ## DESCRIPTION
@@ -265,6 +267,21 @@ Parameter Sets: FileBackground, FileBackground-FocusWord, FileBackground-WordTab
 Aliases:
 
 Required: True
+Position: Named
+Default value: None
+Accept pipeline input: False
+Accept wildcard characters: False
+```
+
+### -CloudShape
+{{ Fill CloudShape Description }}
+
+```yaml
+Type: SKPath
+Parameter Sets: (All)
+Aliases:
+
+Required: False
 Position: Named
 Default value: None
 Accept pipeline input: False
