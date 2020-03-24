@@ -45,6 +45,14 @@ namespace PSWordCloud
         internal const string FILE_FOCUS_SET = "FileBackground-FocusWord";
         internal const string FILE_FOCUS_TABLE_SET = "FileBackground-FocusWord-WordTable";
         internal const string FILE_TABLE_SET = "FileBackground-WordTable";
+        internal const string SHAPED_COLOR_BG_SET = "Shaped-ColorBackground";
+        internal const string SHAPED_COLOR_BG_FOCUS_SET = "Shaped-ColorBackground-FocusWord";
+        internal const string SHAPED_COLOR_BG_FOCUS_TABLE_SET = "Shaped-ColorBackground-FocusWord-WordTable";
+        internal const string SHAPED_COLOR_BG_TABLE_SET = "Shaped-ColorBackground-WordTable";
+        internal const string SHAPED_FILE_SET = "Shaped-FileBackground";
+        internal const string SHAPED_FILE_FOCUS_SET = "Shaped-FileBackground-FocusWord";
+        internal const string SHAPED_FILE_FOCUS_TABLE_SET = "Shaped-FileBackground-FocusWord-WordTable";
+        internal const string SHAPED_FILE_TABLE_SET = "Shaped-FileBackground-WordTable";
 
         internal const float STROKE_BASE_SCALE = 0.01f;
 
@@ -287,6 +295,16 @@ namespace PSWordCloud
         [ValidateRange(-360, 360)]
         public float RotateFocusWord { get; set; }
 
+        [Parameter()]
+        public string CloudShape { get; set; }
+
+        /// <summary>
+        /// Gets or sets whether or not to allow words to overflow the base canvas.
+        /// </summary>
+        [Parameter()]
+        [Alias("AllowBleed")]
+        public SwitchParameter AllowOverflow { get; set; }
+
         /// <summary>
         /// <para>Gets or sets the words to be explicitly ignored when rendering the word cloud.</para>
         /// <para>This is usually used to exclude irrelevant words, link segments, etc.</para>
@@ -398,14 +416,6 @@ namespace PSWordCloud
         [Parameter()]
         [Alias("IgnoreStopWords")]
         public SwitchParameter AllowStopWords { get; set; }
-
-        /// <summary>
-        /// Gets or sets whether or not to allow words to overflow the base canvas.
-        /// </summary>
-        /// <value></value>
-        [Parameter()]
-        [Alias("AllowBleed")]
-        public SwitchParameter AllowOverflow { get; set; }
 
         /// <summary>
         /// Gets or sets the value that determines whether or not to retrieve and output the FileInfo object that
