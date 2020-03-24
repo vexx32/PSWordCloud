@@ -145,6 +145,34 @@ namespace PSWordCloud
                 && bounds.Top < point.Y && point.Y < bounds.Bottom;
         }
 
+        internal static float GetEnclosedArea(this SKPath path)
+        {
+            if (path.IsEmpty)
+            {
+                return 0;
+            }
+
+            SKRect bounds = path.TightBounds;
+            var boundedArea = bounds.Width * bounds.Height;
+            var totalPoints = 10000;
+            var enclosedPoints = 0;
+
+            for (float x = bounds.Left; x < bounds.Right; x += bounds.Width / (float)Math.Sqrt(totalPoints))
+            {
+                for (float y = bounds.Top; y < bounds.Bottom; y += bounds.Height / (float)Math.Sqrt(totalPoints))
+                {
+                    if (path.Contains(x, y))
+                    {
+                        enclosedPoints++;
+                    }
+                }
+            }
+
+            var enclosedAreaRatio = enclosedPoints / totalPoints;
+
+            return enclosedAreaRatio * boundedArea;
+        }
+
         /// <summary>
         /// Prepares the brush to draw the next word.
         /// This overload assumes the text to be drawn will be black.
