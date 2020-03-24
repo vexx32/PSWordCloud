@@ -195,7 +195,7 @@ namespace PSWordCloud
             brush.TextSize = wordSize;
             brush.IsStroke = false;
             brush.Style = SKPaintStyle.StrokeAndFill;
-            brush.StrokeWidth = wordSize * strokeWidth * NewWordCloudCommand.STROKE_BASE_SCALE;
+            brush.StrokeWidth = wordSize * strokeWidth * NewWordCloudCommand.StrokeBaseScale;
             brush.IsVerticalText = false;
             brush.Color = color;
         }

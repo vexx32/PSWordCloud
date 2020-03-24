@@ -20,7 +20,7 @@ namespace PSWordCloud
     /// This command can be used to input large amounts of text, and will generate a word cloud based on
     /// the relative frequencies of the words in the input text.
     /// </summary>
-    [Cmdlet(VerbsCommon.New, "WordCloud", DefaultParameterSetName = COLOR_BG_SET,
+    [Cmdlet(VerbsCommon.New, "WordCloud", DefaultParameterSetName = ColorBgSet,
         HelpUri = "https://github.com/vexx32/PSWordCloud/blob/master/docs/New-WordCloud.md")]
     [Alias("wordcloud", "nwc", "wcloud")]
     [OutputType(typeof(System.IO.FileInfo))]
@@ -29,32 +29,24 @@ namespace PSWordCloud
 
         #region Constants
 
-        private const float FOCUS_WORD_SCALE = 1.3f;
-        private const float BLEED_AREA_SCALE = 1.5f;
-        private const float MAX_WORD_WIDTH_PERCENT = 1.0f;
-        private const float PADDING_BASE_SCALE = 0.06f;
-        private const float MAX_WORD_AREA_PERCENT = 0.0575f;
+        private const float FocusWordScale = 1.3f;
+        private const float BleedAreaScale = 1.5f;
+        private const float MaxWordWidthPercent = 1.0f;
+        private const float PaddingBaseScale = 0.06f;
+        private const float MaxWordAreaPercent = 0.0575f;
 
-        private const char ELLIPSIS = '…';
+        private const char Ellipsis = '…';
 
-        internal const string COLOR_BG_SET = "ColorBackground";
-        internal const string COLOR_BG_FOCUS_SET = "ColorBackground-FocusWord";
-        internal const string COLOR_BG_FOCUS_TABLE_SET = "ColorBackground-FocusWord-WordTable";
-        internal const string COLOR_BG_TABLE_SET = "ColorBackground-WordTable";
-        internal const string FILE_SET = "FileBackground";
-        internal const string FILE_FOCUS_SET = "FileBackground-FocusWord";
-        internal const string FILE_FOCUS_TABLE_SET = "FileBackground-FocusWord-WordTable";
-        internal const string FILE_TABLE_SET = "FileBackground-WordTable";
-        internal const string SHAPED_COLOR_BG_SET = "Shaped-ColorBackground";
-        internal const string SHAPED_COLOR_BG_FOCUS_SET = "Shaped-ColorBackground-FocusWord";
-        internal const string SHAPED_COLOR_BG_FOCUS_TABLE_SET = "Shaped-ColorBackground-FocusWord-WordTable";
-        internal const string SHAPED_COLOR_BG_TABLE_SET = "Shaped-ColorBackground-WordTable";
-        internal const string SHAPED_FILE_SET = "Shaped-FileBackground";
-        internal const string SHAPED_FILE_FOCUS_SET = "Shaped-FileBackground-FocusWord";
-        internal const string SHAPED_FILE_FOCUS_TABLE_SET = "Shaped-FileBackground-FocusWord-WordTable";
-        internal const string SHAPED_FILE_TABLE_SET = "Shaped-FileBackground-WordTable";
+        internal const string ColorBgSet = "ColorBackground";
+        internal const string ColorBgFocusWordSet = "ColorBackground-FocusWord";
+        internal const string ColorBgFocusWordTableSet = "ColorBackground-FocusWord-WordTable";
+        internal const string ColorBgWordTableSet = "ColorBackground-WordTable";
+        internal const string FileBgSet = "FileBackground";
+        internal const string FileBgFocusWordSet = "FileBackground-FocusWord";
+        internal const string FileBgFocusWordTableSet = "FileBackground-FocusWord-WordTable";
+        internal const string FileBgWordTableSet = "FileBackground-WordTable";
 
-        internal const float STROKE_BASE_SCALE = 0.01f;
+        internal const float StrokeBaseScale = 0.01f;
 
         #endregion Constants
 
@@ -93,10 +85,10 @@ namespace PSWordCloud
         /// as string data regardless of the input type. If you are entering complex object input, ensure they
         /// have a meaningful ToString() method override defined.
         /// </summary>
-        [Parameter(Mandatory = true, ValueFromPipeline = true, ParameterSetName = COLOR_BG_SET)]
-        [Parameter(Mandatory = true, ValueFromPipeline = true, ParameterSetName = COLOR_BG_FOCUS_SET)]
-        [Parameter(Mandatory = true, ValueFromPipeline = true, ParameterSetName = FILE_SET)]
-        [Parameter(Mandatory = true, ValueFromPipeline = true, ParameterSetName = FILE_FOCUS_SET)]
+        [Parameter(Mandatory = true, ValueFromPipeline = true, ParameterSetName = ColorBgSet)]
+        [Parameter(Mandatory = true, ValueFromPipeline = true, ParameterSetName = ColorBgFocusWordSet)]
+        [Parameter(Mandatory = true, ValueFromPipeline = true, ParameterSetName = FileBgSet)]
+        [Parameter(Mandatory = true, ValueFromPipeline = true, ParameterSetName = FileBgFocusWordSet)]
         [Alias("InputString", "Text", "String", "Words", "Document", "Page")]
         [AllowEmptyString()]
         public PSObject InputObject { get; set; }
@@ -112,24 +104,24 @@ namespace PSWordCloud
         /// "image".
         /// </summary>
         /// <value></value>
-        [Parameter(Mandatory = true, ParameterSetName = COLOR_BG_TABLE_SET)]
-        [Parameter(Mandatory = true, ParameterSetName = COLOR_BG_FOCUS_TABLE_SET)]
-        [Parameter(Mandatory = true, ParameterSetName = FILE_TABLE_SET)]
-        [Parameter(Mandatory = true, ParameterSetName = FILE_FOCUS_TABLE_SET)]
+        [Parameter(Mandatory = true, ParameterSetName = ColorBgWordTableSet)]
+        [Parameter(Mandatory = true, ParameterSetName = ColorBgFocusWordTableSet)]
+        [Parameter(Mandatory = true, ParameterSetName = FileBgWordTableSet)]
+        [Parameter(Mandatory = true, ParameterSetName = FileBgFocusWordTableSet)]
         [Alias("WordSizeTable", "CustomWordSizes")]
         public IDictionary WordSizes { get; set; }
 
         /// <summary>
         /// Gets or sets the output path to save the final SVG vector file to.
         /// </summary>
-        [Parameter(Mandatory = true, Position = 0, ParameterSetName = COLOR_BG_SET)]
-        [Parameter(Mandatory = true, Position = 0, ParameterSetName = COLOR_BG_FOCUS_SET)]
-        [Parameter(Mandatory = true, Position = 0, ParameterSetName = COLOR_BG_FOCUS_TABLE_SET)]
-        [Parameter(Mandatory = true, Position = 0, ParameterSetName = COLOR_BG_TABLE_SET)]
-        [Parameter(Mandatory = true, Position = 0, ParameterSetName = FILE_SET)]
-        [Parameter(Mandatory = true, Position = 0, ParameterSetName = FILE_FOCUS_SET)]
-        [Parameter(Mandatory = true, Position = 0, ParameterSetName = FILE_FOCUS_TABLE_SET)]
-        [Parameter(Mandatory = true, Position = 0, ParameterSetName = FILE_TABLE_SET)]
+        [Parameter(Mandatory = true, Position = 0, ParameterSetName = ColorBgSet)]
+        [Parameter(Mandatory = true, Position = 0, ParameterSetName = ColorBgFocusWordSet)]
+        [Parameter(Mandatory = true, Position = 0, ParameterSetName = ColorBgFocusWordTableSet)]
+        [Parameter(Mandatory = true, Position = 0, ParameterSetName = ColorBgWordTableSet)]
+        [Parameter(Mandatory = true, Position = 0, ParameterSetName = FileBgSet)]
+        [Parameter(Mandatory = true, Position = 0, ParameterSetName = FileBgFocusWordSet)]
+        [Parameter(Mandatory = true, Position = 0, ParameterSetName = FileBgFocusWordTableSet)]
+        [Parameter(Mandatory = true, Position = 0, ParameterSetName = FileBgWordTableSet)]
         [Alias("OutFile", "ExportPath", "ImagePath")]
         public string Path { get; set; }
 
@@ -137,10 +129,10 @@ namespace PSWordCloud
         /// <summary>
         /// Gets or sets the path to the background image to be used as a base for the final word cloud image.
         /// </summary>
-        [Parameter(Mandatory = true, ParameterSetName = FILE_SET)]
-        [Parameter(Mandatory = true, ParameterSetName = FILE_FOCUS_SET)]
-        [Parameter(Mandatory = true, ParameterSetName = FILE_FOCUS_TABLE_SET)]
-        [Parameter(Mandatory = true, ParameterSetName = FILE_TABLE_SET)]
+        [Parameter(Mandatory = true, ParameterSetName = FileBgSet)]
+        [Parameter(Mandatory = true, ParameterSetName = FileBgFocusWordSet)]
+        [Parameter(Mandatory = true, ParameterSetName = FileBgFocusWordTableSet)]
+        [Parameter(Mandatory = true, ParameterSetName = FileBgWordTableSet)]
         public string BackgroundImage
         {
             get => _backgroundFullPath;
@@ -177,10 +169,10 @@ namespace PSWordCloud
         /// integer values</para>
         /// </summary>
         /// <value>The default value is a size of 3840x2160.</value>
-        [Parameter(ParameterSetName = COLOR_BG_SET)]
-        [Parameter(ParameterSetName = COLOR_BG_FOCUS_SET)]
-        [Parameter(ParameterSetName = COLOR_BG_FOCUS_TABLE_SET)]
-        [Parameter(ParameterSetName = COLOR_BG_TABLE_SET)]
+        [Parameter(ParameterSetName = ColorBgSet)]
+        [Parameter(ParameterSetName = ColorBgFocusWordSet)]
+        [Parameter(ParameterSetName = ColorBgFocusWordTableSet)]
+        [Parameter(ParameterSetName = ColorBgWordTableSet)]
         [ArgumentCompleter(typeof(ImageSizeCompleter))]
         [TransformToSKSizeI()]
         public SKSizeI ImageSize { get; set; } = new SKSizeI(3840, 2160);
@@ -217,10 +209,10 @@ namespace PSWordCloud
         /// 255 (fully opaque).</para>
         /// </summary>
         /// <value>The default value is SKColors.Black.</value>
-        [Parameter(ParameterSetName = COLOR_BG_SET)]
-        [Parameter(ParameterSetName = COLOR_BG_FOCUS_SET)]
-        [Parameter(ParameterSetName = COLOR_BG_FOCUS_TABLE_SET)]
-        [Parameter(ParameterSetName = COLOR_BG_TABLE_SET)]
+        [Parameter(ParameterSetName = ColorBgSet)]
+        [Parameter(ParameterSetName = ColorBgFocusWordSet)]
+        [Parameter(ParameterSetName = ColorBgFocusWordTableSet)]
+        [Parameter(ParameterSetName = ColorBgWordTableSet)]
         [Alias("Backdrop", "CanvasColor")]
         [ArgumentCompleter(typeof(SKColorCompleter))]
         [TransformToSKColor()]
@@ -279,17 +271,17 @@ namespace PSWordCloud
         /// Gets or sets the focus word string to be used in the word cloud. This string will typically appear in the
         /// centre of the cloud, larger than all the other words.
         /// </summary>
-        [Parameter(Mandatory = true, ParameterSetName = COLOR_BG_FOCUS_SET)]
-        [Parameter(Mandatory = true, ParameterSetName = COLOR_BG_FOCUS_TABLE_SET)]
-        [Parameter(Mandatory = true, ParameterSetName = FILE_FOCUS_SET)]
-        [Parameter(Mandatory = true, ParameterSetName = FILE_FOCUS_TABLE_SET)]
+        [Parameter(Mandatory = true, ParameterSetName = ColorBgFocusWordSet)]
+        [Parameter(Mandatory = true, ParameterSetName = ColorBgFocusWordTableSet)]
+        [Parameter(Mandatory = true, ParameterSetName = FileBgFocusWordSet)]
+        [Parameter(Mandatory = true, ParameterSetName = FileBgFocusWordTableSet)]
         [Alias("Title")]
         public string FocusWord { get; set; }
 
-        [Parameter(ParameterSetName = COLOR_BG_FOCUS_SET)]
-        [Parameter(ParameterSetName = COLOR_BG_FOCUS_TABLE_SET)]
-        [Parameter(ParameterSetName = FILE_FOCUS_SET)]
-        [Parameter(ParameterSetName = FILE_FOCUS_TABLE_SET)]
+        [Parameter(ParameterSetName = ColorBgFocusWordSet)]
+        [Parameter(ParameterSetName = ColorBgFocusWordTableSet)]
+        [Parameter(ParameterSetName = FileBgFocusWordSet)]
+        [Parameter(ParameterSetName = FileBgFocusWordTableSet)]
         [Alias("RotateTitle")]
         [ArgumentCompleter(typeof(AngleCompleter))]
         [ValidateRange(-360, 360)]
@@ -436,7 +428,7 @@ namespace PSWordCloud
 
         private int _colorIndex = 0;
 
-        private float _paddingMultiplier { get => Padding * PADDING_BASE_SCALE; }
+        private float PaddingMultiplier { get => Padding * PaddingBaseScale; }
 
         #endregion privateVariables
 
@@ -472,17 +464,17 @@ namespace PSWordCloud
         {
             switch (ParameterSetName)
             {
-                case FILE_SET:
-                case FILE_FOCUS_SET:
-                case COLOR_BG_SET:
-                case COLOR_BG_FOCUS_SET:
+                case FileBgSet:
+                case FileBgFocusWordSet:
+                case ColorBgSet:
+                case ColorBgFocusWordSet:
                     IEnumerable<string> text = NormalizeInput(InputObject);
                     _wordProcessingTasks ??= new List<Task<IEnumerable<string>>>(GetEstimatedCapacity(InputObject));
 
                     foreach (var line in text)
                     {
                         var shortLine = Regex.Split(line, @"\r?\n")[0];
-                        shortLine = shortLine.Length <= 32 ? shortLine : shortLine.Substring(0, 31) + ELLIPSIS;
+                        shortLine = shortLine.Length <= 32 ? shortLine : shortLine.Substring(0, 31) + Ellipsis;
                         WriteDebug($"Processing input text: {shortLine}");
                         _wordProcessingTasks.Add(ProcessInputAsync(line, IncludeWord, ExcludeWord));
                     }
@@ -527,10 +519,10 @@ namespace PSWordCloud
 
             switch (ParameterSetName)
             {
-                case FILE_SET:
-                case FILE_FOCUS_SET:
-                case COLOR_BG_SET:
-                case COLOR_BG_FOCUS_SET:
+                case FileBgSet:
+                case FileBgFocusWordSet:
+                case ColorBgSet:
+                case ColorBgFocusWordSet:
                     WriteDebug("Waiting for word processing tasks to finish.");
                     var lineStrings = Task.WhenAll(_wordProcessingTasks);
                     lineStrings.Wait();
@@ -545,10 +537,10 @@ namespace PSWordCloud
                     }
 
                     break;
-                case FILE_TABLE_SET:
-                case FILE_FOCUS_TABLE_SET:
-                case COLOR_BG_TABLE_SET:
-                case COLOR_BG_FOCUS_TABLE_SET:
+                case FileBgWordTableSet:
+                case FileBgFocusWordTableSet:
+                case ColorBgWordTableSet:
+                case ColorBgFocusWordTableSet:
                     foreach (var word in WordSizes.Keys)
                     {
                         WriteDebug("Processing -WordSizes input.");
@@ -574,7 +566,7 @@ namespace PSWordCloud
             if (MyInvocation.BoundParameters.ContainsKey(nameof(FocusWord)))
             {
                 WriteDebug($"Adding focus word '{FocusWord}' to the dictionary.");
-                wordScaleDictionary[FocusWord] = highestWordFreq *= FOCUS_WORD_SCALE;
+                wordScaleDictionary[FocusWord] = highestWordFreq *= FocusWordScale;
             }
 
             // Get a sorted list of words by their sizes
@@ -602,8 +594,8 @@ namespace PSWordCloud
                     clipRegion.SetRect(
                         SKRectI.Round(SKRect.Inflate(
                             viewbox,
-                            viewbox.Width * (BLEED_AREA_SCALE - 1),
-                            viewbox.Height * (BLEED_AREA_SCALE - 1))));
+                            viewbox.Width * (BleedAreaScale - 1),
+                            viewbox.Height * (BleedAreaScale - 1))));
                 }
                 else
                 {
@@ -622,8 +614,8 @@ namespace PSWordCloud
                     StringComparer.OrdinalIgnoreCase);
 
                 maxWordWidth = AllowRotation == WordOrientations.None
-                    ? viewbox.Width * MAX_WORD_WIDTH_PERCENT
-                    : Math.Max(viewbox.Width, viewbox.Height) * MAX_WORD_WIDTH_PERCENT;
+                    ? viewbox.Width * MaxWordWidthPercent
+                    : Math.Max(viewbox.Width, viewbox.Height) * MaxWordWidthPercent;
 
                 using SKPaint brush = new SKPaint
                 {
@@ -646,10 +638,10 @@ namespace PSWordCloud
                     brush.Prepare(adjustedWordSize, StrokeWidth);
 
                     var textRect = brush.GetTextPath(sortedWordList[0], 0, 0).ComputeTightBounds();
-                    var adjustedTextWidth = textRect.Width * (1 + _paddingMultiplier) + StrokeWidth * 2 * STROKE_BASE_SCALE;
+                    var adjustedTextWidth = textRect.Width * (1 + PaddingMultiplier) + StrokeWidth * 2 * StrokeBaseScale;
 
                     if (adjustedTextWidth > maxWordWidth
-                        || textRect.Width * textRect.Height < viewbox.Width * viewbox.Height * MAX_WORD_AREA_PERCENT)
+                        || textRect.Width * textRect.Height < viewbox.Width * viewbox.Height * MaxWordAreaPercent)
                     {
                         retry = true;
                         _fontScale *= 1.05f;
@@ -673,11 +665,11 @@ namespace PSWordCloud
                         brush.Prepare(adjustedWordSize, StrokeWidth);
 
                         var textRect = brush.GetTextPath(word, 0, 0).ComputeTightBounds();
-                        var adjustedTextWidth = textRect.Width * (1 + _paddingMultiplier) + StrokeWidth * 2 * STROKE_BASE_SCALE;
+                        var adjustedTextWidth = textRect.Width * (1 + PaddingMultiplier) + StrokeWidth * 2 * StrokeBaseScale;
 
                         if (!AllowOverflow.IsPresent
                             && (adjustedTextWidth > maxWordWidth
-                                || textRect.Width * textRect.Height > viewbox.Width * viewbox.Height * MAX_WORD_AREA_PERCENT))
+                                || textRect.Width * textRect.Height > viewbox.Width * viewbox.Height * MaxWordAreaPercent))
                         {
                             retry = true;
                             _fontScale *= 0.95f;
@@ -701,7 +693,7 @@ namespace PSWordCloud
 
                 if (AllowOverflow)
                 {
-                    maxRadius *= BLEED_AREA_SCALE;
+                    maxRadius *= BleedAreaScale;
                 }
 
                 using SKDynamicMemoryWStream outputStream = new SKDynamicMemoryWStream();
@@ -713,7 +705,7 @@ namespace PSWordCloud
                 brush.IsAntialias = true;
                 brush.Typeface = Typeface;
 
-                if (ParameterSetName.StartsWith(FILE_SET))
+                if (ParameterSetName.StartsWith(FileBgSet))
                 {
                     canvas.DrawBitmap(backgroundImage, 0, 0);
                 }
@@ -748,7 +740,7 @@ namespace PSWordCloud
 
                     WriteDebug($"Scanning for draw location for '{word}'.");
 
-                    inflationValue = 2 * scaledWordSizes[word] * (_paddingMultiplier + StrokeWidth * STROKE_BASE_SCALE);
+                    inflationValue = 2 * scaledWordSizes[word] * (PaddingMultiplier + StrokeWidth * StrokeBaseScale);
                     targetPoint = SKPoint.Empty;
 
                     SKColor wordColor;
