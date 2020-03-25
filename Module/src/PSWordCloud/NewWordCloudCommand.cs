@@ -756,15 +756,7 @@ namespace PSWordCloud
 
                     brush.Prepare(scaledWordSizes[word], StrokeWidth, wordColor);
 
-                    wordPath.Dispose();
-                    wordPath = brush.GetTextPath(word, 0, 0);
-                    wordBounds = wordPath.ComputeTightBounds();
-
-                    var wordWidth = wordBounds.Width;
-                    var wordHeight = wordBounds.Height;
-
                     var percentComplete = 100f * wordCount / scaledWordSizes.Count;
-
                     wordProgress.StatusDescription = string.Format(
                         "Draw: \"{0}\" [Size: {1:0}] ({2} of {3})",
                         word,
@@ -776,6 +768,13 @@ namespace PSWordCloud
 
                     foreach (var drawAngle in availableAngles)
                     {
+                        wordPath.Dispose();
+                        wordPath = brush.GetTextPath(word, 0, 0);
+                        wordBounds = wordPath.TightBounds;
+
+                        var wordWidth = wordBounds.Width;
+                        var wordHeight = wordBounds.Height;
+
                         for (
                             float radius = 0;
                             radius <= maxRadius;
@@ -786,11 +785,10 @@ namespace PSWordCloud
                                 inflationValue,
                                 percentComplete))
                         {
-                            SKPoint adjustedPoint, baseOffset;
-
                             var radialPoints = GetRadialPoints(centrePoint, radius, RadialStep, aspectRatio);
                             var totalPoints = radialPoints.Count();
                             var pointsChecked = 0;
+
                             foreach (var point in radialPoints)
                             {
                                 pointsChecked++;
@@ -812,16 +810,13 @@ namespace PSWordCloud
 
                                 WriteProgress(pointProgress);
 
-                                baseOffset = new SKPoint(
-                                    -(wordWidth / 2),
-                                    wordHeight / 2);
-                                adjustedPoint = point + baseOffset;
+                                var pathMidpoint = new SKPoint(wordBounds.MidX, wordBounds.MidY);
 
                                 SKMatrix rotation = SKMatrix.MakeRotationDegrees(drawAngle, point.X, point.Y);
 
-                                SKPath alteredPath = brush.GetTextPath(word, adjustedPoint.X, adjustedPoint.Y);
-                                alteredPath.Transform(rotation);
-                                alteredPath.GetTightBounds(out wordBounds);
+                                wordPath.Offset(point - pathMidpoint);
+                                wordPath.Transform(rotation);
+                                wordBounds = wordPath.TightBounds;
 
                                 wordBounds.Inflate(inflationValue, inflationValue);
 
@@ -829,9 +824,8 @@ namespace PSWordCloud
                                 {
                                     if (wordCount == 1)
                                     {
-                                        // First word will always be drawn in the centre.
-                                        wordPath = alteredPath;
-                                        targetPoint = adjustedPoint;
+                                        // First word always gets drawn, and will be in the centre.
+                                        targetPoint = wordBounds.Location;
                                         goto nextWord;
                                     }
 
@@ -842,8 +836,7 @@ namespace PSWordCloud
 
                                     if (!occupiedSpace.IntersectsRect(wordBounds))
                                     {
-                                        wordPath = alteredPath;
-                                        targetPoint = adjustedPoint;
+                                        targetPoint = wordBounds.Location;
                                         goto nextWord;
                                     }
                                 }
@@ -881,9 +874,8 @@ namespace PSWordCloud
 
                                     if (wordCount == 1)
                                     {
-                                        // First word will always be drawn in the centre.
-                                        wordPath = alteredPath;
-                                        targetPoint = adjustedPoint;
+                                        // First word always gets drawn, and will be in the centre.
+                                        targetPoint = wordBounds.Location;
                                         goto nextWord;
                                     }
 
@@ -894,8 +886,7 @@ namespace PSWordCloud
 
                                     if (!occupiedSpace.IntersectsPath(bubblePath))
                                     {
-                                        wordPath = alteredPath;
-                                        targetPoint = adjustedPoint;
+                                        targetPoint = wordBounds.Location;
                                         goto nextWord;
                                     }
                                 }
