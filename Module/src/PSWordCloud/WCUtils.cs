@@ -145,6 +145,12 @@ namespace PSWordCloud
                 && bounds.Top < point.Y && point.Y < bounds.Bottom;
         }
 
+        /// <summary>
+        /// Calculate the approximate area enclosed by a <paramref name="path"/> by transforming it into an SKRegion and
+        /// iterating the resulting rectangles inside it to compute the total area.
+        /// </summary>
+        /// <param name="path">The path enclosing an area.</param>
+        /// <returns>A float value for the enclosed area of the path.</returns>
         internal static float GetEnclosedArea(this SKPath path)
         {
             if (path.IsEmpty)
@@ -154,23 +160,24 @@ namespace PSWordCloud
 
             SKRect bounds = path.TightBounds;
             var boundedArea = bounds.Width * bounds.Height;
-            var totalPoints = 10000;
-            var enclosedPoints = 0;
 
-            for (float x = bounds.Left; x < bounds.Right; x += bounds.Width / (float)Math.Sqrt(totalPoints))
+            var region = new SKRegion(path);
+            IEnumerable<SKRect> rectangles = region.GetRectangles();
+
+            return rectangles.Sum(rect => rect.Width * rect.Height);
+        }
+
+        /// <summary>
+        /// Yields all rectangles contained in the given <paramref name="region"/>.
+        /// </summary>
+        private static IEnumerable<SKRect> GetRectangles(this SKRegion region)
+        {
+            using var iterator = region.CreateRectIterator();
+
+            while (iterator.Next(out SKRectI rect))
             {
-                for (float y = bounds.Top; y < bounds.Bottom; y += bounds.Height / (float)Math.Sqrt(totalPoints))
-                {
-                    if (path.Contains(x, y))
-                    {
-                        enclosedPoints++;
-                    }
-                }
+                yield return rect;
             }
-
-            var enclosedAreaRatio = enclosedPoints / totalPoints;
-
-            return enclosedAreaRatio * boundedArea;
         }
 
         /// <summary>

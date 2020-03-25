@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections;
 using System.Collections.Generic;
 using System.IO;
@@ -669,16 +669,18 @@ namespace PSWordCloud
                     var centreY = clipRegion.Bounds.MidY;
 
                     // Move the shape word path to the centre of the image and scale to the proper size.
-                    // Note that we shift LEFT to align width, but DOWN to align height as words are
-                    // drawn relative to their baseline, not the top-left point of their bounds.
-                    CloudShape.Transform(SKMatrix.MakeTranslation(
-                        centreX - shapeBounds.Width / 2,
-                        centreY + shapeBounds.Height / 2));
+                    var pathMidpoint = new SKPoint(CloudShape.Bounds.MidX, CloudShape.Bounds.MidY);
+                    var viewboxMidpoint = new SKPoint(viewbox.MidX, viewbox.MidY);
+                    CloudShape.Offset(viewboxMidpoint - pathMidpoint);
+
+                    //.Transform(SKMatrix.MakeTranslation(
+                    //    CloudShape.centreX - shapeBounds.Width / 2,
+                    //    centreY + shapeBounds.Height / 2));
                     CloudShape.Transform(SKMatrix.MakeScale(scaleFactor, scaleFactor, centreX, centreY));
 
                     // Reduce the font scale proportionately to fit in the reduced draw area.
                     var area = CloudShape.GetEnclosedArea();
-                    _fontScale *= (float)Math.Sqrt(area) / (float)Math.Sqrt(clipRegion.Bounds.Width * clipRegion.Bounds.Height));
+                    _fontScale *= (float)Math.Sqrt(area) / (float)Math.Sqrt(clipRegion.Bounds.Width * clipRegion.Bounds.Height);
                 }
 
                 WriteDebug($"Global font scale: {_fontScale}");

@@ -430,7 +430,10 @@ namespace PSWordCloud
             using var brush = new SKPaint();
             brush.Prepare(wordSize: 1, strokeWidth: 0);
 
-            return brush.GetTextPath(input, x: 0, y: 0);
+            var path = brush.GetTextPath(input, x: 0, y: 0);
+            path.FillType = SKPathFillType.EvenOdd;
+
+            return path;
         }
     }
 }
