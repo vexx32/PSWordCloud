@@ -772,8 +772,8 @@ namespace PSWordCloud
                         wordPath = brush.GetTextPath(word, 0, 0);
                         wordBounds = wordPath.TightBounds;
 
-                        var wordWidth = wordBounds.Width;
-                        var wordHeight = wordBounds.Height;
+                        SKMatrix rotation = SKMatrix.MakeRotationDegrees(drawAngle, wordBounds.MidX, wordBounds.MidY);
+                        wordPath.Transform(rotation);
 
                         for (
                             float radius = 0;
@@ -812,10 +812,7 @@ namespace PSWordCloud
 
                                 var pathMidpoint = new SKPoint(wordBounds.MidX, wordBounds.MidY);
 
-                                SKMatrix rotation = SKMatrix.MakeRotationDegrees(drawAngle, point.X, point.Y);
-
                                 wordPath.Offset(point - pathMidpoint);
-                                wordPath.Transform(rotation);
                                 wordBounds = wordPath.TightBounds;
 
                                 wordBounds.Inflate(inflationValue, inflationValue);
