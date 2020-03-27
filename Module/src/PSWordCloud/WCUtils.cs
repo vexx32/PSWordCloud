@@ -320,7 +320,7 @@ namespace PSWordCloud
 
         internal static SKFontManager FontManager = SKFontManager.Default;
 
-        internal static IEnumerable<string> FontList = WCUtils.FontManager.FontFamilies
+        internal static IOrderedEnumerable<string> FontList = WCUtils.FontManager.FontFamilies
             .OrderBy(name => name, StringComparer.OrdinalIgnoreCase);
 
         internal static ReadOnlyDictionary<string, (string Tooltip, SKSizeI Size)> StandardImageSizes =

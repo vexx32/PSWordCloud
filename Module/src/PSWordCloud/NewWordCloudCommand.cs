@@ -418,7 +418,7 @@ namespace PSWordCloud
 
         #region privateVariables
 
-        private List<Task<IEnumerable<string>>> _wordProcessingTasks;
+        private List<Task<List<string>>> _wordProcessingTasks;
 
         private float _fontScale;
 
@@ -447,7 +447,7 @@ namespace PSWordCloud
 
             if (Monochrome.IsPresent)
             {
-                ColorSet = ConvertToMonochrome(ColorSet).ToArray();
+                ColorSet = ConvertToMonochrome(ColorSet);
             }
 
             Shuffle(ColorSet);
@@ -466,8 +466,8 @@ namespace PSWordCloud
                 case FILE_FOCUS_SET:
                 case COLOR_BG_SET:
                 case COLOR_BG_FOCUS_SET:
-                    IEnumerable<string> text = NormalizeInput(InputObject);
-                    _wordProcessingTasks ??= new List<Task<IEnumerable<string>>>(GetEstimatedCapacity(InputObject));
+                    List<string> text = NormalizeInput(InputObject);
+                    _wordProcessingTasks ??= new List<Task<List<string>>>(GetEstimatedCapacity(InputObject));
 
                     foreach (var line in text)
                     {
@@ -731,7 +731,7 @@ namespace PSWordCloud
                 {
                     wordCount++;
 
-                    IEnumerable<float> availableAngles = wordCount == 1
+                    var availableAngles = wordCount == 1
                         && MyInvocation.BoundParameters.ContainsKey(nameof(RotateFocusWord))
                             ? new[] { RotateFocusWord }
                             : GetDrawAngles(AllowRotation);
@@ -785,8 +785,8 @@ namespace PSWordCloud
                                 inflationValue,
                                 percentComplete))
                         {
-                            var radialPoints = GetRadialPoints(centrePoint, radius, RadialStep, aspectRatio);
-                            var totalPoints = radialPoints.Count();
+                            var radialPoints = GetOvalPoints(centrePoint, radius, RadialStep, aspectRatio);
+                            var totalPoints = radialPoints.Count;
                             var pointsChecked = 0;
 
                             foreach (var point in radialPoints)
@@ -1017,7 +1017,7 @@ namespace PSWordCloud
         /// <summary>
         /// Returns a shuffled set of possible angles determined by the WordOrientations value provided.
         /// </summary>
-        private static IEnumerable<float> GetDrawAngles(WordOrientations permittedRotations)
+        private static float[] GetDrawAngles(WordOrientations permittedRotations)
         {
             return permittedRotations switch
             {
@@ -1037,13 +1037,15 @@ namespace PSWordCloud
         /// <summary>
         /// Yields a set of random angles between <paramref name="minAngle"/> and <paramref name="maxAngle"/>.
         /// </summary>
-        private static IEnumerable<float> RandomAngles(int minAngle, int maxAngle)
+        private static float[] RandomAngles(int minAngle, int maxAngle)
         {
-            var angleCount = RandomInt(4, 12);
-            for (var i = 0; i < angleCount; i++)
+            var angles = new float[RandomInt(4, 12)];
+            for (var index = 0; index < angles.Length; index++)
             {
-                yield return RandomFloat(minAngle, maxAngle);
+                angles[index] = RandomFloat(minAngle, maxAngle);
             }
+
+            return angles;
         }
 
         /// <summary>
@@ -1112,22 +1114,19 @@ namespace PSWordCloud
         /// Process a given input object and convert it to a string (or multiple strings, if there are more than one).
         /// </summary>
         /// <param name="input">One or more input objects.</param>
-        private IEnumerable<string> NormalizeInput(PSObject input)
+        private List<string> NormalizeInput(PSObject input)
         {
+            var list = new List<string>();
             string value;
             switch (input.BaseObject)
             {
                 case string s2:
-                    yield return s2;
-                    yield break;
+                    list.Add(s2);
+                    break;
 
                 case string[] sa:
-                    foreach (var line in sa)
-                    {
-                        yield return line;
-                    }
-
-                    yield break;
+                    list.AddRange(sa);
+                    break;
 
                 default:
                     IEnumerable enumerable;
@@ -1137,7 +1136,7 @@ namespace PSWordCloud
                     }
                     catch
                     {
-                        yield break;
+                        break;
                     }
 
                     if (enumerable != null)
@@ -1150,13 +1149,13 @@ namespace PSWordCloud
                             }
                             catch
                             {
-                                yield break;
+                                break;
                             }
 
-                            yield return value;
+                            list.Add(value);
                         }
 
-                        yield break;
+                        break;
                     }
 
                     try
@@ -1165,28 +1164,34 @@ namespace PSWordCloud
                     }
                     catch
                     {
-                        yield break;
+                        break;
                     }
 
-                    yield return value;
-                    yield break;
+                    list.Add(value);
+                    break;
             }
+
+            return list;
         }
 
         /// <summary>
         /// Reduces all the colors in the set to monochrome, taking their brightness values and assigning
         /// them a corresponding shade of grey.
         /// </summary>
-        /// <param name="set">The base set of colors to operate on.</param>
+        /// <param name="inputSet">The base set of colors to operate on.</param>
         /// <returns></returns>
-        private static IEnumerable<SKColor> ConvertToMonochrome(SKColor[] set)
+        private static SKColor[] ConvertToMonochrome(SKColor[] inputSet)
         {
-            foreach (var color in set)
+            var resultSet = new SKColor[inputSet.Length];
+            for (var index = 0; index < inputSet.Length; index++)
             {
-                color.ToHsv(out _, out _, out float brightness);
+                inputSet[index].ToHsv(out _, out _, out float brightness);
                 byte level = (byte)Math.Floor(255 * brightness / 100f);
-                yield return new SKColor(level, level, level);
+
+                resultSet[index] = new SKColor(level, level, level);
             }
+
+            return resultSet;
         }
 
         /// <summary>
@@ -1297,20 +1302,20 @@ namespace PSWordCloud
         /// <param name="radialStep">The current radial stepping value.</param>
         /// <param name="aspectRatio">The aspect ratio of the canvas.</param>
         /// <returns></returns>
-        private static IEnumerable<SKPoint> GetRadialPoints(
+        private static List<SKPoint> GetOvalPoints(
             SKPoint centre,
             float radius,
             float radialStep,
             float aspectRatio = 1)
         {
+            var result = new List<SKPoint>();
             if (radius == 0)
             {
-                yield return centre;
-                yield break;
+                result.Add(centre);
+                return result;
             }
 
             Complex point;
-            float angle = 0;
 
             var baseRadialPoints = 7;
             var baseAngleIncrement = 360 / baseRadialPoints;
@@ -1318,24 +1323,13 @@ namespace PSWordCloud
 
             bool clockwise = RandomFloat() > 0.5;
 
-            switch (RandomInt() % 4)
+            float angle = RandomInt() % 4 switch
             {
-                case 0:
-                    angle = 0;
-                    break;
-
-                case 1:
-                    angle = 90;
-                    break;
-
-                case 2:
-                    angle = 180;
-                    break;
-
-                case 3:
-                    angle = 270;
-                    break;
-            }
+                1 => 90,
+                2 => 180,
+                3 => 270,
+                _ => 0
+            };
 
             float maxAngle;
             if (clockwise)
@@ -1351,10 +1345,12 @@ namespace PSWordCloud
             do
             {
                 point = Complex.FromPolarCoordinates(radius, angle.ToRadians());
-                yield return new SKPoint(centre.X + (float)point.Real * aspectRatio, centre.Y + (float)point.Imaginary);
+                result.Add(new SKPoint(centre.X + (float)point.Real * aspectRatio, centre.Y + (float)point.Imaginary));
 
                 angle += angleIncrement * (radialStep / 15);
             } while (clockwise ? angle <= maxAngle : angle >= maxAngle);
+
+            return result;
         }
 
         /// <summary>
@@ -1427,13 +1423,13 @@ namespace PSWordCloud
         /// </summary>
         /// <param name="line">The text to split and process.</param>
         /// <returns>An enumerable string collection of all words in the input, with stopwords stripped out.</returns>
-        private Task<IEnumerable<string>> ProcessInputAsync(
+        private Task<List<string>> ProcessInputAsync(
             string line,
             string[] includeWords = null,
             string[] excludeWords = null)
         {
             return Task.Run(() => TrimAndSplitWords(line)
-                .Where(x => SelectWord(x, includeWords, excludeWords, AllowStopWords.IsPresent)));
+                .Where(x => SelectWord(x, includeWords, excludeWords, AllowStopWords.IsPresent)).ToList());
         }
 
         /// <summary>
