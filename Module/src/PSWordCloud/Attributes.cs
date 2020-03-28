@@ -270,8 +270,9 @@ namespace PSWordCloud
 
     public class TransformToSKColorAttribute : ArgumentTransformationAttribute
     {
-        private IEnumerable<SKColor> TransformObject(object input)
+        private SKColor[] TransformObject(object input)
         {
+            var colorList = new List<SKColor>();
             object[] array;
             if (input is object[] o)
             {
@@ -286,11 +287,7 @@ namespace PSWordCloud
             {
                 if (item is string str)
                 {
-                    foreach (var color in MatchColor(str))
-                    {
-                        yield return color;
-                    }
-
+                    colorList.AddRange(MatchColor(str));
                     continue;
                 }
 
@@ -320,42 +317,41 @@ namespace PSWordCloud
                     ? (byte)255
                     : LanguagePrimitives.ConvertTo<byte>(properties.GetValue("alpha"));
 
-                yield return new SKColor(red, green, blue, alpha);
+                colorList.Add(new SKColor(red, green, blue, alpha));
             }
+
+            return colorList.ToArray();
         }
 
-        private IEnumerable<SKColor> MatchColor(string name)
+        private SKColor[] MatchColor(string name)
         {
             string errorMessage;
             if (WCUtils.ColorNames.Contains(name))
             {
-                yield return WCUtils.ColorLibrary[name];
-                yield break;
+                return new[] { WCUtils.ColorLibrary[name] };
             }
 
             if (string.Equals(name, "transparent", StringComparison.OrdinalIgnoreCase))
             {
-                yield return SKColor.Empty;
-                yield break;
+                return new[] { SKColor.Empty };
             }
 
             if (WildcardPattern.ContainsWildcardCharacters(name))
             {
-                bool foundMatch = false;
                 var pattern = new WildcardPattern(name, WildcardOptions.IgnoreCase);
 
+                var colorList = new List<SKColor>();
                 foreach (var color in WCUtils.ColorLibrary)
                 {
                     if (pattern.IsMatch(color.Key))
                     {
-                        yield return color.Value;
-                        foundMatch = true;
+                        colorList.Add(color.Value);
                     }
                 }
 
-                if (foundMatch)
+                if (colorList.Count > 0)
                 {
-                    yield break;
+                    return colorList.ToArray();
                 }
 
                 errorMessage = $"Wildcard pattern '{name}' did not match any known color names.";
@@ -364,23 +360,22 @@ namespace PSWordCloud
 
             if (SKColor.TryParse(name, out SKColor c))
             {
-                yield return c;
-                yield break;
+                return new[] { c };
             }
 
             errorMessage = $"Unrecognised color name: '{name}'.";
             throw new ArgumentTransformationMetadataException(errorMessage);
         }
 
-        private object Normalize(IEnumerable<SKColor> results)
+        private object Normalize(SKColor[] results)
         {
-            if (results.Count() == 1)
+            if (results.Length == 1)
             {
-                return results.First();
+                return results[0];
             }
             else
             {
-                return results.ToArray();
+                return results;
             }
         }
 
