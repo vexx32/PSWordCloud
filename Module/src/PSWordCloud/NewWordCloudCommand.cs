@@ -1323,7 +1323,7 @@ namespace PSWordCloud
 
             bool clockwise = RandomFloat() > 0.5;
 
-            float angle = RandomInt() % 4 switch
+            float angle = RandomInt(0, 4) switch
             {
                 1 => 90,
                 2 => 180,
