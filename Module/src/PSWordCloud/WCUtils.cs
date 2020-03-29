@@ -63,6 +63,16 @@ namespace PSWordCloud
         }
 
         /// <summary>
+        /// Utility method which is just a convenient shortcut to <see cref="LanguagePrimitives.ConvertTo{T}(object)"/>.
+        /// </summary>
+        /// <param name="item">The object to convert.</param>
+        /// <typeparam name="TSource">The original object type.</typeparam>
+        /// <typeparam name="TResult">The resulting destination type.</typeparam>
+        /// <returns>The converted value.</returns>
+        public static TResult ConvertTo<TResult>(this object item)
+            => LanguagePrimitives.ConvertTo<TResult>(item);
+
+        /// <summary>
         /// Determines whether a given color is considered sufficiently visually distinct from a backdrop color.
         /// </summary>
         /// <param name="target">The target color.</param>

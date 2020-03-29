@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections;
 using System.Collections.Generic;
 using System.IO;
@@ -1155,7 +1155,7 @@ namespace PSWordCloud
                         {
                             try
                             {
-                                value = LanguagePrimitives.ConvertTo<string>(item);
+                                value = item.ConvertTo<string>();
                             }
                             catch
                             {
@@ -1170,7 +1170,7 @@ namespace PSWordCloud
 
                     try
                     {
-                        value = LanguagePrimitives.ConvertTo<string>(input);
+                        value = input.ConvertTo<string>();
                     }
                     catch
                     {
