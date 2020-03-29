@@ -77,7 +77,7 @@ namespace PSWordCloud
         /// </summary>
         /// <param name="target">The target color.</param>
         /// <param name="backdrop">A reference color to compare against.</param>
-        internal static bool IsDistinctColor(this SKColor target, SKColor backdrop)
+        internal static bool IsDistinctFrom(this SKColor target, SKColor backdrop)
         {
             backdrop.ToHsv(out float refHue, out float refSaturation, out float refBrightness);
             target.ToHsv(out float hue, out float saturation, out float brightness);

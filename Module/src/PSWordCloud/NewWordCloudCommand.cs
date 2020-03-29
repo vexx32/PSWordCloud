@@ -1019,7 +1019,7 @@ namespace PSWordCloud
             {
                 result = GetNextColor();
             }
-            while (!result.IsDistinctColor(reference));
+            while (!result.IsDistinctFrom(reference));
 
             return result;
         }
