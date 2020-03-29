@@ -420,7 +420,7 @@ namespace PSWordCloud
 
         private List<Task<List<string>>> _wordProcessingTasks;
 
-        private float _fontScale;
+        private int _colorSetIndex = 0;
 
         private int _progressId;
 
@@ -447,7 +447,7 @@ namespace PSWordCloud
 
             if (Monochrome.IsPresent)
             {
-                ColorSet = ConvertToMonochrome(ColorSet);
+                ColorSet.TransformElements(c => c.AsMonochrome());
             }
 
             Shuffle(ColorSet);
@@ -821,7 +821,7 @@ namespace PSWordCloud
             var wordProgress = new ProgressRecord(
                 _progressId,
                 "Drawing word cloud...",
-                "Finding space for word...");
+                $"Finding space for word: '{word}'...");
 
             var pointProgress = new ProgressRecord(
                 _progressId + 1,
@@ -838,7 +838,7 @@ namespace PSWordCloud
 
             var centrePoint = new SKPoint(viewbox.MidX, viewbox.MidY);
             float aspectRatio = viewbox.Width / viewbox.Height;
-            float inflationValue = 2 * wordSize * (_paddingMultiplier + StrokeWidth * STROKE_BASE_SCALE);
+            float inflationValue = 2 * wordSize * (PaddingMultiplier + StrokeWidth * STROKE_BASE_SCALE);
 
             // Max radius should reach to the corner of the image; location is top-left of the box
             float maxRadius = SKPoint.Distance(viewbox.Location, centrePoint);
@@ -997,15 +997,12 @@ namespace PSWordCloud
         /// </summary>
         private SKColor GetNextColor()
         {
-            if (_colorIndex == ColorSet.Length)
+            if (_colorSetIndex >= ColorSet.Length)
             {
-                _colorIndex = 0;
+                _colorSetIndex = 0;
             }
 
-            var color = ColorSet[_colorIndex];
-            _colorIndex++;
-
-            return color;
+            return ColorSet[_colorSetIndex++];
         }
 
         /// <summary>
@@ -1182,26 +1179,6 @@ namespace PSWordCloud
             }
 
             return list;
-        }
-
-        /// <summary>
-        /// Reduces all the colors in the set to monochrome, taking their brightness values and assigning
-        /// them a corresponding shade of grey.
-        /// </summary>
-        /// <param name="inputSet">The base set of colors to operate on.</param>
-        /// <returns></returns>
-        private static SKColor[] ConvertToMonochrome(SKColor[] inputSet)
-        {
-            var resultSet = new SKColor[inputSet.Length];
-            for (var index = 0; index < inputSet.Length; index++)
-            {
-                inputSet[index].ToHsv(out _, out _, out float brightness);
-                byte level = (byte)Math.Floor(255 * brightness / 100f);
-
-                resultSet[index] = new SKColor(level, level, level);
-            }
-
-            return resultSet;
         }
 
         /// <summary>
@@ -1420,7 +1397,7 @@ namespace PSWordCloud
         /// </summary>
         /// <param name="items">The array of items to be shuffled.</param>
         /// <typeparam name="T">The type of the array.</typeparam>
-        private static T[] Shuffle<T>(T[] items)
+        private static IList<T> Shuffle<T>(IList<T> items)
         {
             lock (_randomLock)
             {
