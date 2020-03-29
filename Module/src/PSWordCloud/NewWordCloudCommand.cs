@@ -599,10 +599,6 @@ namespace PSWordCloud
                 using SKCanvas canvas = SKSvgCanvas.Create(viewbox, xmlWriter);
                 using SKRegion occupiedSpace = new SKRegion();
 
-                brush.IsAutohinted = true;
-                brush.IsAntialias = true;
-                brush.Typeface = Typeface;
-
                 if (ParameterSetName.StartsWith(FILE_SET))
                 {
                     canvas.DrawBitmap(backgroundImage, 0, 0);
@@ -612,23 +608,38 @@ namespace PSWordCloud
                     canvas.Clear(BackgroundColor);
                 }
 
-                SKPoint targetPoint;
-
                 foreach (string word in sortedWordList.OrderByDescending(x => scaledWordSizes[x]))
                 {
-                    currentWordNumber++;
-
                     WriteDebug($"Scanning for draw location for '{word}'.");
 
-                    SKColor wordColor;
-                    SKColor bubbleColor = SKColor.Empty;
+                    currentWordNumber++;
 
-                    targetPoint = FindDrawLocation(
+                    bool isFocusWord = currentWordNumber == 1
+                        && MyInvocation.BoundParameters.ContainsKey(nameof(FocusWordAngle));
+                    var wordSize = scaledWordSizes[word];
+                    var totalWords = sortedWordList.Count;
+                    var percentComplete = 100f * currentWordNumber / sortedWordList.Count;
+
+                    var wordProgress = new ProgressRecord(
+                        _progressId,
+                        "Drawing word cloud...",
+                        $"Finding space for word: '{word}'...")
+                    {
+                        StatusDescription = string.Format(
+                            "Current Word: \"{0}\" [Size: {1:0}] ({2} of {3})",
+                            word,
+                            wordSize,
+                            currentWordNumber,
+                            totalWords),
+                        PercentComplete = (int)Math.Round(percentComplete)
+                    };
+                    WriteProgress(wordProgress);
+
+                    SKPoint targetPoint = FindDrawLocation(
                         word,
-                        brush,
                         scaledWordSizes[word],
-                        currentWordNumber,
-                        scaledWordSizes.Count,
+                        Typeface,
+                        isFocusWord,
                         viewbox,
                         clipRegion,
                         occupiedSpace,
@@ -637,49 +648,13 @@ namespace PSWordCloud
 
                     if (targetPoint != SKPoint.Empty)
                     {
-                        if (WordBubble == WordBubbleShape.None)
-                        {
-                            wordColor = GetContrastingColor(BackgroundColor);
-                        }
-                        else
-                        {
-                            bubbleColor = GetContrastingColor(BackgroundColor);
-                            wordColor = GetContrastingColor(bubbleColor);
-                        }
+                        var strokeWidth = MyInvocation.BoundParameters.ContainsKey(nameof(StrokeWidth))
+                            ? StrokeWidth
+                            : -1;
 
                         WriteDebug($"Drawing '{word}' at [{targetPoint.X}, {targetPoint.Y}].");
 
-                        wordPath.FillType = SKPathFillType.EvenOdd;
-
-                        if (WordBubble != WordBubbleShape.None)
-                        {
-                            // If we're using word bubbles, the bubbles should more or less enclose the words.
-                            occupiedSpace.CombineWithPath(bubblePath, SKRegionOperation.Union);
-
-                            brush.IsStroke = false;
-                            brush.Style = SKPaintStyle.Fill;
-                            brush.Color = bubbleColor;
-                            canvas.DrawPath(bubblePath, brush);
-                        }
-                        else
-                        {
-                            // If we're not using bubbles, record the exact space the word occupies.
-                            occupiedSpace.CombineWithPath(wordPath, SKRegionOperation.Union);
-                        }
-
-                        brush.IsStroke = false;
-                        brush.Style = SKPaintStyle.Fill;
-                        brush.Color = wordColor;
-                        canvas.DrawPath(wordPath, brush);
-
-                        if (MyInvocation.BoundParameters.ContainsKey(nameof(StrokeWidth)))
-                        {
-                            brush.IsStroke = true;
-                            brush.Style = SKPaintStyle.Stroke;
-                            brush.Color = StrokeColor;
-
-                            canvas.DrawPath(wordPath, brush);
-                        }
+                        DrawWord(wordPath, strokeWidth, bubblePath, canvas, occupiedSpace);
                     }
                     else
                     {
@@ -733,6 +708,55 @@ namespace PSWordCloud
         }
 
         #region HelperMethods
+
+        private void DrawWord(
+            SKPath wordPath,
+            float strokeWidth,
+            SKPath bubblePath,
+            SKCanvas canvas,
+            SKRegion occupiedSpace)
+        {
+            using var brush = new SKPaint();
+            SKColor wordColor;
+            SKColor bubbleColor;
+
+            wordPath.FillType = SKPathFillType.EvenOdd;
+            if (bubblePath == null)
+            {
+                wordColor = GetContrastingColor(BackgroundColor);
+
+                // Since we're not using bubbles, record the exact space the word occupies.
+                occupiedSpace.CombineWithPath(wordPath, SKRegionOperation.Union);
+            }
+            else
+            {
+                bubbleColor = GetContrastingColor(BackgroundColor);
+                wordColor = GetContrastingColor(bubbleColor);
+
+                // If we're using word bubbles, the bubbles should more or less enclose the words.
+                occupiedSpace.CombineWithPath(bubblePath, SKRegionOperation.Union);
+
+                brush.IsStroke = false;
+                brush.Style = SKPaintStyle.Fill;
+                brush.Color = bubbleColor;
+                canvas.DrawPath(bubblePath, brush);
+            }
+
+            brush.IsStroke = false;
+            brush.Style = SKPaintStyle.Fill;
+            brush.Color = wordColor;
+            canvas.DrawPath(wordPath, brush);
+
+            if (strokeWidth > -1)
+            {
+                brush.IsStroke = true;
+                brush.StrokeWidth = strokeWidth;
+                brush.Style = SKPaintStyle.Stroke;
+                brush.Color = StrokeColor;
+
+                canvas.DrawPath(wordPath, brush);
+            }
+        }
 
         /// <summary>
         /// Converts the input <paramref name="dictionary"/> into a usable form. Keys are all converted to string, and
@@ -884,33 +908,26 @@ namespace PSWordCloud
         /// words in <paramref name="occupiedSpace"/> and avoiding collision.
         /// </summary>
         /// <param name="word">The word being drawn.</param>
-        /// <param name="brush"></param>
-        /// <param name="wordSize"></param>
-        /// <param name="currentWord"></param>
-        /// <param name="totalWords"></param>
-        /// <param name="viewbox"></param>
-        /// <param name="clipRegion"></param>
-        /// <param name="occupiedSpace"></param>
-        /// <param name="wordPath"></param>
-        /// <param name="bubblePath"></param>
+        /// <param name="wordSize">The size of the current wordt</param>
+        /// <param name="typeface">The typeface used to render the word path.</param>
+        /// <param name="isFocusWord">Whether the word currently being drawn is the designated focus word.</param>
+        /// <param name="viewbox">The image bounds.</param>
+        /// <param name="clipRegion">The region within which all words must be contained.</param>
+        /// <param name="occupiedSpace">The region containing the sum of all paths drawn into it.</param>
+        /// <param name="wordPath">The resulting word path, or null if none can be found.</param>
+        /// <param name="bubblePath">The resulting bubble path, or null if none can be found </param>
         /// <returns></returns>
         private SKPoint FindDrawLocation(
             string word,
-            SKPaint brush,
             float wordSize,
-            int currentWord,
-            int totalWords,
+            SKTypeface typeface,
+            bool isFocusWord,
             SKRect viewbox,
             SKRegion clipRegion,
             SKRegion occupiedSpace,
             out SKPath wordPath,
             out SKPath bubblePath)
         {
-            var wordProgress = new ProgressRecord(
-                _progressId,
-                "Drawing word cloud...",
-                $"Finding space for word: '{word}'...");
-
             var pointProgress = new ProgressRecord(
                 _progressId + 1,
                 "Scanning available space...",
@@ -919,14 +936,24 @@ namespace PSWordCloud
                 ParentActivityId = _progressId
             };
 
-            float[] availableAngles = currentWord == 1
-                && MyInvocation.BoundParameters.ContainsKey(nameof(FocusWordAngle))
-                    ? new[] { FocusWordAngle }
-                    : GetDrawAngles(AllowRotation);
+            var availableAngles = isFocusWord ? new[] { FocusWordAngle } : GetDrawAngles(AllowRotation);
 
             var centrePoint = new SKPoint(viewbox.MidX, viewbox.MidY);
             float aspectRatio = viewbox.Width / viewbox.Height;
             float inflationValue = 2 * wordSize * (PaddingMultiplier + StrokeWidth * STROKE_BASE_SCALE);
+
+            wordPath = null;
+            bubblePath = null;
+            SKRect wordBounds;
+
+            using var brush = new SKPaint
+            {
+                IsAutohinted = true,
+                IsAntialias = true,
+                Typeface = typeface
+            };
+
+            brush.Prepare(wordSize, StrokeWidth);
 
             // Max radius should reach to the corner of the image; location is top-left of the box
             float maxRadius = SKPoint.Distance(viewbox.Location, centrePoint);
@@ -935,21 +962,6 @@ namespace PSWordCloud
             {
                 maxRadius *= BLEED_AREA_SCALE;
             }
-
-            wordPath = null;
-            bubblePath = null;
-            SKRect wordBounds;
-            brush.Prepare(wordSize, StrokeWidth);
-
-            var percentComplete = 100f * currentWord / totalWords;
-            wordProgress.StatusDescription = string.Format(
-                "Draw: \"{0}\" [Size: {1:0}] ({2} of {3})",
-                word,
-                brush.TextSize,
-                currentWord,
-                totalWords);
-            wordProgress.PercentComplete = (int)Math.Round(percentComplete);
-            WriteProgress(wordProgress);
 
             foreach (var drawAngle in availableAngles)
             {
@@ -966,8 +978,7 @@ namespace PSWordCloud
                         wordSize,
                         DistanceStep,
                         maxRadius,
-                        inflationValue,
-                        percentComplete))
+                        inflationValue))
                 {
                     var radialPoints = GetOvalPoints(centrePoint, radius, RadialStep, aspectRatio);
                     var totalPoints = radialPoints.Count;
@@ -1003,7 +1014,7 @@ namespace PSWordCloud
 
                         if (WordBubble == WordBubbleShape.None)
                         {
-                            if (currentWord == 1)
+                            if (isFocusWord)
                             {
                                 // First word always gets drawn, and will be in the centre.
                                 return wordBounds.Location;
@@ -1050,7 +1061,7 @@ namespace PSWordCloud
                                     break;
                             }
 
-                            if (currentWord == 1)
+                            if (isFocusWord)
                             {
                                 // First word always gets drawn, and will be in the centre.
                                 return wordBounds.Location;
@@ -1112,7 +1123,7 @@ namespace PSWordCloud
         /// <summary>
         /// Returns a shuffled set of possible angles determined by the WordOrientations value provided.
         /// </summary>
-        private static float[] GetDrawAngles(WordOrientations permittedRotations)
+        private static IList<float> GetDrawAngles(WordOrientations permittedRotations)
         {
             return permittedRotations switch
             {
@@ -1357,12 +1368,11 @@ namespace PSWordCloud
             float wordSize,
             float distanceStep,
             float maxRadius,
-            float padding,
-            float percentComplete)
+            float padding)
         {
             var wordScaleFactor = (1 + padding) * wordSize / 360;
             var stepScale = distanceStep / 15;
-            var minRadiusIncrement = percentComplete / 100 * maxRadius / 10;
+            var minRadiusIncrement = maxRadius / 1000;
 
             var radiusIncrement = minRadiusIncrement * stepScale + wordScaleFactor;
 
