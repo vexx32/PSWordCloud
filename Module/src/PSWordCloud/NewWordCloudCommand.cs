@@ -700,12 +700,12 @@ namespace PSWordCloud
                 backgroundImage?.Dispose();
 
                 // Write 'Completed' progress record
-                WriteProgress(new ProgressRecord(_progressId, string.Empty, string.Empty)
+                WriteProgress(new ProgressRecord(_progressId, "Completed", "Completed")
                 {
                     RecordType = ProgressRecordType.Completed
                 });
 
-                WriteProgress(new ProgressRecord(_progressId + 1, string.Empty, string.Empty)
+                WriteProgress(new ProgressRecord(_progressId + 1, "Completed", "Completed")
                 {
                     RecordType = ProgressRecordType.Completed
                 });

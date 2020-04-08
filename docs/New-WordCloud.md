@@ -27,7 +27,7 @@ New-WordCloud -InputObject <PSObject> [-Path] <String> [-ImageSize <SKSizeI>] [-
 ```
 New-WordCloud -InputObject <PSObject> [-Path] <String> [-ImageSize <SKSizeI>] [-Typeface <SKTypeface>]
  [-BackgroundColor <SKColor>] [-ColorSet <SKColor[]>] [-StrokeWidth <Single>] [-StrokeColor <SKColor>]
- -FocusWord <String> [-RotateFocusWord <Single>] [-ExcludeWord <String[]>] [-IncludeWord <String[]>]
+ -FocusWord <String> [-FocusWordAngle <Single>] [-ExcludeWord <String[]>] [-IncludeWord <String[]>]
  [-WordScale <Single>] [-AllowRotation <WordOrientations>] [-Padding <Single>] [-WordBubble <WordBubbleShape>]
  [-DistanceStep <Single>] [-RadialStep <Single>] [-MaxRenderedWords <Int32>] [-MaxColors <Int32>]
  [-RandomSeed <Int32>] [-Monochrome] [-AllowStopWords] [-AllowOverflow] [-PassThru] [<CommonParameters>]
@@ -47,7 +47,7 @@ New-WordCloud -InputObject <PSObject> [-Path] <String> -BackgroundImage <String>
 ```
 New-WordCloud -InputObject <PSObject> [-Path] <String> -BackgroundImage <String> [-Typeface <SKTypeface>]
  [-ColorSet <SKColor[]>] [-StrokeWidth <Single>] [-StrokeColor <SKColor>] -FocusWord <String>
- [-RotateFocusWord <Single>] [-ExcludeWord <String[]>] [-IncludeWord <String[]>] [-WordScale <Single>]
+ [-FocusWordAngle <Single>] [-ExcludeWord <String[]>] [-IncludeWord <String[]>] [-WordScale <Single>]
  [-AllowRotation <WordOrientations>] [-Padding <Single>] [-WordBubble <WordBubbleShape>]
  [-DistanceStep <Single>] [-RadialStep <Single>] [-MaxRenderedWords <Int32>] [-MaxColors <Int32>]
  [-RandomSeed <Int32>] [-Monochrome] [-AllowStopWords] [-AllowOverflow] [-PassThru] [<CommonParameters>]
@@ -67,7 +67,7 @@ New-WordCloud -WordSizes <IDictionary> [-Path] <String> [-ImageSize <SKSizeI>] [
 ```
 New-WordCloud -WordSizes <IDictionary> [-Path] <String> [-ImageSize <SKSizeI>] [-Typeface <SKTypeface>]
  [-BackgroundColor <SKColor>] [-ColorSet <SKColor[]>] [-StrokeWidth <Single>] [-StrokeColor <SKColor>]
- -FocusWord <String> [-RotateFocusWord <Single>] [-ExcludeWord <String[]>] [-IncludeWord <String[]>]
+ -FocusWord <String> [-FocusWordAngle <Single>] [-ExcludeWord <String[]>] [-IncludeWord <String[]>]
  [-WordScale <Single>] [-AllowRotation <WordOrientations>] [-Padding <Single>] [-WordBubble <WordBubbleShape>]
  [-DistanceStep <Single>] [-RadialStep <Single>] [-MaxRenderedWords <Int32>] [-MaxColors <Int32>]
  [-RandomSeed <Int32>] [-Monochrome] [-AllowStopWords] [-AllowOverflow] [-PassThru] [<CommonParameters>]
@@ -87,7 +87,7 @@ New-WordCloud -WordSizes <IDictionary> [-Path] <String> -BackgroundImage <String
 ```
 New-WordCloud -WordSizes <IDictionary> [-Path] <String> -BackgroundImage <String> [-Typeface <SKTypeface>]
  [-ColorSet <SKColor[]>] [-StrokeWidth <Single>] [-StrokeColor <SKColor>] -FocusWord <String>
- [-RotateFocusWord <Single>] [-ExcludeWord <String[]>] [-IncludeWord <String[]>] [-WordScale <Single>]
+ [-FocusWordAngle <Single>] [-ExcludeWord <String[]>] [-IncludeWord <String[]>] [-WordScale <Single>]
  [-AllowRotation <WordOrientations>] [-Padding <Single>] [-WordBubble <WordBubbleShape>]
  [-DistanceStep <Single>] [-RadialStep <Single>] [-MaxRenderedWords <Int32>] [-MaxColors <Int32>]
  [-RandomSeed <Int32>] [-Monochrome] [-AllowStopWords] [-AllowOverflow] [-PassThru] [<CommonParameters>]
@@ -346,6 +346,24 @@ Accept pipeline input: False
 Accept wildcard characters: False
 ```
 
+### -FocusWordAngle
+
+Specify an angle in degrees to rotate the focus word by, overriding the default random rotations for the focus word only.
+
+Values from -360 to 360, including sub-degree increments, are permitted.
+
+```yaml
+Type: Single
+Parameter Sets: ColorBackground-FocusWord, FileBackground-FocusWord, ColorBackground-FocusWord-WordTable, FileBackground-FocusWord-WordTable
+Aliases: RotateTitle, RotateFocusWord
+
+Required: False
+Position: Named
+Default value: None
+Accept pipeline input: False
+Accept wildcard characters: False
+```
+
 ### -ImageSize
 
 Determines the canvas size for the word cloud image.
@@ -541,24 +559,6 @@ Determines the seed value for the random numbers used to vary the position and p
 Type: Int32
 Parameter Sets: (All)
 Aliases: SeedValue
-
-Required: False
-Position: Named
-Default value: None
-Accept pipeline input: False
-Accept wildcard characters: False
-```
-
-### -RotateFocusWord
-
-Specify an angle in degrees to rotate the focus word by, overriding the default random rotations for the focus word only.
-
-Values from -360 to 360, including sub-degree increments, are permitted.
-
-```yaml
-Type: Single
-Parameter Sets: ColorBackground-FocusWord, FileBackground-FocusWord, ColorBackground-FocusWord-WordTable, FileBackground-FocusWord-WordTable
-Aliases: RotateTitle
 
 Required: False
 Position: Named
