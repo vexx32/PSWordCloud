@@ -63,11 +63,44 @@ namespace PSWordCloud
         }
 
         /// <summary>
+        /// Utility method which is just a convenient shortcut to <see cref="LanguagePrimitives.ConvertTo{T}(object)"/>.
+        /// </summary>
+        /// <param name="item">The object to convert.</param>
+        /// <typeparam name="TSource">The original object type.</typeparam>
+        /// <typeparam name="TResult">The resulting destination type.</typeparam>
+        /// <returns>The converted value.</returns>
+        public static TResult ConvertTo<TResult>(this object item)
+            => LanguagePrimitives.ConvertTo<TResult>(item);
+
+        /// <summary>
+        /// Perform an in-place-modification operation on every element in the array.
+        /// </summary>
+        /// <param name="items">The array to operate on.</param>
+        /// <returns>The transformed array.</returns>
+        public static T[] TransformElements<T>(this T[] items, Func<T, T> operation)
+        {
+            for (var index = 0; index < items.Length; index++)
+            {
+                items[index] = operation.Invoke(items[index]);
+            }
+
+            return items;
+        }
+
+        public static SKColor AsMonochrome(this SKColor color)
+        {
+            color.ToHsv(out _, out _, out float brightness);
+            byte level = (byte)Math.Floor(255 * brightness / 100f);
+
+            return new SKColor(level, level, level);
+        }
+
+        /// <summary>
         /// Determines whether a given color is considered sufficiently visually distinct from a backdrop color.
         /// </summary>
         /// <param name="target">The target color.</param>
         /// <param name="backdrop">A reference color to compare against.</param>
-        internal static bool IsDistinctColor(this SKColor target, SKColor backdrop)
+        internal static bool IsDistinctFrom(this SKColor target, SKColor backdrop)
         {
             backdrop.ToHsv(out float refHue, out float refSaturation, out float refBrightness);
             target.ToHsv(out float hue, out float saturation, out float brightness);
@@ -103,9 +136,9 @@ namespace PSWordCloud
         /// <param name="rng">Random number generator.</param>
         /// <param name="array">The array to shuffle.</param>
         /// <typeparam name="T">The element type of the array.</typeparam>
-        internal static T[] Shuffle<T>(this Random rng, T[] array)
+        internal static IList<T> Shuffle<T>(this Random rng, IList<T> array)
         {
-            int n = array.Length;
+            int n = array.Count;
             while (n > 1)
             {
                 int k = rng.Next(n--);

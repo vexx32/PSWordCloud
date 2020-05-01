@@ -137,8 +137,8 @@ namespace PSWordCloud
                     if (properties.GetValue("Width") != null && properties.GetValue("Height") != null)
                     {
                         // If these conversions fail, the exception will cause the transform to fail.
-                        var width = LanguagePrimitives.ConvertTo<int>(properties.GetValue("Width"));
-                        var height = LanguagePrimitives.ConvertTo<int>(properties.GetValue("Height"));
+                        var width = properties.GetValue("Width").ConvertTo<int>();
+                        var height = properties.GetValue("Height").ConvertTo<int>();
 
                         return new SKSizeI(width, height);
                     }
@@ -216,15 +216,15 @@ namespace PSWordCloud
             {
                 SKFontStyleWeight weight = properties.GetValue("FontWeight") == null
                     ? SKFontStyleWeight.Normal
-                    : LanguagePrimitives.ConvertTo<SKFontStyleWeight>(properties.GetValue("FontWeight"));
+                    : properties.GetValue("FontWeight").ConvertTo<SKFontStyleWeight>();
 
                 SKFontStyleSlant slant = properties.GetValue("FontSlant") == null
                     ? SKFontStyleSlant.Upright
-                    : LanguagePrimitives.ConvertTo<SKFontStyleSlant>(properties.GetValue("FontSlant"));
+                    : properties.GetValue("FontSlant").ConvertTo<SKFontStyleSlant>();
 
                 SKFontStyleWidth width = properties.GetValue("FontWidth") == null
                     ? SKFontStyleWidth.Normal
-                    : LanguagePrimitives.ConvertTo<SKFontStyleWidth>(properties.GetValue("FontWidth"));
+                    : properties.GetValue("FontWidth").ConvertTo<SKFontStyleWidth>();
 
                 style = new SKFontStyle(weight, width, slant);
             }
@@ -235,7 +235,7 @@ namespace PSWordCloud
                     : SKFontStyle.Normal;
             }
 
-            string familyName = LanguagePrimitives.ConvertTo<string>(properties.GetValue("FamilyName"));
+            string familyName = properties.GetValue("FamilyName").ConvertTo<string>();
             return WCUtils.FontManager.MatchFamily(familyName, style);
         }
 
@@ -303,19 +303,19 @@ namespace PSWordCloud
 
                 byte red = properties.GetValue("red") == null
                     ? (byte)0
-                    : LanguagePrimitives.ConvertTo<byte>(properties.GetValue("red"));
+                    : properties.GetValue("red").ConvertTo<byte>();
 
                 byte green = properties.GetValue("green") == null
                     ? (byte)0
-                    : LanguagePrimitives.ConvertTo<byte>(properties.GetValue("green"));
+                    : properties.GetValue("green").ConvertTo<byte>();
 
                 byte blue = properties.GetValue("blue") == null
                     ? (byte)0
-                    : LanguagePrimitives.ConvertTo<byte>(properties.GetValue("blue"));
+                    : properties.GetValue("blue").ConvertTo<byte>();
 
                 byte alpha = properties.GetValue("alpha") == null
                     ? (byte)255
-                    : LanguagePrimitives.ConvertTo<byte>(properties.GetValue("alpha"));
+                    : properties.GetValue("alpha").ConvertTo<byte>();
 
                 colorList.Add(new SKColor(red, green, blue, alpha));
             }
@@ -401,10 +401,9 @@ namespace PSWordCloud
         {
             for (float angle = 0; angle <= 360; angle += 45)
             {
-                var s = LanguagePrimitives.ConvertTo<string>(angle);
+                var s = angle.ConvertTo<string>();
                 yield return new CompletionResult(s, s, CompletionResultType.ParameterValue, s);
             }
         }
     }
-
 }
