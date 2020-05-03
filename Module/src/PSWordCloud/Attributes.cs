@@ -137,10 +137,20 @@ namespace PSWordCloud
                     if (properties.GetValue("Width") != null && properties.GetValue("Height") != null)
                     {
                         // If these conversions fail, the exception will cause the transform to fail.
-                        var width = properties.GetValue("Width").ConvertTo<int>();
-                        var height = properties.GetValue("Height").ConvertTo<int>();
+                        var width = properties.GetValue("Width")?.ConvertTo<int>();
+                        var height = properties.GetValue("Height")?.ConvertTo<int>();
 
-                        return new SKSizeI(width, height);
+                        if (width == null)
+                        {
+                            throw new ArgumentNullException(nameof(width));
+                        }
+
+                        if (height == null)
+                        {
+                            throw new ArgumentNullException(nameof(height));
+                        }
+
+                        return new SKSizeI((int)width, (int)height);
                     }
 
                     break;
@@ -214,17 +224,20 @@ namespace PSWordCloud
                 || properties.GetValue("FontSlant") != null
                 || properties.GetValue("FontWidth") != null)
             {
-                SKFontStyleWeight weight = properties.GetValue("FontWeight") == null
+                var fontWeight = properties.GetValue("FontWeight");
+                SKFontStyleWeight weight = fontWeight == null
                     ? SKFontStyleWeight.Normal
-                    : properties.GetValue("FontWeight").ConvertTo<SKFontStyleWeight>();
+                    : fontWeight.ConvertTo<SKFontStyleWeight>();
 
-                SKFontStyleSlant slant = properties.GetValue("FontSlant") == null
+                var fontSlant = properties.GetValue("FontSlant");
+                SKFontStyleSlant slant = fontSlant == null
                     ? SKFontStyleSlant.Upright
-                    : properties.GetValue("FontSlant").ConvertTo<SKFontStyleSlant>();
+                    : fontSlant.ConvertTo<SKFontStyleSlant>();
 
-                SKFontStyleWidth width = properties.GetValue("FontWidth") == null
+                var fontWidth = properties.GetValue("FontWidth");
+                SKFontStyleWidth width = fontWidth == null
                     ? SKFontStyleWidth.Normal
-                    : properties.GetValue("FontWidth").ConvertTo<SKFontStyleWidth>();
+                    : fontWidth.ConvertTo<SKFontStyleWidth>();
 
                 style = new SKFontStyle(weight, width, slant);
             }
@@ -235,7 +248,7 @@ namespace PSWordCloud
                     : SKFontStyle.Normal;
             }
 
-            string familyName = properties.GetValue("FamilyName").ConvertTo<string>();
+            var familyName = properties.GetValue("FamilyName")?.ConvertTo<string>();
             return WCUtils.FontManager.MatchFamily(familyName, style);
         }
 
@@ -301,21 +314,10 @@ namespace PSWordCloud
                     properties = PSObject.AsPSObject(item).Properties;
                 }
 
-                byte red = properties.GetValue("red") == null
-                    ? (byte)0
-                    : properties.GetValue("red").ConvertTo<byte>();
-
-                byte green = properties.GetValue("green") == null
-                    ? (byte)0
-                    : properties.GetValue("green").ConvertTo<byte>();
-
-                byte blue = properties.GetValue("blue") == null
-                    ? (byte)0
-                    : properties.GetValue("blue").ConvertTo<byte>();
-
-                byte alpha = properties.GetValue("alpha") == null
-                    ? (byte)255
-                    : properties.GetValue("alpha").ConvertTo<byte>();
+                byte red = properties?.GetValue("red")?.ConvertTo<byte>() ?? (byte)0;
+                byte green = properties?.GetValue("green")?.ConvertTo<byte>() ?? (byte)0;
+                byte blue = properties?.GetValue("blue")?.ConvertTo<byte>() ?? (byte)0;
+                byte alpha = properties?.GetValue("alpha")?.ConvertTo<byte>() ?? (byte)255;
 
                 colorList.Add(new SKColor(red, green, blue, alpha));
             }

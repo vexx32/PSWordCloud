@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections;
 using System.Collections.Generic;
+using System.Diagnostics.CodeAnalysis;
 using System.IO;
 using System.Linq;
 using System.Management.Automation;
@@ -74,7 +75,7 @@ namespace PSWordCloud
             '<','>','“','”','*','#','%','^','&','+','=' };
 
         private static readonly object _randomLock = new object();
-        private static Random _random;
+        private static Random? _random;
         private static Random Random => _random ??= new Random();
 
         private readonly CancellationTokenSource _cancel = new CancellationTokenSource();
@@ -94,7 +95,7 @@ namespace PSWordCloud
         [Parameter(Mandatory = true, ValueFromPipeline = true, ParameterSetName = FILE_FOCUS_SET)]
         [Alias("InputString", "Text", "String", "Words", "Document", "Page")]
         [AllowEmptyString()]
-        public PSObject InputObject { get; set; }
+        public PSObject InputObject { get; set; } = null!;
 
         /// <summary>
         /// Gets or sets the input word dictionary.
@@ -112,7 +113,7 @@ namespace PSWordCloud
         [Parameter(Mandatory = true, ParameterSetName = FILE_TABLE_SET)]
         [Parameter(Mandatory = true, ParameterSetName = FILE_FOCUS_TABLE_SET)]
         [Alias("WordSizeTable", "CustomWordSizes")]
-        public IDictionary WordSizes { get; set; }
+        public IDictionary? WordSizes { get; set; }
 
         /// <summary>
         /// Gets or sets the output path to save the final SVG vector file to.
@@ -126,9 +127,9 @@ namespace PSWordCloud
         [Parameter(Mandatory = true, Position = 0, ParameterSetName = FILE_FOCUS_TABLE_SET)]
         [Parameter(Mandatory = true, Position = 0, ParameterSetName = FILE_TABLE_SET)]
         [Alias("OutFile", "ExportPath", "ImagePath")]
-        public string Path { get; set; }
+        public string Path { get; set; } = string.Empty;
 
-        private string _backgroundFullPath;
+        private string _backgroundFullPath = string.Empty;
         /// <summary>
         /// Gets or sets the path to the background image to be used as a base for the final word cloud image.
         /// </summary>
@@ -279,7 +280,7 @@ namespace PSWordCloud
         [Parameter(Mandatory = true, ParameterSetName = FILE_FOCUS_SET)]
         [Parameter(Mandatory = true, ParameterSetName = FILE_FOCUS_TABLE_SET)]
         [Alias("Title")]
-        public string FocusWord { get; set; }
+        public string? FocusWord { get; set; }
 
         [Parameter(ParameterSetName = COLOR_BG_FOCUS_SET)]
         [Parameter(ParameterSetName = COLOR_BG_FOCUS_TABLE_SET)]
@@ -296,7 +297,7 @@ namespace PSWordCloud
         /// </summary>
         [Parameter()]
         [Alias("ForbidWord", "IgnoreWord")]
-        public string[] ExcludeWord { get; set; }
+        public string[]? ExcludeWord { get; set; }
 
         /// <summary>
         /// <para>Gets or sets the words to be explicitly included in rendering of the cloud.</para>
@@ -305,7 +306,7 @@ namespace PSWordCloud
         /// <value></value>
         [Parameter()]
         [Alias()]
-        public string[] IncludeWord { get; set; }
+        public string[]? IncludeWord { get; set; }
 
         /// <summary>
         /// Gets or sets the float value to scale the base word size by. By default, the word cloud is scaled to fill
@@ -422,7 +423,7 @@ namespace PSWordCloud
 
         private float PaddingMultiplier { get => Padding * PaddingBaseScale; }
 
-        private List<Task<List<string>>> _wordProcessingTasks;
+        private List<Task<List<string>>>? _wordProcessingTasks;
 
         private int _colorSetIndex = 0;
 
@@ -504,10 +505,10 @@ namespace PSWordCloud
 
             int currentWordNumber = 0;
 
-            SKPath bubblePath = null;
-            SKPath wordPath = null;
+            SKPath? bubblePath = null;
+            SKPath? wordPath = null;
             SKRect viewbox = SKRect.Empty;
-            SKBitmap backgroundImage = null;
+            SKBitmap? backgroundImage = null;
             List<string> sortedWordList;
 
             Dictionary<string, float> wordScaleDictionary;
@@ -523,7 +524,8 @@ namespace PSWordCloud
                 case FILE_FOCUS_TABLE_SET:
                 case COLOR_BG_TABLE_SET:
                 case COLOR_BG_FOCUS_TABLE_SET:
-                    wordScaleDictionary = NormalizeWordScaleDictionary(WordSizes);
+                    // Parameter binding will ensure the WordSizes table is not null.
+                    wordScaleDictionary = NormalizeWordScaleDictionary(WordSizes!);
                     break;
                 default:
                     throw new NotImplementedException("This parameter set has not defined an input handling method.");
@@ -535,7 +537,9 @@ namespace PSWordCloud
             if (MyInvocation.BoundParameters.ContainsKey(nameof(FocusWord)))
             {
                 WriteDebug($"Adding focus word '{FocusWord}' to the dictionary.");
-                wordScaleDictionary[FocusWord] = highestWordFreq *= FocusWordScale;
+
+                // Parameter binding will prevent this being null if we're in that parameter set.
+                wordScaleDictionary[FocusWord!] = highestWordFreq *= FocusWordScale;
             }
 
             // Get a sorted list of words by their sizes
@@ -599,8 +603,7 @@ namespace PSWordCloud
                 sortedWordList.RemoveAll(x => !scaledWordSizes.ContainsKey(x));
 
                 using SKDynamicMemoryWStream outputStream = new SKDynamicMemoryWStream();
-                using SKXmlStreamWriter xmlWriter = new SKXmlStreamWriter(outputStream);
-                using SKCanvas canvas = SKSvgCanvas.Create(viewbox, xmlWriter);
+                using SKCanvas canvas = SKSvgCanvas.Create(viewbox, outputStream);
                 using SKRegion occupiedSpace = new SKRegion();
 
                 if (ParameterSetName.StartsWith(FILE_SET))
@@ -652,7 +655,7 @@ namespace PSWordCloud
                             out wordPath,
                             out bubblePath);
 
-                        if (targetPoint != SKPoint.Empty)
+                        if (targetPoint != SKPoint.Empty && wordPath != null)
                         {
                             var strokeWidth = MyInvocation.BoundParameters.ContainsKey(nameof(StrokeWidth))
                                 ? StrokeWidth
@@ -737,7 +740,7 @@ namespace PSWordCloud
         private void DrawWord(
             SKPath wordPath,
             float strokeWidth,
-            SKPath bubblePath,
+            SKPath? bubblePath,
             SKCanvas canvas,
             SKRegion occupiedSpace)
         {
@@ -798,14 +801,24 @@ namespace PSWordCloud
             {
                 try
                 {
-                    result.Add(
-                        word.ConvertTo<string>(),
-                        WordSizes[word].ConvertTo<float>());
+                    if (word != null && WordSizes?[word] != null)
+                    {
+                        result.Add(
+                            word.ConvertTo<string>(),
+                            WordSizes[word]!.ConvertTo<float>());
+                    }
                 }
                 catch (Exception e)
                 {
-                    WriteWarning($"Skipping entry '{word}' due to error converting key or value: {e.Message}.");
-                    WriteDebug($"Entry type: key - {word.GetType().FullName} ; value - {WordSizes[word].GetType().FullName}");
+                    if (word == null)
+                    {
+                        WriteWarning($"Skipping entry with null key.");
+                    }
+                    else
+                    {
+                        WriteWarning($"Skipping entry '{word}' due to error converting key or value: {e.Message}.");
+                        WriteDebug($"Entry type: key - {word?.GetType().FullName} ; value - {WordSizes?[word!]?.GetType().FullName}");
+                    }
                 }
             }
 
@@ -823,7 +836,7 @@ namespace PSWordCloud
         {
             var dictionary = new Dictionary<string, float>(StringComparer.OrdinalIgnoreCase);
             WriteDebug("Waiting for word processing tasks to finish.");
-            var processingTasks = Task.WhenAll(_wordProcessingTasks);
+            var processingTasks = Task.WhenAll(_wordProcessingTasks!);
 
             var waitHandles = new[] { ((IAsyncResult)processingTasks).AsyncWaitHandle, _cancel.Token.WaitHandle };
             if (WaitHandle.WaitAny(waitHandles) == 1)
@@ -986,8 +999,8 @@ namespace PSWordCloud
             SKRect viewbox,
             SKRegion clipRegion,
             SKRegion occupiedSpace,
-            out SKPath wordPath,
-            out SKPath bubblePath)
+            out SKPath? wordPath,
+            out SKPath? bubblePath)
         {
             var pointProgress = new ProgressRecord(
                 _progressId + 1,
@@ -1258,7 +1271,7 @@ namespace PSWordCloud
             // Check if the SVG already has a viewbox attribute on the root SVG element.
             // If not, we need to add that in before writing the data to the target location.
             var svgElement = imageXml.GetElementsByTagName("svg")[0] as XmlElement;
-            if (svgElement.GetAttribute("viewbox") == string.Empty)
+            if (svgElement?.GetAttribute("viewbox") == string.Empty)
             {
                 svgElement.SetAttribute(
                     "viewbox",
@@ -1318,6 +1331,11 @@ namespace PSWordCloud
                         {
                             try
                             {
+                                if (item == null)
+                                {
+                                    break;
+                                }
+
                                 value = item.ConvertTo<string>();
                             }
                             catch
@@ -1575,8 +1593,8 @@ namespace PSWordCloud
         /// <returns>An enumerable string collection of all words in the input, with stopwords stripped out.</returns>
         private async Task<List<string>> ProcessInputAsync(
             string line,
-            string[] includeWords = null,
-            string[] excludeWords = null)
+            string[]? includeWords = null,
+            string[]? excludeWords = null)
         {
             return await Task.Run(() => TrimAndSplitWords(line)
                 .Where(x => SelectWord(x, includeWords, excludeWords, AllowStopWords.IsPresent))
@@ -1602,7 +1620,7 @@ namespace PSWordCloud
         /// <param name="word">The word in question.</param>
         /// <param name="includeWords">A reference list of desired words, overridingthe stopwords or exclude list.</param>
         /// <param name="excludeWords">A reference list of undesired words, effectively impromptu stopwords.</param>
-        private static bool SelectWord(string word, string[] includeWords, string[] excludeWords, bool allowStopWords)
+        private static bool SelectWord(string word, string[]? includeWords, string[]? excludeWords, bool allowStopWords)
         {
             if (includeWords?.Contains(word, StringComparer.OrdinalIgnoreCase) == true)
             {

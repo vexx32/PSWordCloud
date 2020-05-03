@@ -336,7 +336,7 @@ namespace PSWordCloud
             return stringBuilder.ToString();
         }
 
-        internal static object GetValue(this IEnumerable collection, string key)
+        internal static object? GetValue(this IEnumerable collection, string key)
         {
             return collection switch
             {
@@ -891,7 +891,7 @@ namespace PSWordCloud
             {
                 if (!_library.ContainsKey(field.Name))
                 {
-                    _library[field.Name] = (SKColor)field.GetValue(null);
+                    _library[field.Name] = (SKColor)field.GetValue(null)!;
                 }
             }
         }
