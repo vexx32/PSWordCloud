@@ -724,6 +724,6 @@ While a lot of work has gone into the parameter transforms to ensure you can cus
 
 ## RELATED LINKS
 
-[Online Version](https://github.com/vexx32/PSWordCloud/blob/master/docs/New-WordCloud.md)
+[Online Version](https://github.com/vexx32/PSWordCloud/blob/main/docs/New-WordCloud.md)
 
 [SkiaSharp API Reference](https://docs.microsoft.com/en-us/dotnet/api/skiasharp)

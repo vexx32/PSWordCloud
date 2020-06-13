@@ -22,7 +22,7 @@ namespace PSWordCloud
     /// the relative frequencies of the words in the input text.
     /// </summary>
     [Cmdlet(VerbsCommon.New, "WordCloud", DefaultParameterSetName = COLOR_BG_SET,
-        HelpUri = "https://github.com/vexx32/PSWordCloud/blob/master/docs/New-WordCloud.md")]
+        HelpUri = "https://github.com/vexx32/PSWordCloud/blob/main/docs/New-WordCloud.md")]
     [Alias("wordcloud", "nwc", "wcloud")]
     [OutputType(typeof(System.IO.FileInfo))]
     public class NewWordCloudCommand : PSCmdlet

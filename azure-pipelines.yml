@@ -4,13 +4,13 @@
 trigger:
   branches:
     include:
-      - master
+      - main
   tags:
     include:
       - '*'
 
 pr:
-- master
+- main
 
 variables:
   ${{ if ne(variables['Build.Reason'], 'PullRequest') }}:
@@ -29,7 +29,7 @@ stages:
 - stage: UploadChangelog
   displayName: 'Upload Changelog'
   dependsOn: []
-  condition: startsWith(variables['Build.SourceBranch'], 'refs/heads/master')
+  condition: startsWith(variables['Build.SourceBranch'], 'refs/heads/main')
 
   jobs:
   - job: GenerateChangelog
