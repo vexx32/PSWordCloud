@@ -59,8 +59,8 @@ New-WordCloud -WordSizes <IDictionary> [-Path] <String> [-ImageSize <SKSizeI>] [
  [-BackgroundColor <SKColor>] [-ColorSet <SKColor[]>] [-StrokeWidth <Single>] [-StrokeColor <SKColor>]
  [-ExcludeWord <String[]>] [-IncludeWord <String[]>] [-WordScale <Single>] [-AllowRotation <WordOrientations>]
  [-Padding <Single>] [-WordBubble <WordBubbleShape>] [-DistanceStep <Single>] [-RadialStep <Single>]
- [-MaxRenderedWords <Int32>] [-MaxColors <Int32>] [-RandomSeed <Int32>] [-Monochrome] [-AllowStopWords]
- [-AllowOverflow] [-PassThru] [<CommonParameters>]
+ [-MaxColors <Int32>] [-RandomSeed <Int32>] [-Monochrome] [-AllowStopWords] [-AllowOverflow] [-PassThru]
+ [<CommonParameters>]
 ```
 
 ### ColorBackground-FocusWord-WordTable
@@ -69,8 +69,8 @@ New-WordCloud -WordSizes <IDictionary> [-Path] <String> [-ImageSize <SKSizeI>] [
  [-BackgroundColor <SKColor>] [-ColorSet <SKColor[]>] [-StrokeWidth <Single>] [-StrokeColor <SKColor>]
  -FocusWord <String> [-FocusWordAngle <Single>] [-ExcludeWord <String[]>] [-IncludeWord <String[]>]
  [-WordScale <Single>] [-AllowRotation <WordOrientations>] [-Padding <Single>] [-WordBubble <WordBubbleShape>]
- [-DistanceStep <Single>] [-RadialStep <Single>] [-MaxRenderedWords <Int32>] [-MaxColors <Int32>]
- [-RandomSeed <Int32>] [-Monochrome] [-AllowStopWords] [-AllowOverflow] [-PassThru] [<CommonParameters>]
+ [-DistanceStep <Single>] [-RadialStep <Single>] [-MaxColors <Int32>] [-RandomSeed <Int32>] [-Monochrome]
+ [-AllowStopWords] [-AllowOverflow] [-PassThru] [<CommonParameters>]
 ```
 
 ### FileBackground-WordTable
@@ -78,9 +78,8 @@ New-WordCloud -WordSizes <IDictionary> [-Path] <String> [-ImageSize <SKSizeI>] [
 New-WordCloud -WordSizes <IDictionary> [-Path] <String> -BackgroundImage <String> [-Typeface <SKTypeface>]
  [-ColorSet <SKColor[]>] [-StrokeWidth <Single>] [-StrokeColor <SKColor>] [-ExcludeWord <String[]>]
  [-IncludeWord <String[]>] [-WordScale <Single>] [-AllowRotation <WordOrientations>] [-Padding <Single>]
- [-WordBubble <WordBubbleShape>] [-DistanceStep <Single>] [-RadialStep <Single>] [-MaxRenderedWords <Int32>]
- [-MaxColors <Int32>] [-RandomSeed <Int32>] [-Monochrome] [-AllowStopWords] [-AllowOverflow] [-PassThru]
- [<CommonParameters>]
+ [-WordBubble <WordBubbleShape>] [-DistanceStep <Single>] [-RadialStep <Single>] [-MaxColors <Int32>]
+ [-RandomSeed <Int32>] [-Monochrome] [-AllowStopWords] [-AllowOverflow] [-PassThru] [<CommonParameters>]
 ```
 
 ### FileBackground-FocusWord-WordTable
@@ -89,8 +88,8 @@ New-WordCloud -WordSizes <IDictionary> [-Path] <String> -BackgroundImage <String
  [-ColorSet <SKColor[]>] [-StrokeWidth <Single>] [-StrokeColor <SKColor>] -FocusWord <String>
  [-FocusWordAngle <Single>] [-ExcludeWord <String[]>] [-IncludeWord <String[]>] [-WordScale <Single>]
  [-AllowRotation <WordOrientations>] [-Padding <Single>] [-WordBubble <WordBubbleShape>]
- [-DistanceStep <Single>] [-RadialStep <Single>] [-MaxRenderedWords <Int32>] [-MaxColors <Int32>]
- [-RandomSeed <Int32>] [-Monochrome] [-AllowStopWords] [-AllowOverflow] [-PassThru] [<CommonParameters>]
+ [-DistanceStep <Single>] [-RadialStep <Single>] [-MaxColors <Int32>] [-RandomSeed <Int32>] [-Monochrome]
+ [-AllowStopWords] [-AllowOverflow] [-PassThru] [<CommonParameters>]
 ```
 
 ## DESCRIPTION
@@ -290,7 +289,7 @@ Required: False
 Position: Named
 Default value: *
 Accept pipeline input: False
-Accept wildcard characters: False
+Accept wildcard characters: True
 ```
 
 ### -DistanceStep
@@ -458,7 +457,7 @@ However, an appropriate vector graphics viewer or editor is still capable of zoo
 
 ```yaml
 Type: Int32
-Parameter Sets: (All)
+Parameter Sets: ColorBackground, ColorBackground-FocusWord, FileBackground, FileBackground-FocusWord
 Aliases: MaxWords
 
 Required: False

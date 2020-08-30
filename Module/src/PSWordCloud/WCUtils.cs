@@ -7,6 +7,7 @@ using System.Management.Automation;
 using System.Reflection;
 using System.Runtime.CompilerServices;
 using System.Text;
+using System.Threading.Tasks;
 using System.Xml;
 using SkiaSharp;
 
@@ -38,155 +39,49 @@ namespace PSWordCloud
 
     internal static class WCUtils
     {
-        internal static SKPoint Multiply(this SKPoint point, float factor)
-            => new SKPoint(point.X * factor, point.Y * factor);
-
-        internal static float ToRadians(this float degrees)
-            => (float)(degrees * Math.PI / 180);
-
         /// <summary>
-        /// Returns a font scale value based on the size of the letter X in a given typeface.
+        /// Returns a font scale value based on the size of the letter X in a given typeface when the text size is 1 unit.
         /// </summary>
         /// <param name="typeface">The typeface to measure the scale from.</param>
-        /// <returns>A float value typically between 0 and 1. Many common typefaces have values around 0.5.</returns>
-        internal static float GetFontScale(SKTypeface typeface)
+        /// <returns>A float value representing the area occupied by the letter X in a typeface.</returns>
+        internal static float GetAverageCharArea(SKTypeface typeface)
         {
-            var text = "X";
-            using var paint = new SKPaint
-            {
-                Typeface = typeface,
-                TextSize = 1
-            };
-            var rect = paint.GetTextPath(text, 0, 0).ComputeTightBounds();
+            const string alphabet = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz";
+            using SKPaint brush = GetBrush(wordSize: 1, strokeWidth: 0, typeface: typeface);
 
-            return (rect.Width + rect.Height) / 2;
+            using SKPath textPath = brush.GetTextPath(alphabet, x: 0, y: 0);
+
+            SKRect rect = textPath.TightBounds;
+            return rect.Width * rect.Height / alphabet.Length;
         }
 
         /// <summary>
-        /// Utility method which is just a convenient shortcut to <see cref="LanguagePrimitives.ConvertTo{T}(object)"/>.
+        /// Returns a shuffled set of possible angles determined by the <paramref name="permittedRotations"/>.
         /// </summary>
-        /// <param name="item">The object to convert.</param>
-        /// <typeparam name="TSource">The original object type.</typeparam>
-        /// <typeparam name="TResult">The resulting destination type.</typeparam>
-        /// <returns>The converted value.</returns>
-        public static TResult ConvertTo<TResult>(this object item)
-            => LanguagePrimitives.ConvertTo<TResult>(item);
-
-        /// <summary>
-        /// Perform an in-place-modification operation on every element in the array.
-        /// </summary>
-        /// <param name="items">The array to operate on.</param>
-        /// <returns>The transformed array.</returns>
-        public static T[] TransformElements<T>(this T[] items, Func<T, T> operation)
-        {
-            for (var index = 0; index < items.Length; index++)
+        internal static IReadOnlyList<float> GetDrawAngles(WordOrientations permittedRotations, LockingRandom random)
+            => (IReadOnlyList<float>)(permittedRotations switch
             {
-                items[index] = operation.Invoke(items[index]);
-            }
-
-            return items;
-        }
-
-        public static SKColor AsMonochrome(this SKColor color)
-        {
-            color.ToHsv(out _, out _, out float brightness);
-            byte level = (byte)Math.Floor(255 * brightness / 100f);
-
-            return new SKColor(level, level, level);
-        }
-
-        /// <summary>
-        /// Determines whether a given color is considered sufficiently visually distinct from a backdrop color.
-        /// </summary>
-        /// <param name="target">The target color.</param>
-        /// <param name="backdrop">A reference color to compare against.</param>
-        internal static bool IsDistinctFrom(this SKColor target, SKColor backdrop)
-        {
-            backdrop.ToHsv(out float refHue, out float refSaturation, out float refBrightness);
-            target.ToHsv(out float hue, out float saturation, out float brightness);
-
-            float brightnessDistance = Math.Abs(refBrightness - brightness);
-            if (brightnessDistance > 30)
-            {
-                return true;
-            }
-
-            if (Math.Abs(refHue - hue) > 24 && brightnessDistance > 20)
-            {
-                return true;
-            }
-
-            if (Math.Abs(refSaturation - saturation) > 24 && brightnessDistance > 18)
-            {
-                return true;
-            }
-
-            if (target.Alpha == 0)
-            {
-                return false;
-            }
-
-            return false;
-        }
-
-        /// <summary>
-        /// Performs an in-place random shuffle on an array by swapping elements.
-        /// This algorithm is pretty commonly used, but effective and fast enough for our purposes.
-        /// </summary>
-        /// <param name="rng">Random number generator.</param>
-        /// <param name="array">The array to shuffle.</param>
-        /// <typeparam name="T">The element type of the array.</typeparam>
-        internal static IList<T> Shuffle<T>(this Random rng, IList<T> array)
-        {
-            int n = array.Count;
-            while (n > 1)
-            {
-                int k = rng.Next(n--);
-                T temp = array[n];
-                array[n] = array[k];
-                array[k] = temp;
-            }
-
-            return array;
-        }
-
-        /// <summary>
-        /// Checks if any part of the rectangle lies outside the region's bounds.
-        /// </summary>
-        /// <param name="region">The region to test for edge intersection.</param>
-        /// <param name="other">The rectangle to test position against the edges of the region.</param>
-        /// <returns>Returns false if the rectangle is entirely within the region, and false otherwise.</returns>
-        internal static bool FallsOutside(this SKRect other, SKRegion region)
-        {
-            var bounds = region.Bounds;
-            return other.Top < bounds.Top
-                || other.Bottom > bounds.Bottom
-                || other.Left < bounds.Left
-                || other.Right > bounds.Right;
-        }
-
-        /// <summary>
-        /// Checks if the given <paramref name="point"/> lies somewhere inside the <paramref name="region"/>.
-        /// </summary>
-        /// <param name="region">The region that defines the bounds.</param>
-        /// <param name="point">The point to check.</param>
-        /// <returns></returns>
-        internal static bool Contains(this SKRegion region, SKPoint point)
-        {
-            SKRectI bounds = region.Bounds;
-            return bounds.Left < point.X && point.X < bounds.Right
-                && bounds.Top < point.Y && point.Y < bounds.Bottom;
-        }
+                WordOrientations.Vertical => random.Shuffle(new float[] { 0, 90 }),
+                WordOrientations.FlippedVertical => random.Shuffle(new float[] { 0, -90 }),
+                WordOrientations.EitherVertical => random.Shuffle(new float[] { 0, 90, -90 }),
+                WordOrientations.UprightDiagonals => random.Shuffle(new float[] { 0, -90, -45, 45, 90 }),
+                WordOrientations.InvertedDiagonals => random.Shuffle(new float[] { 90, 135, -135, -90, 180 }),
+                WordOrientations.AllDiagonals => random.Shuffle(new float[] { 45, 90, 135, 180, -135, -90, -45, 0 }),
+                WordOrientations.AllUpright => random.GetRandomFloats(-90, 91),
+                WordOrientations.AllInverted => random.GetRandomFloats(90, 271),
+                WordOrientations.All => random.GetRandomFloats(0, 361),
+                _ => new float[] { 0 },
+            });
 
         /// <summary>
         /// Prepares the brush to draw the next word.
         /// This overload assumes the text to be drawn will be black.
         /// </summary>
-        /// <param name="brush"></param>
         /// <param name="wordSize"></param>
         /// <param name="strokeWidth"></param>
-        internal static void Prepare(this SKPaint brush, float wordSize, float strokeWidth)
-            => brush.Prepare(wordSize, strokeWidth, SKColors.Black);
+        /// <param name="typeface"></param>
+        internal static SKPaint GetBrush(float wordSize, float strokeWidth, SKTypeface typeface)
+            => GetBrush(wordSize, strokeWidth, SKColors.Black, typeface);
 
         /// <summary>
         /// Prepares the brush to draw the next word.
@@ -195,108 +90,123 @@ namespace PSWordCloud
         /// <param name="wordSize">The size of the word we'll be drawing.</param>
         /// <param name="strokeWidth">Width of the stroke we'll be drawing.</param>
         /// <param name="color">Color of the word we'll be drawing.</param>
-        internal static void Prepare(this SKPaint brush, float wordSize, float strokeWidth, SKColor color)
-        {
-            brush.TextSize = wordSize;
-            brush.IsStroke = false;
-            brush.Style = SKPaintStyle.StrokeAndFill;
-            brush.StrokeWidth = wordSize * strokeWidth * NewWordCloudCommand.STROKE_BASE_SCALE;
-            brush.IsVerticalText = false;
-            brush.Color = color;
-        }
-
-        /// <summary>
-        /// Sets the contents of the region to the specified path.
-        /// </summary>
-        /// <param name="region">The region to set the path into.</param>
-        /// <param name="path">The path object.</param>
-        /// <param name="usePathBounds">Whether to set the region's new bounds to the bounds of the path itself.</param>
-        internal static bool SetPath(this SKRegion region, SKPath path, bool usePathBounds)
-        {
-            if (usePathBounds && path.GetBounds(out SKRect bounds))
+        /// <param name="typeface">The typeface to draw words with.</param>
+        internal static SKPaint GetBrush(
+            float wordSize,
+            float strokeWidth,
+            SKColor color,
+            SKTypeface typeface)
+            => new SKPaint
             {
-                using SKRegion clip = new SKRegion();
+                Typeface = typeface,
+                TextSize = wordSize,
+                Style = SKPaintStyle.StrokeAndFill,
+                Color = color,
+                StrokeWidth = wordSize * strokeWidth * Constants.StrokeBaseScale,
+                IsStroke = false,
+                IsAutohinted = true,
+                IsAntialias = true
+            };
 
-                clip.SetRect(SKRectI.Ceiling(bounds));
-                return region.SetPath(path, clip);
-            }
-            else
+        /// <summary>
+        /// Gets the appropriate word bubble path for the requested shape, sized to fit the word bounds.
+        /// </summary>
+        /// <param name="shape">The shape of the bubble.</param>
+        /// <param name="wordBounds">The bounds of the word to surround.</param>
+        /// <returns>The <see cref="SKPath"/> representing the word bubble.</returns>
+        internal static SKPath GetWordBubblePath(WordBubbleShape shape, SKRect wordBounds)
+            => shape switch
             {
-                return region.SetPath(path);
-            }
+                WordBubbleShape.Rectangle => GetRectanglePath(wordBounds),
+                WordBubbleShape.Square => GetSquarePath(wordBounds),
+                WordBubbleShape.Circle => GetCirclePath(wordBounds),
+                WordBubbleShape.Oval => GetOvalPath(wordBounds),
+                _ => throw new ArgumentOutOfRangeException(nameof(shape))
+            };
+
+        private static SKPath GetRectanglePath(SKRect rectangle)
+        {
+            var path = new SKPath();
+            float cornerRadius = rectangle.Height / 16;
+            path.AddRoundRect(new SKRoundRect(rectangle, cornerRadius, cornerRadius));
+
+            return path;
+        }
+
+        private static SKPath GetSquarePath(SKRect rectangle)
+        {
+            var path = new SKPath();
+            float cornerRadius = Math.Max(rectangle.Width, rectangle.Height) / 16;
+            path.AddRoundRect(new SKRoundRect(rectangle.GetEnclosingSquare(), cornerRadius, cornerRadius));
+
+            return path;
+        }
+
+        private static SKPath GetCirclePath(SKRect rectangle)
+        {
+            var path = new SKPath();
+            float bubbleRadius = Math.Max(rectangle.Width, rectangle.Height) / 2;
+            path.AddCircle(rectangle.MidX, rectangle.MidY, bubbleRadius);
+
+            return path;
+        }
+
+        private static SKPath GetOvalPath(SKRect rectangle)
+        {
+            var path = new SKPath();
+            path.AddOval(rectangle);
+
+            return path;
+        }
+
+        internal static bool AngleIsMostlyVertical(float degrees)
+        {
+            float remainder = Math.Abs(degrees % 180);
+            return 135 > remainder && remainder > 45;
+        }
+
+        private static bool WordWillFit(SKRect wordBounds, SKRegion occupiedSpace)
+            => !occupiedSpace.IntersectsRect(wordBounds);
+
+        private static bool WordBubbleWillFit(
+            WordBubbleShape shape,
+            SKRect wordBounds,
+            SKRegion occupiedSpace,
+            out SKPath bubblePath)
+        {
+            bubblePath = GetWordBubblePath(shape, wordBounds);
+            return !occupiedSpace.IntersectsPath(bubblePath);
         }
 
         /// <summary>
-        /// Combines the region with a given path, specifying the operation used to combine.
+        /// Checks whether the given word bounds rectangle and the bubble surrounding it will fit in the desired
+        /// location without bleeding over the <paramref name="clipRegion"/> or intersecting already-drawn words
+        /// or their bubbles (which are recorded in the <paramref name="occupiedSpace"/> region).
         /// </summary>
-        /// <param name="region">The region to perform the operation on.</param>
-        /// <param name="path">The path to perform the operation with.</param>
-        /// <param name="operation">The type of operation to perform.</param>
-        /// <returns></returns>
-        internal static bool CombineWithPath(this SKRegion region, SKPath path, SKRegionOperation operation)
+        /// <param name="wordBounds">The rectangular bounds of the word to attempt to fit.</param>
+        /// <param name="bubbleShape">The shape of the word bubble we'll need to draw.</param>
+        /// <param name="clipRegion">The region that defines the allowable draw area.</param>
+        /// <param name="occupiedSpace">The region that defines the space in the image that's already occupied.</param>
+        /// <returns>Returns true if the word and its surrounding bubble have sufficient space to be drawn.</returns>
+        internal static bool WordWillFit(
+            SKRect wordBounds,
+            WordBubbleShape bubbleShape,
+            SKRegion clipRegion,
+            SKRegion occupiedSpace,
+            out SKPath? bubblePath)
         {
-            using SKRegion pathRegion = new SKRegion();
-
-            pathRegion.SetPath(path, usePathBounds: true);
-            return region.Op(pathRegion, operation);
-        }
-
-        /// <summary>
-        /// Checks whether the region intersects the given rectangle.
-        /// </summary>
-        /// <param name="region">The region to check collision with.</param>
-        /// <param name="rect">The rectangle to check for intersection.</param>
-        internal static bool IntersectsRect(this SKRegion region, SKRect rect)
-        {
-            if (region.Bounds.IsEmpty)
+            bubblePath = null;
+            if (wordBounds.FallsOutside(clipRegion))
             {
                 return false;
             }
 
-            using SKRegion rectRegion = new SKRegion();
-
-            rectRegion.SetRect(SKRectI.Round(rect));
-            return region.Intersects(rectRegion);
-        }
-
-        /// <summary>
-        /// Checks whether the region intersects the given path.
-        /// </summary>
-        /// <param name="region">The region to check collision with.</param>
-        /// <param name="rect">The rectangle to check for intersection.</param>
-        internal static bool IntersectsPath(this SKRegion region, SKPath path)
-        {
-            if (region.Bounds.IsEmpty)
+            if (bubbleShape == WordBubbleShape.None)
             {
-                return false;
+                return WordWillFit(wordBounds, occupiedSpace);
             }
 
-            using SKRegion pathRegion = new SKRegion();
-
-            pathRegion.SetPath(path, region);
-            return region.Intersects(pathRegion);
-        }
-
-        /// <summary>
-        /// Gets the smallest square that would completely contain the given rectangle, with the rectangle positioned
-        /// at its centre.
-        /// </summary>
-        /// <param name="rect">The rectangle to find the containing square for.</param>
-        internal static SKRect GetEnclosingSquare(this SKRect rect)
-        {
-            // Inflate the smaller dimension
-            if (rect.Width > rect.Height)
-            {
-                return SKRect.Inflate(rect, x: 0, y: (rect.Width - rect.Height) / 2);
-            }
-
-            if (rect.Height > rect.Width)
-            {
-                return SKRect.Inflate(rect, x: (rect.Height - rect.Width) / 2, y: 0);
-            }
-
-            // It was already a square, but we need to return a copy
-            return SKRect.Create(rect.Location, rect.Size);
+            return WordBubbleWillFit(bubbleShape, wordBounds, occupiedSpace, out bubblePath);
         }
 
         /// <summary>
@@ -315,41 +225,7 @@ namespace PSWordCloud
         /// <param name="colorName"></param>
         /// <returns></returns>
         internal static SKColor GetColorByName(string colorName)
-        {
-            return ColorLibrary[colorName];
-        }
-
-        internal static string GetPrettyString(this XmlDocument document)
-        {
-            var stringBuilder = new StringBuilder();
-
-            var settings = new XmlWriterSettings
-            {
-                Indent = true
-            };
-
-            using (var xmlWriter = XmlWriter.Create(stringBuilder, settings))
-            {
-                document.Save(xmlWriter);
-            }
-
-            return stringBuilder.ToString();
-        }
-
-        internal static object GetValue(this IEnumerable collection, string key)
-        {
-            return collection switch
-            {
-                PSMemberInfoCollection<PSPropertyInfo> properties => properties[key].Value,
-                IDictionary dictionary => dictionary[key],
-                IDictionary<string, dynamic> dictT => dictT[key],
-                _ => throw new ArgumentException(
-                    string.Format(
-                    "GetValue method only accepts {0} or {1}",
-                    typeof(PSMemberInfoCollection<PSPropertyInfo>).ToString(),
-                    typeof(IDictionary).ToString())),
-            };
-        }
+            => ColorLibrary[colorName];
 
         internal static SKFontManager FontManager = SKFontManager.Default;
 
@@ -358,17 +234,38 @@ namespace PSWordCloud
 
         internal static ReadOnlyDictionary<string, (string Tooltip, SKSizeI Size)> StandardImageSizes =
             new ReadOnlyDictionary<string, (string, SKSizeI)>(new Dictionary<string, (string, SKSizeI)>() {
-                {"480x800",     ("Mobile Screen Size (small)",  new SKSizeI(480, 800)  )},
-                {"640x1146",    ("Mobile Screen Size (medium)", new SKSizeI(640, 1146) )},
-                {"720p",        ("Standard HD 1280x720",        new SKSizeI(1280, 720) )},
+                {"480x800",     ("Mobile Screen Size (small)",  new SKSizeI( 480,  800))},
+                {"640x1146",    ("Mobile Screen Size (medium)", new SKSizeI( 640, 1146))},
+                {"720p",        ("Standard HD 1280x720",        new SKSizeI(1280,  720))},
                 {"1080p",       ("Full HD 1920x1080",           new SKSizeI(1920, 1080))},
                 {"4K",          ("Ultra HD 3840x2160",          new SKSizeI(3840, 2160))},
-                {"A4",          ("816x1056",                    new SKSizeI(816, 1056) )},
+                {"A4",          ("816x1056",                    new SKSizeI( 816, 1056))},
                 {"Poster11x17", ("1056x1632",                   new SKSizeI(1056, 1632))},
                 {"Poster18x24", ("1728x2304",                   new SKSizeI(1728, 2304))},
                 {"Poster24x36", ("2304x3456",                   new SKSizeI(2304, 3456))},
             });
 
+        internal static readonly char[] SplitChars= new[] {
+            ' ','\n','\t','\r','.',',',';','\\','/','|',
+            ':','"','?','!','{','}','[',']',':','(',')',
+            '<','>','“','”','*','#','%','^','&','+','=' };
+
+        internal static string[] StopWords= new[] {
+            "a","about","above","after","again","against","all","am","an","and","any","are","aren't","as","at","be",
+            "because","been","before","being","below","between","both","but","by","can't","cannot","could","couldn't",
+            "did","didn't","do","does","doesn't","doing","don't","down","during","each","few","for","from","further",
+            "had","hadn't","has","hasn't","have","haven't","having","he","he'd","he'll","he's","her","here","here's",
+            "hers","herself","him","himself","his","how","how's","i","i'd","i'll","i'm","i've","if","in","into","is",
+            "isn't","it","it's","its","itself","let's","me","more","most","mustn't","my","myself","no","nor","not","of",
+            "off","on","once","only","or","other","ought","our","ours","ourselves","out","over","own","same","shan't",
+            "she","she'd","she'll","she's","should","shouldn't","so","some","such","than","that","that's","the","their",
+            "theirs","them","themselves","then","there","there's","these","they","they'd","they'll","they're","they've",
+            "this","those","through","to","too","under","until","up","very","was","wasn't","we","we'd","we'll","we're",
+            "we've","were","weren't","what","what's","when","when's","where","where's","which","while","who","who's",
+            "whom","why","why's","with","won't","would","wouldn't","you","you'd","you'll","you're","you've","your",
+            "yours","yourself","yourselves" };
+
+        internal static bool IsStopWord(string word) => StopWords.Contains(word, StringComparer.OrdinalIgnoreCase);
 
         private static readonly Dictionary<string, SKColor> _library;
         /// <summary>
@@ -887,11 +784,17 @@ namespace PSWordCloud
                 { "yellowgreen", SKColor.Parse("9acd32") }
             };
 
-            foreach (var field in typeof(SKColors).GetFields(BindingFlags.Static | BindingFlags.Public))
+            foreach (FieldInfo field in typeof(SKColors).GetFields(BindingFlags.Static | BindingFlags.Public))
             {
                 if (!_library.ContainsKey(field.Name))
                 {
-                    _library[field.Name] = (SKColor)field.GetValue(null);
+                    object? value = field.GetValue(null);
+                    if (value is null)
+                    {
+                        continue;
+                    }
+
+                    _library[field.Name] = (SKColor)value;
                 }
             }
         }
