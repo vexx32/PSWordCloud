@@ -98,7 +98,7 @@ namespace PSWordCloud
                     break;
                 case string s:
                     result = GetSizeFromString(s);
-                    if (result != null)
+                    if (result is not null)
                     {
                         return result;
                     }
@@ -106,7 +106,7 @@ namespace PSWordCloud
                     break;
                 case object o:
                     result = GetSizeFromProperties(o);
-                    if (result != null)
+                    if (result is not null)
                     {
                         return result;
                     }
@@ -171,7 +171,7 @@ namespace PSWordCloud
                 properties = PSObject.AsPSObject(obj).Properties;
             }
 
-            if (properties.GetValue("Width") != null && properties.GetValue("Height") != null)
+            if (properties.GetValue("Width") is not null && properties.GetValue("Height") is not null)
             {
                 // If these conversions fail, the exception will cause the transform to fail.
                 object? width = properties.GetValue("Width");
@@ -243,9 +243,9 @@ namespace PSWordCloud
             }
 
             SKFontStyle style;
-            if (properties.GetValue("FontWeight") != null
-                || properties.GetValue("FontSlant") != null
-                || properties.GetValue("FontWidth") != null)
+            if (properties.GetValue("FontWeight") is not null
+                || properties.GetValue("FontSlant") is not null
+                || properties.GetValue("FontWidth") is not null)
             {
                 object? weightValue = properties.GetValue("FontWeight");
                 SKFontStyleWeight weight = weightValue is null
