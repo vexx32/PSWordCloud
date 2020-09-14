@@ -1,4 +1,4 @@
-﻿# PSWordCloud Examples
+# PSWordCloud Examples
 
 Below are some sample output images, along with as many of their input commands as I can recall.
 Some of these may be from slightly different versions of the module, but by and large they should represent fairly accurately the results you can obtain with a little exploration.
@@ -200,7 +200,7 @@ $Params = @{
 $PSKoans | New-WordCloud @Params
 ```
 
-![PSKoans Zombie](./_images/PSKoans-zombieholocaust.png)
+![PSKoans Zombie](./_images/pskoans-zombieholocaust.png)
 
 ```powershell
 $Params = @{
