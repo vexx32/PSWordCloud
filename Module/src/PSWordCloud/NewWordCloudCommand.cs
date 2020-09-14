@@ -60,7 +60,7 @@ namespace PSWordCloud
         [Parameter(Mandatory = true, ValueFromPipeline = true, ParameterSetName = COLOR_BG_FOCUS_SET)]
         [Parameter(Mandatory = true, ValueFromPipeline = true, ParameterSetName = FILE_SET)]
         [Parameter(Mandatory = true, ValueFromPipeline = true, ParameterSetName = FILE_FOCUS_SET)]
-        [Alias("InputString", "Text", "String", "Words", "Document", "Page")]
+        [Alias("InputString", "Text", "String", "Document", "Page")]
         [AllowEmptyString()]
         public PSObject? InputObject { get; set; }
 
