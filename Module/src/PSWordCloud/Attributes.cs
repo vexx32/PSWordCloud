@@ -1,7 +1,6 @@
 ﻿using System;
 using System.Collections;
 using System.Collections.Generic;
-using System.Collections.ObjectModel;
 using System.Linq;
 using System.Management.Automation;
 using System.Management.Automation.Language;
@@ -40,6 +39,8 @@ namespace PSWordCloud
         public override object Transform(EngineIntrinsics engineIntrinsics, object inputData)
         {
             int sideLength = 0;
+            SKSizeI? result;
+
             switch (inputData)
             {
                 case SKSize sk:
@@ -72,75 +73,42 @@ namespace PSWordCloud
                     {
                         sideLength = (int)ul;
                     }
+
                     break;
                 case decimal d:
                     if (d <= int.MaxValue)
                     {
                         sideLength = (int)Math.Round(d);
                     }
+
                     break;
                 case float f:
                     if (f <= int.MaxValue)
                     {
                         sideLength = (int)Math.Round(f);
                     }
+
                     break;
                 case double d:
                     if (d <= int.MaxValue)
                     {
                         sideLength = (int)Math.Round(d);
                     }
+
                     break;
                 case string s:
-                    if (WCUtils.StandardImageSizes.ContainsKey(s))
+                    result = GetSizeFromString(s);
+                    if (result is not null)
                     {
-                        return WCUtils.StandardImageSizes[s].Size;
-                    }
-                    else
-                    {
-                        var matchWH = Regex.Match(s, @"^(?<Width>[\d\.,]+)x(?<Height>[\d\.,]+)(px)?$");
-                        if (matchWH.Success)
-                        {
-                            try
-                            {
-                                var width = int.Parse(matchWH.Groups["Width"].Value);
-                                var height = int.Parse(matchWH.Groups["Height"].Value);
-
-                                return new SKSizeI(width, height);
-                            }
-                            catch (Exception e)
-                            {
-                                throw new ArgumentTransformationMetadataException(
-                                    "Could not parse input string as a float value", e);
-                            }
-                        }
-
-                        var matchSide = Regex.Match(s, @"^(?<SideLength>[\d\.,]+)(px)?$");
-                        if (matchSide.Success)
-                        {
-                            sideLength = int.Parse(matchSide.Groups["SideLength"].Value);
-                        }
+                        return result;
                     }
 
                     break;
                 case object o:
-                    IEnumerable properties;
-                    if (o is Hashtable ht)
+                    result = GetSizeFromProperties(o);
+                    if (result is not null)
                     {
-                        properties = ht;
-                    }
-                    else
-                    {
-                        properties = PSObject.AsPSObject(o).Properties;
-                    }
-
-                    if (properties.GetValue("Width") != null && properties.GetValue("Height") != null)
-                    {
-                        // If these conversions fail, the exception will cause the transform to fail.
-                        var width = properties.GetValue("Width").ConvertTo<int>();
-                        var height = properties.GetValue("Height").ConvertTo<int>();
-
-                        return new SKSizeI(width, height);
+                        return result;
                     }
 
                     break;
@@ -153,6 +121,71 @@ namespace PSWordCloud
 
             var errorMessage = $"Unrecognisable input '{inputData}' for SKSize parameter. See the help documentation for the parameter for allowed values.";
             throw new ArgumentTransformationMetadataException(errorMessage);
+        }
+
+        private SKSizeI? GetSizeFromString(string str)
+        {
+            if (WCUtils.StandardImageSizes.ContainsKey(str))
+            {
+                return WCUtils.StandardImageSizes[str].Size;
+            }
+            else
+            {
+                var matchWH = Regex.Match(str, @"^(?<Width>[\d\.,]+)x(?<Height>[\d\.,]+)(px)?$");
+                if (matchWH.Success)
+                {
+                    try
+                    {
+                        var width = int.Parse(matchWH.Groups["Width"].Value);
+                        var height = int.Parse(matchWH.Groups["Height"].Value);
+
+                        return new SKSizeI(width, height);
+                    }
+                    catch (Exception e)
+                    {
+                        throw new ArgumentTransformationMetadataException(
+                            "Could not parse input string as an integer value", e);
+                    }
+                }
+
+                var matchSide = Regex.Match(str, @"^(?<SideLength>[\d\.,]+)(px)?$");
+                if (matchSide.Success)
+                {
+                    var sideLength = int.Parse(matchSide.Groups["SideLength"].Value);
+                    return new SKSizeI(sideLength, sideLength);
+                }
+            }
+
+            return null;
+        }
+
+        private SKSizeI? GetSizeFromProperties(object obj)
+        {
+            IEnumerable properties;
+            if (obj is Hashtable ht)
+            {
+                properties = ht;
+            }
+            else
+            {
+                properties = PSObject.AsPSObject(obj).Properties;
+            }
+
+            if (properties.GetValue("Width") is not null && properties.GetValue("Height") is not null)
+            {
+                // If these conversions fail, the exception will cause the transform to fail.
+                object? width = properties.GetValue("Width");
+                object? height = properties.GetValue("Height");
+
+                if (width is null || height is null)
+                {
+                    return null;
+                }
+
+                return new SKSizeI(width.ConvertTo<int>(), height.ConvertTo<int>());
+            }
+
+            return null;
         }
     }
 
@@ -210,21 +243,24 @@ namespace PSWordCloud
             }
 
             SKFontStyle style;
-            if (properties.GetValue("FontWeight") != null
-                || properties.GetValue("FontSlant") != null
-                || properties.GetValue("FontWidth") != null)
+            if (properties.GetValue("FontWeight") is not null
+                || properties.GetValue("FontSlant") is not null
+                || properties.GetValue("FontWidth") is not null)
             {
-                SKFontStyleWeight weight = properties.GetValue("FontWeight") == null
+                object? weightValue = properties.GetValue("FontWeight");
+                SKFontStyleWeight weight = weightValue is null
                     ? SKFontStyleWeight.Normal
-                    : properties.GetValue("FontWeight").ConvertTo<SKFontStyleWeight>();
+                    : weightValue.ConvertTo<SKFontStyleWeight>();
 
-                SKFontStyleSlant slant = properties.GetValue("FontSlant") == null
+                object? slantValue = properties.GetValue("FontSlant");
+                SKFontStyleSlant slant = slantValue is null
                     ? SKFontStyleSlant.Upright
-                    : properties.GetValue("FontSlant").ConvertTo<SKFontStyleSlant>();
+                    : slantValue.ConvertTo<SKFontStyleSlant>();
 
-                SKFontStyleWidth width = properties.GetValue("FontWidth") == null
+                object? widthValue = properties.GetValue("FontWidth");
+                SKFontStyleWidth width = widthValue is null
                     ? SKFontStyleWidth.Normal
-                    : properties.GetValue("FontWidth").ConvertTo<SKFontStyleWidth>();
+                    : widthValue.ConvertTo<SKFontStyleWidth>();
 
                 style = new SKFontStyle(weight, width, slant);
             }
@@ -235,7 +271,7 @@ namespace PSWordCloud
                     : SKFontStyle.Normal;
             }
 
-            string familyName = properties.GetValue("FamilyName").ConvertTo<string>();
+            string familyName = properties.GetValue("FamilyName")?.ConvertTo<string>() ?? string.Empty;
             return WCUtils.FontManager.MatchFamily(familyName, style);
         }
 
@@ -301,21 +337,25 @@ namespace PSWordCloud
                     properties = PSObject.AsPSObject(item).Properties;
                 }
 
-                byte red = properties.GetValue("red") == null
+                object? redValue = properties.GetValue("red");
+                byte red = redValue is null
                     ? (byte)0
-                    : properties.GetValue("red").ConvertTo<byte>();
+                    : redValue.ConvertTo<byte>();
 
-                byte green = properties.GetValue("green") == null
+                object? greenValue = properties.GetValue("green");
+                byte green = greenValue is null
                     ? (byte)0
-                    : properties.GetValue("green").ConvertTo<byte>();
+                    : greenValue.ConvertTo<byte>();
 
-                byte blue = properties.GetValue("blue") == null
+                object? blueValue = properties.GetValue("blue");
+                byte blue = blueValue is null
                     ? (byte)0
-                    : properties.GetValue("blue").ConvertTo<byte>();
+                    : blueValue.ConvertTo<byte>();
 
-                byte alpha = properties.GetValue("alpha") == null
+                object? alphaValue = properties.GetValue("alpha");
+                byte alpha = alphaValue is null
                     ? (byte)255
-                    : properties.GetValue("alpha").ConvertTo<byte>();
+                    : alphaValue.ConvertTo<byte>();
 
                 colorList.Add(new SKColor(red, green, blue, alpha));
             }

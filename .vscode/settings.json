@@ -1,0 +1,9 @@
+{
+    "omnisharp.enableRoslynAnalyzers": true,
+    "cSpell.words": [
+        "AARRGGBB",
+        "ARGB",
+        "RRGGBB",
+        "wcloud"
+    ]
+}
