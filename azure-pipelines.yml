@@ -242,7 +242,7 @@ stages:
       inputs:
         targetType: 'inline'
         script: |
-          $tagName = ("$(Build.SourceBranch)" -replace '^/refs/tags/').Trim()
+          $tagName = ("$(Build.SourceBranch)" -replace '^refs/tags/').Trim()
 
           Write-Host "##vso[task.setvariable variable=TagName]$tagname"
 
