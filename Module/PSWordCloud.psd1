@@ -12,7 +12,7 @@
     RootModule           = 'PSWordCloudCmdlet.dll'
 
     # Version number of this module.
-    ModuleVersion        = '3.2.1'
+    ModuleVersion        = '4.0.0'
 
     # Supported PSEditions
     CompatiblePSEditions = @('Desktop', 'Core')
