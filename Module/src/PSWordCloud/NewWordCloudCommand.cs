@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
@@ -456,14 +456,19 @@ namespace PSWordCloud
                         return;
                     }
 
-                    var state = new EventWaitHandle(initialState: false, EventResetMode.ManualReset);
-                    ThreadPool.QueueUserWorkItem(StartProcessingInput, (InputObject, state), preferLocal: false);
-                    _waitHandles.Add(state);
+                    QueueInputProcessing(InputObject);
                     break;
 
                 default:
                     return;
             }
+        }
+
+        private void QueueInputProcessing(PSObject inputObject)
+        {
+            var state = new EventWaitHandle(initialState: false, EventResetMode.ManualReset);
+            ThreadPool.QueueUserWorkItem(StartProcessingInput, (inputObject, state), preferLocal: false);
+            _waitHandles.Add(state);
         }
 
         /// <summary>
