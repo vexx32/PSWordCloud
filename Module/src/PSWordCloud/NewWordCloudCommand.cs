@@ -710,6 +710,17 @@ namespace PSWordCloud
         private IReadOnlyList<Word> GetFinalWordList(SKRectI drawableBounds, SKRect viewbox)
         {
             IReadOnlyList<Word> wordList = GetRelativeWordSizes(ParameterSetName);
+            if (wordList.Count == 0)
+            {
+                ThrowTerminatingError(
+                    new ErrorRecord(
+                        new ArgumentException("No usable input was provided. Please provide string data via the pipeline or in a word size dictionary."),
+                        ErrorCodes.NoUsableInput,
+                        ErrorCategory.InvalidData,
+                        MyInvocation.BoundParameters.ContainsKey(nameof(InputObject))
+                            ? InputObject?.BaseObject
+                            : WordSizes));
+            }
 
             (float averageWordFrequency, float averageWordLength) = GetWordListStatistics(wordList);
 

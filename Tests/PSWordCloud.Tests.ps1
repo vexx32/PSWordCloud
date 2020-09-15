@@ -12,6 +12,10 @@ Describe 'PSWordCloud Tests' {
         { Import-Module PSWordCloud -ErrorAction Stop } | Should -Not -Throw
     }
 
+    It 'should error out for empty or otherwise unusable input' {
+        { [string]::Empty | New-WordCloud -Path ./test.svg } | Should -Throw -ExpectedMessage "No usable input was provided. Please provide string data via the pipeline or in a word size dictionary."
+    }
+
     Context 'FileSystem Provider' {
         It 'should run New-WordCloud without errors' {
             Get-ChildItem -Path "$PSScriptRoot/../" -Recurse -File -Include "*.cs", "*.ps*1", "*.md" |

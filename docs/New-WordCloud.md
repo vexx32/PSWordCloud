@@ -421,7 +421,7 @@ If you are entering complex object input, ensure the objects have a meaningful T
 ```yaml
 Type: PSObject
 Parameter Sets: ColorBackground, ColorBackground-FocusWord, FileBackground, FileBackground-FocusWord
-Aliases: InputString, Text, String, Words, Document, Page
+Aliases: InputString, Text, String, Document, Page
 
 Required: True
 Position: Named
