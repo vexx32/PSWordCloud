@@ -1,4 +1,4 @@
-﻿#Requires -Version 6.1
+#Requires -Version 6.1
 [CmdletBinding()]
 param(
     [Parameter()]
