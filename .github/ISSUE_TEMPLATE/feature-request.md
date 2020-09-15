@@ -4,24 +4,24 @@ about: File a new feature request.
 labels: "enhancement"
 ---
 
-# Feature Request
+# :sparkles: Feature Request
 
-## Summary
+## :memo: Summary
 
 <!-- A clear and concise 1-2 line summary of the functionality you're looking for. -->
 
-## Description
+## :book: Description
 
 <!--
     Describe the feature you're looking for, including as much detail as you feel is relevant and helpful.
     Include your motivation for making the request as well; why do you feel this feature is useful, desirable, and/or necessary?
 -->
 
-### Usage Examples
+### :computer: Usage Examples
 
 <!-- Describe / give examples of how you think it could be surfaced to users, if relevant. -->
 
-### Additional Considerations
+### :thought_balloon: Additional Considerations
 
 <!--
     Would implementing this feature break any existing functionality?
