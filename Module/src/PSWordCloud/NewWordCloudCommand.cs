@@ -513,13 +513,18 @@ namespace PSWordCloud
 
             if (MyInvocation.BoundParameters.ContainsKey(nameof(FocusWord)))
             {
-                WriteDebug($"Adding focus word '{FocusWord}' to the dictionary.");
-
-                float highestWordFrequency = wordScaleDictionary.Values.Max();
-                wordScaleDictionary[FocusWord!] = highestWordFrequency *= Constants.FocusWordScale;
+                AddFocusWord(FocusWord!, wordScaleDictionary);
             }
 
             return GetWordListFromDictionary(wordScaleDictionary, maxWords);
+        }
+
+        private void AddFocusWord(string focusWord, IDictionary<string, float> wordFrequencies)
+        {
+            WriteDebug($"Adding focus word '{focusWord}' to the dictionary.");
+
+            float highestWordFrequency = wordFrequencies.Values.Max();
+            wordFrequencies[focusWord] = highestWordFrequency *= Constants.FocusWordScale;
         }
 
         IReadOnlyList<Word> GetWordListFromDictionary(IReadOnlyDictionary<string, float> dictionary, int maxWords)
