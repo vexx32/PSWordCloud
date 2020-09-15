@@ -25,14 +25,14 @@ List any and all changes here, in bullet point form.
 ## :clipboard: Checklist
 
 + [ ] :warning: Pull Request has a meaningful title.
-+ [ ] :memo: Filled out the template above.
-+ [ ] :arrow_forward: Pull Request is ready to merge & is not WIP.
++ [ ] :memo: Filled out the above template.
++ [ ] :arrow_forward: Pull Request is ready to merge.
 + [ ] :white_check_mark: **Tests** (select one)
   + [ ] :heavy_plus_sign: Added or updated tests.
   + [ ] :video_game: Only testable interactively.
+  + [ ] :warning: Code is covered effectively by existing tests.
 
 + [ ] :book: **Documentation** (select one)
   + [ ] :page_facing_up: Added documentation.
-  + [ ] :bookmark: Created issue to add documentation later:
-    + Issue #__
+  + [ ] :bookmark: Created issue to add documentation later: (Issue #  ).
   + [ ] :warning: None required
