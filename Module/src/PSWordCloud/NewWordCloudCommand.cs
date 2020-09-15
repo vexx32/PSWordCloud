@@ -718,7 +718,7 @@ namespace PSWordCloud
                         ErrorCodes.NoUsableInput,
                         ErrorCategory.InvalidData,
                         MyInvocation.BoundParameters.ContainsKey(nameof(InputObject))
-                            ? InputObject
+                            ? InputObject?.BaseObject
                             : WordSizes));
             }
 
