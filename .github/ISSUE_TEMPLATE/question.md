@@ -4,11 +4,11 @@ about: Ask a general question about module usage, support, and so on.
 labels: "question"
 ---
 
-# Question
+# :question: Question
 
 <!-- A clear description of the problems you're encountering or any general questions you may have. -->
 
-## Environment Data
+## :computer: Environment Data
 
 <!--
     Execute these commands and paste the results into the below code block:
