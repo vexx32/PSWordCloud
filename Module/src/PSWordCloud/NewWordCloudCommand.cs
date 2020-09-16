@@ -498,7 +498,7 @@ namespace PSWordCloud
                 case FILE_FOCUS_SET:
                 case COLOR_BG_SET:
                 case COLOR_BG_FOCUS_SET:
-                    wordScaleDictionary = GetWordFrequencyDictionary();
+                    wordScaleDictionary = GetWordCountDictionary();
                     maxWords = MaxRenderedWords;
                     break;
                 case FILE_TABLE_SET:
@@ -1281,33 +1281,6 @@ namespace PSWordCloud
         }
 
         /// <summary>
-        /// Counts all given words in the list, and tallies the counts in the given dictionary.
-        /// </summary>
-        /// <param name="wordList">The input list of words.</param>
-        /// <param name="dictionary">The dictionary to tally the counts in.</param>
-        private static void CountWords(IEnumerable<string> wordList, IDictionary<string, float> dictionary)
-        {
-            foreach (string word in wordList)
-            {
-                var trimmedWord = Regex.Replace(word, "s$", string.Empty, RegexOptions.IgnoreCase);
-                var pluralWord = string.Format("{0}s", word);
-                if (dictionary.ContainsKey(trimmedWord))
-                {
-                    dictionary[trimmedWord]++;
-                }
-                else if (dictionary.ContainsKey(pluralWord))
-                {
-                    dictionary[word] = dictionary[pluralWord] + 1;
-                    dictionary.Remove(pluralWord);
-                }
-                else
-                {
-                    dictionary[word] = dictionary.ContainsKey(word) ? dictionary[word] + 1 : 1;
-                }
-            }
-        }
-
-        /// <summary>
         /// Calculates the radius increment to use when scanning for available space to draw.
         /// </summary>
         /// <param name="wordSize">The size of the word currently being drawn.</param>
@@ -1408,33 +1381,65 @@ namespace PSWordCloud
             return new SKPoint(xPosition, yPosition);
         }
 
-        private Dictionary<string, float> GetWordFrequencyDictionary()
+        private void CompleteInputProcessing()
         {
-            var dictionary = new Dictionary<string, float>(StringComparer.OrdinalIgnoreCase);
-
             WriteDebug("Waiting for any remaining queued word processing work items to finish.");
 
             var waitHandles = new WaitHandle[] { default!, _cancel.Token.WaitHandle };
-            foreach (EventWaitHandle handle in _waitHandles)
+            try
             {
-                waitHandles[0] = handle;
-                int waitHandleIndex = WaitHandle.WaitAny(waitHandles);
-                if (waitHandleIndex == 1)
+                for (int index = 0; index < _waitHandles.Count; index++)
                 {
-                    // If we receive a signal from the cancellation token, throw PipelineStoppedException() to
-                    // terminate the pipeline, as StopProcessing() has been called.
-                    throw new PipelineStoppedException();
+                    waitHandles[0] = _waitHandles[index];
+                    int waitHandleIndex = WaitHandle.WaitAny(waitHandles);
+                    if (waitHandleIndex == 1)
+                    {
+                        // If we receive a signal from the cancellation token, throw PipelineStoppedException() to
+                        // terminate the pipeline, as StopProcessing() has been called.
+                        throw new PipelineStoppedException();
+                    }
                 }
-
-                handle.Dispose();
+            }
+            finally
+            {
+                Array.ForEach(waitHandles, handle => handle.Dispose());
             }
 
             WriteDebug("Word processing tasks complete.");
+        }
+
+        private static Dictionary<string, float> CountWords(IEnumerable<string> wordList)
+        {
+            var wordCounts = new Dictionary<string, float>(StringComparer.OrdinalIgnoreCase);
+
+            foreach (string word in wordList)
+            {
+                var trimmedWord = Regex.Replace(word, "s$", string.Empty, RegexOptions.IgnoreCase);
+                var pluralWord = string.Format("{0}s", word);
+                if (wordCounts.ContainsKey(trimmedWord))
+                {
+                    wordCounts[trimmedWord]++;
+                }
+                else if (wordCounts.ContainsKey(pluralWord))
+                {
+                    wordCounts[word] = wordCounts[pluralWord] + 1;
+                    wordCounts.Remove(pluralWord);
+                }
+                else
+                {
+                    wordCounts[word] = wordCounts.ContainsKey(word) ? wordCounts[word] + 1 : 1;
+                }
+            }
+
+            return wordCounts;
+        }
+
+        private Dictionary<string, float> GetWordCountDictionary()
+        {
+            CompleteInputProcessing();
 
             WriteDebug("Counting words and populating scaling dictionary.");
-            CountWords(_processedWords, dictionary);
-
-            return dictionary;
+            return CountWords(_processedWords);
         }
 
         private void StartProcessingInput((PSObject, EventWaitHandle) state)
