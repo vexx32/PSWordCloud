@@ -557,24 +557,15 @@ namespace PSWordCloud
 
         }
 
-        private float GetMaxWordWidth(SKRect viewbox, WordOrientations permittedOrientations, bool hasFocusWord)
-        {
-            if (hasFocusWord)
-            {
-                if (WCUtils.AngleIsMostlyVertical(FocusWordAngle)) {
-                    return viewbox.Height * Constants.MaxWordWidthPercent;
-                }
+        private float GetMaxWordWidth(SKRect viewbox, float focusWordAngle)
+            => WCUtils.AngleIsMostlyVertical(focusWordAngle)
+                ? viewbox.Height * Constants.MaxWordWidthPercent
+                : viewbox.Width * Constants.MaxWordWidthPercent;
 
-                return viewbox.Width * Constants.MaxWordWidthPercent;
-            }
-
-            if (permittedOrientations == WordOrientations.None)
-            {
-                return viewbox.Width * Constants.MaxWordWidthPercent;
-            }
-
-            return Math.Max(viewbox.Width, viewbox.Height) * Constants.MaxWordWidthPercent;
-        }
+        private float GetMaxWordWidth(SKRect viewbox, WordOrientations permittedOrientations)
+            => permittedOrientations == WordOrientations.None
+                ? viewbox.Width * Constants.MaxWordWidthPercent
+                : Math.Max(viewbox.Width, viewbox.Height) * Constants.MaxWordWidthPercent;
 
         private void DrawImageBackground(
             SKCanvas canvas,
@@ -693,7 +684,7 @@ namespace PSWordCloud
             return padding;
         }
 
-        private float ConstrainLargestWordWidth(
+        private float ConstrainScaleByWordWidth(
             float maxWordWidth,
             Word largestWord,
             float fontScale)
@@ -708,13 +699,42 @@ namespace PSWordCloud
             float adjustedWidth = wordPath.Bounds.Width * (effectiveWidth / largestWord.Text.Length) + padding;
             if (adjustedWidth > maxWordWidth)
             {
-                return ConstrainLargestWordWidth(
+                return ConstrainScaleByWordWidth(
                     maxWordWidth,
                     largestWord,
                     fontScale * Constants.MaxWordWidthPercent * (maxWordWidth / adjustedWidth));
             }
 
             return fontScale;
+        }
+
+        private static float EstimateWordScale(
+            SKRect canvasRect,
+            float averageWordFrequency,
+            float averageWordLength,
+            int wordCount,
+            SKTypeface typeface)
+        {
+            float fontCharArea = WCUtils.GetAverageCharArea(typeface);
+            float estimatedPadding = (float)Math.Sqrt(fontCharArea) * Constants.PaddingBaseScale / averageWordFrequency;
+            float estimatedWordArea = fontCharArea * averageWordLength * averageWordFrequency * wordCount + estimatedPadding;
+            float canvasArea = canvasRect.Height * canvasRect.Width;
+
+            return canvasArea * Constants.MaxWordAreaPercent / estimatedWordArea;
+        }
+
+        private float GetWordScaleFactor(IReadOnlyList<Word> wordList, float maxWordWidth, SKRect drawableBounds)
+        {
+            (float averageWordFrequency, float averageWordLength) = GetWordListStatistics(wordList);
+
+            float estimatedScale = EstimateWordScale(
+                drawableBounds,
+                averageWordFrequency,
+                averageWordLength,
+                wordList.Count,
+                Typeface);
+
+            return ConstrainScaleByWordWidth(maxWordWidth, wordList[0], estimatedScale);
         }
 
         private IReadOnlyList<Word> GetFinalWordList(SKRectI drawableBounds, SKRect viewbox)
@@ -732,31 +752,19 @@ namespace PSWordCloud
                             : WordSizes));
             }
 
-            (float averageWordFrequency, float averageWordLength) = GetWordListStatistics(wordList);
+            float maxWordWidth = MyInvocation.BoundParameters.ContainsKey(nameof(FocusWord))
+                ? GetMaxWordWidth(viewbox, FocusWordAngle)
+                : GetMaxWordWidth(viewbox, AllowRotation);
 
-            float baseFontScale = GetBaseFontScale(
-                drawableBounds,
-                averageWordFrequency,
-                averageWordLength,
-                wordList.Count,
-                Typeface);
+            float scaleFactor = GetWordScaleFactor(wordList, maxWordWidth, drawableBounds);
 
-            float maxWordWidth = GetMaxWordWidth(
-                viewbox,
-                AllowRotation,
-                MyInvocation.BoundParameters.ContainsKey(nameof(FocusWord)));
+            WriteDebug($"Global font scale: {scaleFactor}");
 
-            baseFontScale = ConstrainLargestWordWidth(maxWordWidth, wordList[0], baseFontScale);
-
-            WriteDebug($"Global font scale: {baseFontScale}");
-
-            ScaleWordSizes(
+            return ScaleWordSizes(
                 wordList,
                 maxWordWidth,
-                baseFontScale,
+                scaleFactor,
                 WordScale);
-
-            return wordList;
         }
 
         private void DrawWordCloud()
@@ -944,7 +952,7 @@ namespace PSWordCloud
         /// when scaled, the font scale for the whole set will be reduced so that all words remain within the limit.
         /// </remarks>
         /// <returns>A <see cref="Dictionary{string, float}"/> containing the scaled words and their sizes.</returns>
-        private void ScaleWordSizes(
+        private IReadOnlyList<Word> ScaleWordSizes(
             IReadOnlyList<Word> wordList,
             float maxWordWidth,
             float baseFontScale,
@@ -960,14 +968,15 @@ namespace PSWordCloud
                 float paddedWidth = textRect.Width + GetPaddingValue(wordList[index], textPath);
                 if (!AllowOverflow.IsPresent && paddedWidth > maxWordWidth)
                 {
-                    ScaleWordSizes(
+                    return ScaleWordSizes(
                         wordList,
                         maxWordWidth,
                         baseFontScale * Constants.MaxWordWidthPercent * (maxWordWidth / paddedWidth),
                         userFontScale);
-                    return;
                 }
             }
+
+            return wordList;
         }
 
         /// <summary>
@@ -1296,29 +1305,6 @@ namespace PSWordCloud
                     dictionary[word] = dictionary.ContainsKey(word) ? dictionary[word] + 1 : 1;
                 }
             }
-        }
-
-        /// <summary>
-        /// Determines the base font scale for the word cloud.
-        /// </summary>
-        /// <param name="canvasRect">The total available drawing space.</param>
-        /// <param name="baseScale">The base scale value.</param>
-        /// <param name="averageWordFrequency">The average frequency of words.</param>
-        /// <param name="wordCount">The total number of words to account for.</param>
-        /// <returns>A <see cref="float"/> value representing a conservative scaling value to apply to each word.</returns>
-        private static float GetBaseFontScale(
-            SKRect canvasRect,
-            float averageWordFrequency,
-            float averageWordLength,
-            int wordCount,
-            SKTypeface typeface)
-        {
-            float fontCharArea = WCUtils.GetAverageCharArea(typeface);
-            float estimatedPadding = (float)Math.Sqrt(fontCharArea) * Constants.PaddingBaseScale / averageWordFrequency;
-            float estimatedWordArea = fontCharArea * averageWordLength * averageWordFrequency * wordCount + estimatedPadding;
-            float canvasArea = canvasRect.Height * canvasRect.Width;
-
-            return canvasArea * Constants.MaxWordAreaPercent / estimatedWordArea;
         }
 
         /// <summary>
