@@ -104,7 +104,7 @@ namespace PSWordCloud
         [Parameter(Mandatory = true, ParameterSetName = FILE_FOCUS_SET)]
         [Parameter(Mandatory = true, ParameterSetName = FILE_FOCUS_TABLE_SET)]
         [Parameter(Mandatory = true, ParameterSetName = FILE_TABLE_SET)]
-        public string BackgroundImage
+        public string? BackgroundImage
         {
             get => _backgroundFullPath!;
             set
@@ -541,20 +541,26 @@ namespace PSWordCloud
             return sortedWords.ToList();
         }
 
-        private SKRect GetViewBoxRect(string backgroundImagePath, out SKBitmap? backgroundBitmap)
+        private SKRect GetImageViewbox(string? backgroundImagePath, out SKBitmap? backgroundBitmap)
         {
             backgroundBitmap = null;
             if (backgroundImagePath is null)
             {
-                return new SKRectI(left: 0, top: 0, ImageSize.Width, ImageSize.Height);
+                return new SKRect(left: 0, top: 0, ImageSize.Width, ImageSize.Height);
             }
             else
             {
-                WriteDebug($"Importing background image from '{_backgroundFullPath}'.");
-                backgroundBitmap = SKBitmap.Decode(_backgroundFullPath);
-                return new SKRectI(left: 0, top: 0, backgroundBitmap.Width, backgroundBitmap.Height);
+                backgroundBitmap = LoadBackground(backgroundImagePath, out SKRect backgroundRect);
+                return backgroundRect;
             }
+        }
 
+        private SKBitmap LoadBackground(string path, out SKRect backgroundRect)
+        {
+            WriteDebug($"Importing background image from '{path}'.");
+            SKBitmap backgroundBitmap = SKBitmap.Decode(path);
+            backgroundRect = new SKRectI(left: 0, top: 0, backgroundBitmap.Width, backgroundBitmap.Height);
+            return backgroundBitmap;
         }
 
         private float GetMaxWordWidth(SKRect viewbox, float focusWordAngle)
@@ -779,7 +785,7 @@ namespace PSWordCloud
 
         private void DrawWordCloud()
         {
-            SKRect viewbox = GetViewBoxRect(BackgroundImage, out SKBitmap? backgroundBitmap);
+            SKRect viewbox = GetImageViewbox(BackgroundImage, out SKBitmap? backgroundBitmap);
 
             using SKDynamicMemoryWStream memoryStream = new SKDynamicMemoryWStream();
             using SKCanvas canvas = SKSvgCanvas.Create(viewbox, memoryStream);
