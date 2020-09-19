@@ -511,27 +511,27 @@ namespace PSWordCloud
                     throw new NotImplementedException("This parameter set has not defined an input handling method.");
             }
 
-            if (MyInvocation.BoundParameters.ContainsKey(nameof(FocusWord)))
-            {
-                AddFocusWord(FocusWord!, wordScaleDictionary);
-            }
-
             return GetWordListFromDictionary(wordScaleDictionary, maxWords);
         }
 
-        private void AddFocusWord(string focusWord, IDictionary<string, float> wordFrequencies)
+        private void AddFocusWord(string focusWord, IEnumerable<Word> words)
         {
-            WriteDebug($"Adding focus word '{focusWord}' to the dictionary.");
+            WriteDebug($"Adding focus word '{focusWord}' to the list.");
 
-            float highestWordFrequency = wordFrequencies.Values.Max();
-            wordFrequencies[focusWord] = highestWordFrequency *= Constants.FocusWordScale;
+            float largestWordSize = words.Max(w => w.RelativeSize);
+            words.Prepend(new Word(focusWord, largestWordSize * Constants.FocusWordScale, isFocusWord: true));
         }
 
         IReadOnlyList<Word> GetWordListFromDictionary(IReadOnlyDictionary<string, float> dictionary, int maxWords)
         {
             IEnumerable<Word> sortedWords = dictionary
                 .OrderByDescending(x => x.Value)
-                .Select(x => new Word(x.Key, x.Value));
+                .Select(x => new Word(text: x.Key, relativeSize: x.Value));
+
+            if (MyInvocation.BoundParameters.ContainsKey(nameof(FocusWord)))
+            {
+                AddFocusWord(FocusWord!, sortedWords);
+            }
 
             if (maxWords > 0)
             {
@@ -591,61 +591,71 @@ namespace PSWordCloud
         {
             WriteVerbose("Drawing words on canvas.");
 
-            int currentWordNumber = 0;
             int totalWords = wordList.Count;
             float strokeWidth = MyInvocation.BoundParameters.ContainsKey(nameof(StrokeWidth))
                 ? StrokeWidth
                 : -1;
 
-            foreach (Word word in wordList)
+            for (int index = 0; index < wordList.Count; index++)
             {
-                WriteDebug($"Scanning for draw location for '{word}'.");
-                currentWordNumber++;
+                Word currentWord = wordList[index];
+                WriteDebug($"Scanning for draw location for '{wordList[index]}'.");
+                WriteDrawingProgressMessage(
+                    wordNumber: index,
+                    totalWords,
+                    currentWord.Text,
+                    currentWord.ScaledSize);
 
-                bool isFocusWord = currentWordNumber == 1
-                    && MyInvocation.BoundParameters.ContainsKey(nameof(FocusWord));
-
-                WriteDrawingProgressMessage(currentWordNumber, totalWords, word.Text, word.ScaledSize);
-
-                SKPath? wordPath = null, bubblePath = null;
-                try
-                {
-                    SKPoint targetPoint = FindDrawLocation(
-                        word,
-                        Typeface,
-                        isFocusWord,
-                        viewbox,
-                        clipRegion,
-                        occupiedSpace,
-                        out wordPath,
-                        out bubblePath);
-
-                    if (targetPoint != SKPoint.Empty)
-                    {
-                        WriteDebug($"Drawing '{word}' at [{targetPoint.X}, {targetPoint.Y}].");
-                        DrawWord(wordPath, strokeWidth, bubblePath, canvas, occupiedSpace);
-                    }
-                    else
-                    {
-                        WriteWarning($"Unable to find a place to draw '{word}'; skipping to next word.");
-                    }
-                }
-                catch (OperationCanceledException)
-                {
-                    // If we receive OperationCancelledException, StopProcessing() has been called,
-                    // so the pipeline is terminating.
-                    throw new PipelineStoppedException();
-                }
-                finally {
-                    wordPath?.Dispose();
-                    bubblePath?.Dispose();
-                }
+                DrawWord(currentWord, viewbox, clipRegion, occupiedSpace, strokeWidth, canvas);
             }
         }
 
-        private void WriteDrawingProgressMessage(int currentWord, int totalWords, string word, float wordSize)
+        private void DrawWord(
+            Word word,
+            SKRect viewbox,
+            SKRegion clipRegion,
+            SKRegion occupiedSpace,
+            float strokeWidth,
+            SKCanvas canvas)
         {
-            var percentComplete = 100f * currentWord / totalWords;
+            SKPath? wordPath = null, bubblePath = null;
+            try
+            {
+                SKPoint targetPoint = FindDrawLocation(
+                    word,
+                    Typeface,
+                    viewbox,
+                    clipRegion,
+                    occupiedSpace,
+                    out wordPath,
+                    out bubblePath);
+
+                if (targetPoint != SKPoint.Empty)
+                {
+                    WriteDebug($"Drawing '{word}' at [{targetPoint.X}, {targetPoint.Y}].");
+                    DrawWordInPlace(wordPath, strokeWidth, bubblePath, canvas, occupiedSpace);
+                }
+                else
+                {
+                    WriteWarning($"Unable to find a place to draw '{word}'; skipping to next word.");
+                }
+            }
+            catch (OperationCanceledException)
+            {
+                // If we receive OperationCancelledException, StopProcessing() has been called,
+                // so the pipeline is terminating.
+                throw new PipelineStoppedException();
+            }
+            finally
+            {
+                wordPath?.Dispose();
+                bubblePath?.Dispose();
+            }
+        }
+
+        private void WriteDrawingProgressMessage(int wordNumber, int totalWords, string word, float wordSize)
+        {
+            var percentComplete = 100f * wordNumber / totalWords;
 
             var wordProgress = new ProgressRecord(
                 _progressId,
@@ -656,7 +666,7 @@ namespace PSWordCloud
                     "Current Word: \"{0}\" [Size: {1:0}] ({2} of {3})",
                     word,
                     wordSize,
-                    currentWord,
+                    wordNumber,
                     totalWords),
                 PercentComplete = (int)Math.Round(percentComplete)
             };
@@ -842,7 +852,7 @@ namespace PSWordCloud
         /// <param name="bubblePath">The path defining the bubble surrounding the word.</param>
         /// <param name="canvas">The canvas upon which to draw the word.</param>
         /// <param name="occupiedSpace">The region describing already-occupied space in the image.</param>
-        private void DrawWord(
+        private void DrawWordInPlace(
             SKPath wordPath,
             float strokeWidth,
             SKPath? bubblePath,
@@ -996,14 +1006,13 @@ namespace PSWordCloud
         private SKPoint FindDrawLocation(
             Word word,
             SKTypeface typeface,
-            bool isFocusWord,
             SKRect viewbox,
             SKRegion clipRegion,
             SKRegion occupiedSpace,
             out SKPath wordPath,
             out SKPath? bubblePath)
         {
-            IReadOnlyList<float> availableAngles = isFocusWord
+            IReadOnlyList<float> availableAngles = word.IsFocusWord
                 ? new[] { FocusWordAngle }
                 : WCUtils.GetDrawAngles(AllowRotation, SafeRandom);
 
