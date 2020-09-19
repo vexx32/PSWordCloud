@@ -574,26 +574,21 @@ namespace PSWordCloud
                 : Math.Max(viewbox.Width, viewbox.Height) * Constants.MaxWordWidthPercent;
 
         private void DrawImageBackground(
-            SKCanvas canvas,
+            Image image,
             SKColor backgroundColor = default,
             SKBitmap? backgroundImage = null)
         {
             if (ParameterSetName.StartsWith(FILE_SET))
             {
-                canvas.DrawBitmap(backgroundImage, 0, 0);
+                image.Canvas.DrawBitmap(backgroundImage, 0, 0);
             }
             else if (backgroundColor != SKColor.Empty)
             {
-                canvas.Clear(backgroundColor);
+                image.Canvas.Clear(backgroundColor);
             }
         }
 
-        private void DrawAllWordsOnCanvas(
-            SKCanvas canvas,
-            SKRect viewbox,
-            SKRegion clipRegion,
-            SKRegion occupiedSpace,
-            IReadOnlyList<Word> wordList)
+        private void DrawAllWordsOnCanvas(IReadOnlyList<Word> wordList, Image image)
         {
             WriteVerbose("Drawing words on canvas.");
 
@@ -612,34 +607,21 @@ namespace PSWordCloud
                     currentWord.Text,
                     currentWord.ScaledSize);
 
-                DrawWord(currentWord, viewbox, clipRegion, occupiedSpace, strokeWidth, canvas);
+                DrawWord(currentWord, strokeWidth, image);
             }
         }
 
-        private void DrawWord(
-            Word word,
-            SKRect viewbox,
-            SKRegion clipRegion,
-            SKRegion occupiedSpace,
-            float strokeWidth,
-            SKCanvas canvas)
+        private void DrawWord(Word word, float strokeWidth, Image image)
         {
             SKPath? wordPath = null, bubblePath = null;
             try
             {
-                SKPoint targetPoint = FindDrawLocation(
-                    word,
-                    Typeface,
-                    viewbox,
-                    clipRegion,
-                    occupiedSpace,
-                    out wordPath,
-                    out bubblePath);
+                SKPoint targetPoint = FindDrawLocation(word, Typeface, image, out wordPath, out bubblePath);
 
                 if (targetPoint != SKPoint.Empty)
                 {
                     WriteDebug($"Drawing '{word}' at [{targetPoint.X}, {targetPoint.Y}].");
-                    DrawWordInPlace(wordPath, strokeWidth, bubblePath, canvas, occupiedSpace);
+                    DrawWordInPlace(wordPath, strokeWidth, bubblePath, image);
                 }
                 else
                 {
@@ -786,26 +768,17 @@ namespace PSWordCloud
         private void DrawWordCloud()
         {
             SKRect viewbox = GetImageViewbox(BackgroundImage, out SKBitmap? backgroundBitmap);
+            using var image = new Image(viewbox, AllowOverflow.IsPresent);
 
-            using SKDynamicMemoryWStream memoryStream = new SKDynamicMemoryWStream();
-            using SKCanvas canvas = SKSvgCanvas.Create(viewbox, memoryStream);
-            using SKRegion occupiedSpace = new SKRegion();
-            using SKRegion clipRegion = GetClipRegion(viewbox, AllowOverflow.IsPresent);
-
-            IReadOnlyList<Word> finalWordTable = GetFinalWordList(clipRegion.Bounds, viewbox);
+            IReadOnlyList<Word> finalWordTable = GetFinalWordList(image.ClippingBounds, viewbox);
 
             try
             {
-                DrawImageBackground(canvas, BackgroundColor, backgroundBitmap);
-                DrawAllWordsOnCanvas(canvas, viewbox, clipRegion, occupiedSpace, finalWordTable);
-
-                // Canvas must be completely flushed AND disposed before it will write the final closing XML tags.
-                canvas.Flush();
-                canvas.Dispose();
+                DrawImageBackground(image, BackgroundColor, backgroundBitmap);
+                DrawAllWordsOnCanvas(finalWordTable, image);
 
                 WriteDebug($"Saving canvas data to {string.Join(',', Path)}.");
-                memoryStream.Flush();
-                SaveSvgData(memoryStream, viewbox, Path);
+                SaveSvgData(image, Path);
 
                 if (PassThru.IsPresent)
                 {
@@ -820,8 +793,6 @@ namespace PSWordCloud
             {
                 WriteDebug("Disposing SkiaSharp objects.");
                 backgroundBitmap?.Dispose();
-                canvas?.Dispose();
-                memoryStream?.Dispose();
 
                 // Write 'Completed' progress record
                 WriteProgress(new ProgressRecord(_progressId, "Completed", "Completed")
@@ -858,12 +829,7 @@ namespace PSWordCloud
         /// <param name="bubblePath">The path defining the bubble surrounding the word.</param>
         /// <param name="canvas">The canvas upon which to draw the word.</param>
         /// <param name="occupiedSpace">The region describing already-occupied space in the image.</param>
-        private void DrawWordInPlace(
-            SKPath wordPath,
-            float strokeWidth,
-            SKPath? bubblePath,
-            SKCanvas canvas,
-            SKRegion occupiedSpace)
+        private void DrawWordInPlace(SKPath wordPath, float strokeWidth, SKPath? bubblePath, Image image)
         {
             using var brush = new SKPaint();
             SKColor wordColor;
@@ -872,27 +838,27 @@ namespace PSWordCloud
             wordPath.FillType = SKPathFillType.Winding;
             if (bubblePath == null)
             {
-                occupiedSpace.CombineWithPath(wordPath, SKRegionOperation.Union);
+                image.OccupiedSpace.CombineWithPath(wordPath, SKRegionOperation.Union);
                 wordColor = GetContrastingColor(BackgroundColor);
             }
             else
             {
-                occupiedSpace.CombineWithPath(bubblePath, SKRegionOperation.Union);
+                image.OccupiedSpace.CombineWithPath(bubblePath, SKRegionOperation.Union);
 
                 bubbleColor = GetContrastingColor(BackgroundColor);
                 wordColor = GetContrastingColor(bubbleColor);
 
                 brush.SetFill(bubbleColor);
-                canvas.DrawPath(bubblePath, brush);
+                image.Canvas.DrawPath(bubblePath, brush);
             }
 
             brush.SetFill(wordColor);
-            canvas.DrawPath(wordPath, brush);
+            image.Canvas.DrawPath(wordPath, brush);
 
             if (strokeWidth > -1)
             {
                 brush.SetStroke(StrokeColor, strokeWidth);
-                canvas.DrawPath(wordPath, brush);
+                image.Canvas.DrawPath(wordPath, brush);
             }
         }
 
@@ -928,31 +894,6 @@ namespace PSWordCloud
             }
 
             return result;
-        }
-
-        /// <summary>
-        /// Gets an <see cref="SKRegion"/> representing the clipping boundaries of the word cloud.
-        /// </summary>
-        /// <param name="viewbox">An <see cref="SKRect"/> representing the visible image bounds.</param>
-        /// <param name="allowOverflow">Whether overflow is permitted.</param>
-        /// <returns>An <see cref="SKRegion"/> that defines the clipping bounds of the word cloud.</returns>
-        private static SKRegion GetClipRegion(SKRect viewbox, bool allowOverflow)
-        {
-            var clipRegion = new SKRegion();
-            if (allowOverflow)
-            {
-                clipRegion.SetRect(
-                    SKRectI.Round(SKRect.Inflate(
-                        viewbox,
-                        viewbox.Width * (Constants.BleedAreaScale - 1),
-                        viewbox.Height * (Constants.BleedAreaScale - 1))));
-            }
-            else
-            {
-                clipRegion.SetRect(SKRectI.Round(viewbox));
-            }
-
-            return clipRegion;
         }
 
         /// <summary>
@@ -1012,9 +953,7 @@ namespace PSWordCloud
         private SKPoint FindDrawLocation(
             Word word,
             SKTypeface typeface,
-            SKRect viewbox,
-            SKRegion clipRegion,
-            SKRegion occupiedSpace,
+            Image image,
             out SKPath wordPath,
             out SKPath? bubblePath)
         {
@@ -1022,22 +961,20 @@ namespace PSWordCloud
                 ? new[] { FocusWordAngle }
                 : WCUtils.GetDrawAngles(AllowRotation, SafeRandom);
 
-            var centrePoint = new SKPoint(viewbox.MidX, viewbox.MidY);
-
             bubblePath = null;
 
             using SKPaint brush = WCUtils.GetBrush(word.ScaledSize, StrokeWidth * Constants.StrokeBaseScale, typeface);
             wordPath = brush.GetTextPath(word.Text, 0, 0);
 
             float wordPadding = GetPaddingValue(word, wordPath);
-            float maxRadius = GetMaxRadius(viewbox.Location, centrePoint);
+            float maxRadius = GetMaxRadius(image);
 
             foreach (float drawAngle in availableAngles)
             {
                 wordPath.Rotate(drawAngle);
 
                 for (
-                    float radius = (SafeRandom.RandomFloat() / 25) * wordPath.TightBounds.Height;
+                    float radius = SafeRandom.RandomFloat() / 25 * wordPath.TightBounds.Height;
                     radius <= maxRadius;
                     radius += GetRadiusIncrement(
                         word.ScaledSize,
@@ -1050,9 +987,7 @@ namespace PSWordCloud
                         drawAngle,
                         wordPadding,
                         wordPath,
-                        viewbox,
-                        clipRegion,
-                        occupiedSpace,
+                        image,
                         out bubblePath);
 
                     if (result != SKPoint.Empty)
@@ -1074,14 +1009,10 @@ namespace PSWordCloud
             float drawAngle,
             float inflationValue,
             SKPath wordPath,
-            SKRect viewbox,
-            SKRegion clipRegion,
-            SKRegion occupiedSpace,
+            Image image,
             out SKPath? bubblePath)
         {
-            SKPoint centrePoint = new SKPoint(viewbox.MidX, viewbox.MidY);
-            float aspectRatio = viewbox.Width / viewbox.Height;
-            IReadOnlyList<SKPoint> radialPoints = GetOvalPoints(centrePoint, radius, RadialStep, aspectRatio);
+            IReadOnlyList<SKPoint> radialPoints = GetOvalPoints(radius, RadialStep, image);
             int totalPoints = radialPoints.Count;
             int pointsChecked = 0;
             bubblePath = null;
@@ -1091,7 +1022,7 @@ namespace PSWordCloud
                 ThrowIfPipelineStopping();
 
                 pointsChecked++;
-                if (point.IsOutside(clipRegion))
+                if (point.IsOutside(image.ClippingRegion))
                 {
                     WriteDebug($"Skipping point {point} because it's outside the clipping region.");
                     continue;
@@ -1102,7 +1033,7 @@ namespace PSWordCloud
                 wordPath.CentreOnPoint(point);
                 SKRect wordBounds = SKRect.Inflate(wordPath.TightBounds, inflationValue, inflationValue);
 
-                if (WCUtils.WordWillFit(wordBounds, WordBubble, clipRegion, occupiedSpace, out bubblePath))
+                if (WCUtils.WordWillFit(wordBounds, WordBubble, image, out bubblePath))
                 {
                     return wordBounds.Location;
                 }
@@ -1134,9 +1065,9 @@ namespace PSWordCloud
             WriteProgress(pointProgress);
         }
 
-        private float GetMaxRadius(SKPoint viewboxOrigin, SKPoint centrePoint)
+        private float GetMaxRadius(Image image)
         {
-            float radius = SKPoint.Distance(viewboxOrigin, centrePoint);
+            float radius = SKPoint.Distance(image.Origin, image.Centre);
 
             if (AllowOverflow)
             {
@@ -1185,17 +1116,12 @@ namespace PSWordCloud
         /// </summary>
         /// <param name="outputStream">The memory stream containing the SVG data.</param>
         /// <param name="viewbox">The visible area of the image.</param>
-        private void SaveSvgData(SKDynamicMemoryWStream outputStream, SKRect viewbox, string savePath)
+        private void SaveSvgData(Image image, string savePath)
         {
             string[] path = new[] { savePath };
 
             ClearFileContent(path);
-
-            using SKData data = outputStream.DetachAsData();
-            using var reader = new StreamReader(data.AsStream(), leaveOpen: false);
-
-            XmlDocument imageXml = GetXmlDocumentWithViewbox(reader, viewbox);
-            WriteSvgDataToPSPath(path, imageXml);
+            WriteSvgDataToPSPath(path, image.GetFinalXml());
         }
 
         private void ClearFileContent(string[] paths)
@@ -1212,24 +1138,6 @@ namespace PSWordCloud
                 // at this point.
                 WriteDebug($"Error encountered while clearing content for item '{string.Join(", ", paths)}'. {e.Message}");
             }
-        }
-
-        private static XmlDocument GetXmlDocumentWithViewbox(StreamReader reader, SKRect viewbox)
-        {
-            var imageXml = new XmlDocument();
-            imageXml.LoadXml(reader.ReadToEnd());
-
-            // Check if the SVG already has a viewbox attribute on the root SVG element.
-            // If not, we need to add that in before writing the data to the target location.
-            var svgElement = imageXml.GetElementsByTagName("svg")[0] as XmlElement;
-            if (svgElement?.GetAttribute("viewbox") == string.Empty)
-            {
-                svgElement.SetAttribute(
-                    "viewbox",
-                    $"{viewbox.Location.X} {viewbox.Location.Y} {viewbox.Width} {viewbox.Height}");
-            }
-
-            return imageXml;
         }
 
         private void WriteSvgDataToPSPath(string[] paths, XmlDocument svgData)
@@ -1328,20 +1236,16 @@ namespace PSWordCloud
         /// <param name="radialStep">The current radial stepping value.</param>
         /// <param name="aspectRatio">The aspect ratio of the canvas, used to stretch the circular scan into n ovoid.</param>
         /// <returns>A <see cref="List{SKPoint}"/> containing possible draw locations.</returns>
-        private static IReadOnlyList<SKPoint> GetOvalPoints(
-            SKPoint centre,
-            float radius,
-            float radialStep,
-            float aspectRatio = 1)
+        private static IReadOnlyList<SKPoint> GetOvalPoints(float radius, float radialStep, Image image)
         {
             var result = new List<SKPoint>();
             if (radius == 0)
             {
-                result.Add(centre);
+                result.Add(image.Centre);
                 return result;
             }
 
-            float angleIncrement = (radialStep * Constants.BaseAngularIncrement) / (15 * (float)Math.Sqrt(radius));
+            float angleIncrement = radialStep * Constants.BaseAngularIncrement / (15 * (float)Math.Sqrt(radius));
 
             float angle = SafeRandom.PickRandomQuadrant();
             bool clockwise = SafeRandom.RandomFloat() > 0.5;
@@ -1362,8 +1266,7 @@ namespace PSWordCloud
                 angle,
                 angleIncrement,
                 maxAngle,
-                aspectRatio,
-                centre);
+                image);
         }
 
         private static IReadOnlyList<SKPoint> GenerateOvalPoints(
@@ -1371,8 +1274,7 @@ namespace PSWordCloud
             float startingAngle,
             float angleIncrement,
             float maxAngle,
-            float aspectRatio,
-            SKPoint centre)
+            Image image)
         {
             List<SKPoint> points = new List<SKPoint>();
             float angle = startingAngle;
@@ -1380,18 +1282,18 @@ namespace PSWordCloud
 
             do
             {
-                points.Add(GetPointOnOval(radius, angle, aspectRatio, centre));
+                points.Add(GetPointOnOval(radius, angle, image));
                 angle += angleIncrement;
             } while (clockwise ? angle <= maxAngle : angle >= maxAngle);
 
             return points;
         }
 
-        private static SKPoint GetPointOnOval(float semiMinorAxis, float degrees, float axisRatio, SKPoint centre)
+        private static SKPoint GetPointOnOval(float semiMinorAxis, float degrees, Image image)
         {
             Complex point = Complex.FromPolarCoordinates(semiMinorAxis, degrees.ToRadians());
-            float xPosition = centre.X + (float)point.Real * axisRatio;
-            float yPosition = centre.Y + (float)point.Imaginary;
+            float xPosition = image.Centre.X + (float)point.Real * image.AspectRatio;
+            float yPosition = image.Centre.Y + (float)point.Imaginary;
 
             return new SKPoint(xPosition, yPosition);
         }

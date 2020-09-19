@@ -171,11 +171,11 @@ namespace PSWordCloud
         private static bool WordBubbleWillFit(
             WordBubbleShape shape,
             SKRect wordBounds,
-            SKRegion occupiedSpace,
+            Image image,
             out SKPath bubblePath)
         {
             bubblePath = GetWordBubblePath(shape, wordBounds);
-            return !occupiedSpace.IntersectsPath(bubblePath);
+            return !image.OccupiedSpace.IntersectsPath(bubblePath);
         }
 
         /// <summary>
@@ -191,22 +191,21 @@ namespace PSWordCloud
         internal static bool WordWillFit(
             SKRect wordBounds,
             WordBubbleShape bubbleShape,
-            SKRegion clipRegion,
-            SKRegion occupiedSpace,
+            Image image,
             out SKPath? bubblePath)
         {
             bubblePath = null;
-            if (wordBounds.FallsOutside(clipRegion))
+            if (wordBounds.FallsOutside(image.ClippingRegion))
             {
                 return false;
             }
 
             if (bubbleShape == WordBubbleShape.None)
             {
-                return WordWillFit(wordBounds, occupiedSpace);
+                return WordWillFit(wordBounds, image.OccupiedSpace);
             }
 
-            return WordBubbleWillFit(bubbleShape, wordBounds, occupiedSpace, out bubblePath);
+            return WordBubbleWillFit(bubbleShape, wordBounds, image, out bubblePath);
         }
 
         /// <summary>
