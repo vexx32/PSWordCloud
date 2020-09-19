@@ -16,6 +16,8 @@ namespace PSWordCloud
 
         internal float AspectRatio { get => _aspect ??= Viewbox.Width / Viewbox.Height; }
 
+        internal float MaxDrawRadius { get => _maxDrawRadius ??= GetMaxRadius() }
+
         internal SKRegion ClippingRegion { get; }
 
         internal SKRectI ClippingBounds { get => ClippingRegion.Bounds; }
@@ -27,16 +29,19 @@ namespace PSWordCloud
         private readonly SKDynamicMemoryWStream _memoryStream;
         private SKPoint? _centrePoint;
         private float? _aspect;
+        private float? _maxDrawRadius;
+        private readonly bool _allowOverflow;
 
         internal Image(SKRect viewbox, bool allowOverflow)
         {
+            _allowOverflow = allowOverflow;
             _memoryStream = new SKDynamicMemoryWStream();
             Viewbox = viewbox;
             Canvas = SKSvgCanvas.Create(Viewbox, _memoryStream);
             OccupiedSpace = new SKRegion();
             ClippingRegion = new SKRegion();
 
-            SetClippingRegion(Viewbox, allowOverflow);
+            SetClippingRegion(Viewbox, _allowOverflow);
         }
 
         private void SetClippingRegion(SKRect viewbox, bool allowOverflow)
@@ -53,6 +58,18 @@ namespace PSWordCloud
             {
                 ClippingRegion.SetRect(SKRectI.Round(viewbox));
             }
+        }
+
+        private float GetMaxRadius()
+        {
+            float radius = SKPoint.Distance(Origin, Centre);
+
+            if (_allowOverflow)
+            {
+                radius *= Constants.BleedAreaScale;
+            }
+
+            return radius;
         }
 
         private void EnsureSvgViewboxIsSet(XmlDocument xml)

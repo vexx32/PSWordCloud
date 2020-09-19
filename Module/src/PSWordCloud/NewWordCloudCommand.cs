@@ -967,7 +967,6 @@ namespace PSWordCloud
             wordPath = brush.GetTextPath(word.Text, 0, 0);
 
             float wordPadding = GetPaddingValue(word, wordPath);
-            float maxRadius = GetMaxRadius(image);
 
             foreach (float drawAngle in availableAngles)
             {
@@ -975,11 +974,11 @@ namespace PSWordCloud
 
                 for (
                     float radius = SafeRandom.RandomFloat() / 25 * wordPath.TightBounds.Height;
-                    radius <= maxRadius;
+                    radius <= image.MaxDrawRadius;
                     radius += GetRadiusIncrement(
                         word.ScaledSize,
                         DistanceStep,
-                        maxRadius,
+                        image.MaxDrawRadius,
                         wordPadding))
                 {
                     SKPoint result = FindDrawPointAtRadius(
@@ -1063,18 +1062,6 @@ namespace PSWordCloud
             };
 
             WriteProgress(pointProgress);
-        }
-
-        private float GetMaxRadius(Image image)
-        {
-            float radius = SKPoint.Distance(image.Origin, image.Centre);
-
-            if (AllowOverflow)
-            {
-                radius *= Constants.BleedAreaScale;
-            }
-
-            return radius;
         }
 
         /// <summary>
