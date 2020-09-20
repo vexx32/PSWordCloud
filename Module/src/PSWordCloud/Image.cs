@@ -16,7 +16,7 @@ namespace PSWordCloud
 
         internal float AspectRatio { get => _aspect ??= Viewbox.Width / Viewbox.Height; }
 
-        internal float MaxDrawRadius { get => _maxDrawRadius ??= GetMaxRadius() }
+        internal float MaxDrawRadius { get => _maxDrawRadius ??= GetMaxRadius(); }
 
         internal SKRegion ClippingRegion { get; }
 
