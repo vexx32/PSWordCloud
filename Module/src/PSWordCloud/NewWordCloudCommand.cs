@@ -796,7 +796,12 @@ namespace PSWordCloud
                 WriteDebug("Disposing SkiaSharp objects.");
                 backgroundBitmap?.Dispose();
 
-                // Write 'Completed' progress record
+                WriteProgressCompleted();
+            }
+        }
+
+        private void WriteProgressCompleted()
+        {
                 WriteProgress(new ProgressRecord(_progressId, "Completed", "Completed")
                 {
                     RecordType = ProgressRecordType.Completed
@@ -807,7 +812,6 @@ namespace PSWordCloud
                     RecordType = ProgressRecordType.Completed
                 });
             }
-        }
 
         /// <summary>
         /// StopProcessing implementation for New-WordCloud.
