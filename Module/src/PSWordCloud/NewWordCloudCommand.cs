@@ -853,27 +853,24 @@ namespace PSWordCloud
             wordPath.FillType = SKPathFillType.Winding;
             if (bubblePath == null)
             {
-                image.OccupiedSpace.CombineWithPath(wordPath, SKRegionOperation.Union);
                 wordColor = GetContrastingColor(BackgroundColor);
             }
             else
             {
-                image.OccupiedSpace.CombineWithPath(bubblePath, SKRegionOperation.Union);
-
                 bubbleColor = GetContrastingColor(BackgroundColor);
                 wordColor = GetContrastingColor(bubbleColor);
 
                 brush.SetFill(bubbleColor);
-                image.Canvas.DrawPath(bubblePath, brush);
+                image.DrawPath(bubblePath, brush);
             }
 
             brush.SetFill(wordColor);
-            image.Canvas.DrawPath(wordPath, brush);
+            image.DrawPath(wordPath, brush);
 
             if (strokeWidth > -1)
             {
                 brush.SetStroke(StrokeColor, strokeWidth);
-                image.Canvas.DrawPath(wordPath, brush);
+                image.DrawPath(wordPath, brush);
             }
         }
 

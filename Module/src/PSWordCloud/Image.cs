@@ -116,12 +116,16 @@ namespace PSWordCloud
             return imageXml;
         }
 
-        private void FinalizeImage()
+        /// <summary>
+        /// Draws the <paramref name="path"/> on the <see cref="Canvas"/> using the specified <paramref name="brush"/>.
+        /// The <see cref="OccupiedSpace"/> region will be updated to include the drawn path.
+        /// </summary>
+        /// <param name="path">The <see cref="SKPath"/> to draw.</param>
+        /// <param name="brush">The <see cref="SKPaint"/> brush to draw with.</param>
+        internal void DrawPath(SKPath path, SKPaint brush)
         {
-            // Canvas has to be flushed & disposed for it to write the final </svg> tag to the memory stream.
-            Canvas.Flush();
-            Canvas.Dispose();
-            _memoryStream.Flush();
+            OccupiedSpace.CombineWithPath(path, SKRegionOperation.Union);
+            Canvas.DrawPath(path, brush);
         }
 
         public void Dispose()
