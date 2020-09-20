@@ -555,29 +555,6 @@ namespace PSWordCloud
             }
         }
 
-        private static SKColor GetAverageColor(IReadOnlyList<SKColor> colorList)
-        {
-            float totalRed = 0;
-            float totalGreen = 0;
-            float totalBlue = 0;
-            float totalAlpha = 0;
-
-            foreach (SKColor color in colorList)
-            {
-                totalRed += color.Red;
-                totalGreen += color.Green;
-                totalBlue += color.Blue;
-                totalAlpha += color.Alpha;
-            }
-
-            byte red = (byte)(totalRed / colorList.Count);
-            byte green = (byte)(totalGreen / colorList.Count);
-            byte blue = (byte)(totalBlue / colorList.Count);
-            byte alpha = (byte)(totalAlpha / colorList.Count);
-
-            return new SKColor(red, green, blue, alpha);
-        }
-
         private SKBitmap LoadBackground(string path, out SKRect backgroundRect)
         {
             WriteDebug($"Importing background image from '{path}'.");
@@ -790,7 +767,7 @@ namespace PSWordCloud
             SKRect viewbox = GetImageViewbox(BackgroundImage, out SKBitmap? backgroundBitmap);
             if (backgroundBitmap is not null)
             {
-                BackgroundColor = GetAverageColor(backgroundBitmap.Pixels);
+                BackgroundColor = WCUtils.GetAverageColor(backgroundBitmap.Pixels);
             }
 
             using var image = new Image(viewbox, AllowOverflow.IsPresent);

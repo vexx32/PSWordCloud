@@ -109,6 +109,35 @@ namespace PSWordCloud
             };
 
         /// <summary>
+        /// Given a list of <see cref="SKColor"/>s, calculates the average of all the colors using the
+        /// red, green, blue, and alpha components.
+        /// </summary>
+        /// <param name="colorList">A list of colors.</param>
+        /// <returns>An SKColor value which is the average of all the input values.</returns>
+        internal static SKColor GetAverageColor(IReadOnlyList<SKColor> colorList)
+        {
+            float totalRed = 0;
+            float totalGreen = 0;
+            float totalBlue = 0;
+            float totalAlpha = 0;
+
+            foreach (SKColor color in colorList)
+            {
+                totalRed += color.Red;
+                totalGreen += color.Green;
+                totalBlue += color.Blue;
+                totalAlpha += color.Alpha;
+            }
+
+            byte red = (byte)(totalRed / colorList.Count);
+            byte green = (byte)(totalGreen / colorList.Count);
+            byte blue = (byte)(totalBlue / colorList.Count);
+            byte alpha = (byte)(totalAlpha / colorList.Count);
+
+            return new SKColor(red, green, blue, alpha);
+        }
+
+        /// <summary>
         /// Gets the appropriate word bubble path for the requested shape, sized to fit the word bounds.
         /// </summary>
         /// <param name="shape">The shape of the bubble.</param>
