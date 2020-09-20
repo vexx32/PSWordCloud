@@ -874,12 +874,6 @@ namespace PSWordCloud
             }
         }
 
-        /// <summary>
-        /// Converts the input <paramref name="dictionary"/> into a usable form. Keys are all converted to string, and
-        /// values are all converted to float.
-        /// </summary>
-        /// <param name="dictionary">The input dictionary to normalize.</param>
-        /// <returns>The normalized <see cref="Dictionary{string, float}"/>.</returns>
         private Dictionary<string, float> GetProcessedWordScaleDictionary(IDictionary dictionary)
         {
             var result = new Dictionary<string, float>(StringComparer.OrdinalIgnoreCase);
@@ -908,19 +902,6 @@ namespace PSWordCloud
             return result;
         }
 
-        /// <summary>
-        /// Scales all word size values in the <paramref name="wordList"/> to the
-        /// <paramref name="baseFontScale"/> values.
-        /// </summary>
-        /// <param name="wordList">The input dictionary of relative word sizes to be scaled.</param>
-        /// <param name="maxWordWidth">The maximum limit on width for a given word.</param>
-        /// <param name="imageArea"></param>
-        /// <param name="baseFontScale"></param>
-        /// <remarks>
-        /// If any of the words in the <paramref name="wordList"/> exceed the <paramref name="maxWordWidth"/>
-        /// when scaled, the font scale for the whole set will be reduced so that all words remain within the limit.
-        /// </remarks>
-        /// <returns>A <see cref="Dictionary{string, float}"/> containing the scaled words and their sizes.</returns>
         private IReadOnlyList<Word> ScaleWordSizes(
             IReadOnlyList<Word> wordList,
             float maxWordWidth,
@@ -1062,10 +1043,6 @@ namespace PSWordCloud
             WriteProgress(pointProgress);
         }
 
-        /// <summary>
-        /// Gets the next available color from the current set.
-        /// If the set's end is reached, it will loop back to the beginning of the set again.
-        /// </summary>
         private SKColor GetNextColor()
         {
             if (_colorSetIndex >= ColorSet.Length)
@@ -1076,11 +1053,6 @@ namespace PSWordCloud
             return ColorSet[_colorSetIndex++];
         }
 
-        /// <summary>
-        /// Gets the next available <see cref="SKColor"/> that is sufficiently visually distinct from the
-        /// <paramref name="reference"/> color.
-        /// </summary>
-        /// <param name="reference">A color that should contrast with the returned color.</param>
         private SKColor GetContrastingColor(SKColor reference)
         {
             SKColor result;
@@ -1095,12 +1067,6 @@ namespace PSWordCloud
             return result;
         }
 
-        /// <summary>
-        /// Save the written SVG data to the provided PSProvider path.
-        /// Since SkiaSharp does not write a viewbox attribute into the SVG, this method handles that as well.
-        /// </summary>
-        /// <param name="outputStream">The memory stream containing the SVG data.</param>
-        /// <param name="viewbox">The visible area of the image.</param>
         private void SaveSvgData(Image image, string savePath)
         {
             string[] path = new[] { savePath };
@@ -1133,11 +1099,6 @@ namespace PSWordCloud
             writer.Close();
         }
 
-        /// <summary>
-        /// Process a given <paramref name="input"/> and convert it to a string (or multiple strings, if there are more
-        /// than one).
-        /// </summary>
-        /// <param name="input">One or more input objects.</param>
         private IReadOnlyList<string> CreateStringList(PSObject input)
             => input.BaseObject switch
             {
@@ -1193,15 +1154,6 @@ namespace PSWordCloud
             return strings;
         }
 
-        /// <summary>
-        /// Calculates the radius increment to use when scanning for available space to draw.
-        /// </summary>
-        /// <param name="wordSize">The size of the word currently being drawn.</param>
-        /// <param name="distanceStep">The base distance step value.</param>
-        /// <param name="maxRadius">The maximum radial distance to scan from the center.</param>
-        /// <param name="padding">The padding amount to take into account.</param>
-        /// <returns>A <see cref="float"/> value indicating how far to step along the radius before scanning in a circle
-        /// at that radius once again for available space.</returns>
         private static float GetRadiusIncrement(
             float wordSize,
             float distanceStep,
@@ -1217,15 +1169,6 @@ namespace PSWordCloud
             return radiusIncrement;
         }
 
-        /// <summary>
-        /// Gets a set of points around the perimeter of an oval defined by a given <paramref name="radius"/> and
-        /// <paramref name="aspectRatio"/>.
-        /// </summary>
-        /// <param name="centre">The centre point of the image.</param>
-        /// <param name="radius">The current radius we're scanning at.</param>
-        /// <param name="radialStep">The current radial stepping value.</param>
-        /// <param name="aspectRatio">The aspect ratio of the canvas, used to stretch the circular scan into n ovoid.</param>
-        /// <returns>A <see cref="List{SKPoint}"/> containing possible draw locations.</returns>
         private static IReadOnlyList<SKPoint> GetOvalPoints(float radius, float radialStep, Image image)
         {
             var result = new List<SKPoint>();
@@ -1360,11 +1303,6 @@ namespace PSWordCloud
             waitHandle.Set();
         }
 
-        /// <summary>
-        /// Asynchronous method used to quickly process large amounts of text input into words.
-        /// </summary>
-        /// <param name="line">The text to split and process.</param>
-        /// <returns>An enumerable string collection of all words in the input, with stopwords stripped out.</returns>
         private void ProcessInput(
             IReadOnlyList<string> lines,
             IReadOnlyList<string>? includeWords = null,
@@ -1397,13 +1335,6 @@ namespace PSWordCloud
             return wordList;
         }
 
-        /// <summary>
-        /// Determines whether a given word is usable for the word cloud, taking into account stopwords and
-        /// user selected include or exclude word lists.
-        /// </summary>
-        /// <param name="word">The word in question.</param>
-        /// <param name="includeWords">A reference list of desired words, overridingthe stopwords or exclude list.</param>
-        /// <param name="excludeWords">A reference list of undesired words, effectively impromptu stopwords.</param>
         private static bool KeepWord(
             string word,
             IReadOnlyList<string>? includeWords,
