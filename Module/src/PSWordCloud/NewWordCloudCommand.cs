@@ -514,12 +514,12 @@ namespace PSWordCloud
             return GetWordListFromDictionary(wordScaleDictionary, maxWords);
         }
 
-        private void AddFocusWord(string focusWord, IEnumerable<Word> words)
+        private IEnumerable<Word> AddFocusWord(string focusWord, IEnumerable<Word> words)
         {
             WriteDebug($"Adding focus word '{focusWord}' to the list.");
 
             float largestWordSize = words.Max(w => w.RelativeSize);
-            words.Prepend(new Word(focusWord, largestWordSize * Constants.FocusWordScale, isFocusWord: true));
+            return words.Prepend(new Word(focusWord, largestWordSize * Constants.FocusWordScale, isFocusWord: true));
         }
 
         IReadOnlyList<Word> GetWordListFromDictionary(IReadOnlyDictionary<string, float> dictionary, int maxWords)
@@ -530,7 +530,7 @@ namespace PSWordCloud
 
             if (MyInvocation.BoundParameters.ContainsKey(nameof(FocusWord)))
             {
-                AddFocusWord(FocusWord!, sortedWords);
+                sortedWords = AddFocusWord(FocusWord!, sortedWords);
             }
 
             if (maxWords > 0)
