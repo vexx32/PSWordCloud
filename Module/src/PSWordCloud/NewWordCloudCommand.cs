@@ -844,16 +844,6 @@ namespace PSWordCloud
 
         #region HelperMethods
 
-        /// <summary>
-        /// Draws the specified <paramref name="wordPath"/> with the specified properties, along with
-        /// (optionally) a bubble path on the canvas. The word or bubble path is then subtracted from the
-        /// <paramref name="occupiedSpace"/> region so later word placements do not overlap.
-        /// </summary>
-        /// <param name="wordPath">The path that defines the word being drawn.</param>
-        /// <param name="strokeWidth">The width of stroke to add to the word. if this value is -1, no stroke will be drawn.</param>
-        /// <param name="bubblePath">The path defining the bubble surrounding the word.</param>
-        /// <param name="canvas">The canvas upon which to draw the word.</param>
-        /// <param name="occupiedSpace">The region describing already-occupied space in the image.</param>
         private void DrawWordInPlace(SKPath wordPath, float strokeWidth, SKPath? bubblePath, Image image)
         {
             using var brush = new SKPaint();
@@ -961,20 +951,6 @@ namespace PSWordCloud
             return wordList;
         }
 
-        /// <summary>
-        /// Scans the image space to find an available draw location for the <paramref name="word"/>, taking into
-        /// account the already-drawn words using <paramref name="occupiedSpace"/> and avoiding collision.
-        /// </summary>
-        /// <param name="word">The word being drawn.</param>
-        /// <param name="wordSize">The size of the current word.</param>
-        /// <param name="typeface">The typeface used to render the word path.</param>
-        /// <param name="isFocusWord">Whether the word currently being drawn is the designated focus word.</param>
-        /// <param name="viewbox">The image bounds.</param>
-        /// <param name="clipRegion">The region within which all words must be contained.</param>
-        /// <param name="occupiedSpace">The region containing the sum of all paths drawn into it.</param>
-        /// <param name="wordPath">The resulting word path, or null if none can be found.</param>
-        /// <param name="bubblePath">The resulting bubble path, or null if none can be found </param>
-        /// <returns>The point at which a word can be drawn, or null if no appropriate point is found.</returns>
         private bool FindDrawLocation(
             Word word,
             SKTypeface typeface,

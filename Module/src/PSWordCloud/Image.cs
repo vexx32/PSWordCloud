@@ -85,6 +85,23 @@ namespace PSWordCloud
             }
         }
 
+        private void FinalizeImage()
+        {
+            // Canvas has to be flushed & disposed for it to write the final </svg> tag to the memory stream.
+            Canvas.Flush();
+            Canvas.Dispose();
+            _memoryStream.Flush();
+        }
+
+        /// <summary>
+        /// Finalizes the image, disposing of the <see cref="Canvas"/>, and writes the resulting data from a memory
+        /// stream to an <see cref="XmlDocument"/>.
+        /// </summary>
+        /// <remarks>
+        /// As part of this method, the XML is examined to ensure it contains a `viewbox` attribute.
+        /// If not, that will be added to the XML before it is returned.
+        /// </remarks>
+        /// <returns>The <see cref="XmlDocument"/> containing the written SVG data.</returns>
         internal XmlDocument GetFinalXml()
         {
             FinalizeImage();

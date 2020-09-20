@@ -180,13 +180,12 @@ namespace PSWordCloud
 
         /// <summary>
         /// Checks whether the given word bounds rectangle and the bubble surrounding it will fit in the desired
-        /// location without bleeding over the <paramref name="clipRegion"/> or intersecting already-drawn words
-        /// or their bubbles (which are recorded in the <paramref name="occupiedSpace"/> region).
+        /// location without bleeding over the clipping region or intersecting already-drawn words
+        /// or their bubbles (which are recorded in the occupied space region) defined in the <paramref name="image"/>.
         /// </summary>
         /// <param name="wordBounds">The rectangular bounds of the word to attempt to fit.</param>
         /// <param name="bubbleShape">The shape of the word bubble we'll need to draw.</param>
-        /// <param name="clipRegion">The region that defines the allowable draw area.</param>
-        /// <param name="occupiedSpace">The region that defines the space in the image that's already occupied.</param>
+        /// <param name="image">The <see cref="Image"/> that defines the occupied space and clipping regions.</param>
         /// <returns>Returns true if the word and its surrounding bubble have sufficient space to be drawn.</returns>
         internal static bool WordWillFit(
             SKRect wordBounds,
