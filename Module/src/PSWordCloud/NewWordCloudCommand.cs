@@ -1155,6 +1155,11 @@ namespace PSWordCloud
                 return GetStringsFromEnumerable(enumerable);
             }
 
+            return GetStringOrEmptyList(baseObject);
+        }
+
+        private IReadOnlyList<string> GetStringOrEmptyList(object baseObject)
+        {
             try
             {
                 return new[] { baseObject.ConvertTo<string>() };
