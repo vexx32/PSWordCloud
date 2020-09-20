@@ -616,11 +616,8 @@ namespace PSWordCloud
             SKPath? wordPath = null, bubblePath = null;
             try
             {
-                SKPoint targetPoint = FindDrawLocation(word, Typeface, image, out wordPath, out bubblePath);
-
-                if (targetPoint != SKPoint.Empty)
+                if (FindDrawLocation(word, Typeface, image, out wordPath, out bubblePath))
                 {
-                    WriteDebug($"Drawing '{word}' at [{targetPoint.X}, {targetPoint.Y}].");
                     DrawWordInPlace(wordPath, strokeWidth, bubblePath, image);
                 }
                 else
@@ -950,13 +947,14 @@ namespace PSWordCloud
         /// <param name="wordPath">The resulting word path, or null if none can be found.</param>
         /// <param name="bubblePath">The resulting bubble path, or null if none can be found </param>
         /// <returns>The point at which a word can be drawn, or null if no appropriate point is found.</returns>
-        private SKPoint FindDrawLocation(
+        private bool FindDrawLocation(
             Word word,
             SKTypeface typeface,
             Image image,
             out SKPath wordPath,
             out SKPath? bubblePath)
         {
+            WriteDebug($"Searching for an available point to draw '{word.Text}'");
             IReadOnlyList<float> availableAngles = word.IsFocusWord
                 ? new[] { FocusWordAngle }
                 : WCUtils.GetDrawAngles(AllowRotation, SafeRandom);
@@ -981,34 +979,32 @@ namespace PSWordCloud
                         image.MaxDrawRadius,
                         wordPadding))
                 {
-                    SKPoint result = FindDrawPointAtRadius(
+                    if (FindDrawPointAtRadius(
+                        image,
                         radius,
                         drawAngle,
                         wordPadding,
                         wordPath,
-                        image,
-                        out bubblePath);
-
-                    if (result != SKPoint.Empty)
+                        out bubblePath))
                     {
-                        return result;
+                        return true;
                     }
                 }
 
                 wordPath.Rotate(-drawAngle);
             }
 
-            return SKPoint.Empty;
+            return false;
         }
 
         private void ThrowIfPipelineStopping() => _cancel.Token.ThrowIfCancellationRequested();
 
-        private SKPoint FindDrawPointAtRadius(
+        private bool FindDrawPointAtRadius(
+            Image image,
             float radius,
             float drawAngle,
             float inflationValue,
             SKPath wordPath,
-            Image image,
             out SKPath? bubblePath)
         {
             IReadOnlyList<SKPoint> radialPoints = GetOvalPoints(radius, RadialStep, image);
@@ -1034,11 +1030,12 @@ namespace PSWordCloud
 
                 if (WCUtils.WordWillFit(wordBounds, WordBubble, image, out bubblePath))
                 {
-                    return wordBounds.Location;
+                    WriteDebug($"Found usable draw point at [{point.X}, {point.Y}]");
+                    return true;
                 }
             }
 
-            return SKPoint.Empty;
+            return false;
         }
 
         private void WritePointProgress(SKPoint point, float drawAngle, float radius, int pointsChecked, int totalPoints)
