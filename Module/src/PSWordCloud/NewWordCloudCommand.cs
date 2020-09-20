@@ -485,7 +485,7 @@ namespace PSWordCloud
                 return;
             }
 
-            DrawWordCloud();
+            CreateWordCloud();
         }
 
         private IReadOnlyList<Word> GetRelativeWordSizes(string parameterSet)
@@ -762,7 +762,7 @@ namespace PSWordCloud
                 WordScale);
         }
 
-        private void DrawWordCloud()
+        private void CreateWordCloud()
         {
             SKRect viewbox = GetImageViewbox(BackgroundImage, out SKBitmap? backgroundBitmap);
             if (backgroundBitmap is not null)
@@ -802,16 +802,16 @@ namespace PSWordCloud
 
         private void WriteProgressCompleted()
         {
-                WriteProgress(new ProgressRecord(_progressId, "Completed", "Completed")
-                {
-                    RecordType = ProgressRecordType.Completed
-                });
+            WriteProgress(new ProgressRecord(_progressId, "Completed", "Completed")
+            {
+                RecordType = ProgressRecordType.Completed
+            });
 
-                WriteProgress(new ProgressRecord(_progressId + 1, "Completed", "Completed")
-                {
-                    RecordType = ProgressRecordType.Completed
-                });
-            }
+            WriteProgress(new ProgressRecord(_progressId + 1, "Completed", "Completed")
+            {
+                RecordType = ProgressRecordType.Completed
+            });
+        }
 
         /// <summary>
         /// StopProcessing implementation for New-WordCloud.
