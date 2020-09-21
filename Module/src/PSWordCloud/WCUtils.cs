@@ -237,6 +237,18 @@ namespace PSWordCloud
         }
 
         /// <summary>
+        /// Dispose all objects in the given <paramref name="disposableList"/>.
+        /// </summary>
+        /// <param name="disposableList">A list of <see cref="IDisposable"/> objects to dispose.</param>
+        internal static void DisposeAll(IReadOnlyList<IDisposable> disposableList)
+        {
+            foreach (IDisposable item in disposableList)
+            {
+                item.Dispose();
+            }
+        }
+
+        /// <summary>
         /// A list of standard color names supported for tab completion.
         /// </summary>
         internal static IEnumerable<string> ColorNames { get => ColorLibrary.Keys; }

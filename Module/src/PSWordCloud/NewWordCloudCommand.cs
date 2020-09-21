@@ -1244,7 +1244,7 @@ namespace PSWordCloud
             }
             finally
             {
-                Array.ForEach(waitHandles, handle => handle.Dispose());
+                WCUtils.DisposeAll(_waitHandles);
             }
 
             WriteDebug("Word processing tasks complete.");
