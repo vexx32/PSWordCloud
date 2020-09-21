@@ -867,20 +867,31 @@ namespace PSWordCloud
                     continue;
                 }
 
-                try
+                if (TryConvertWordScale(word, WordSizes[word]!, out string wordString, out float wordScale))
                 {
-                    result.Add(
-                        word.ConvertTo<string>(),
-                        WordSizes[word]!.ConvertTo<float>());
-                }
-                catch (Exception e)
-                {
-                    WriteWarning($"Skipping entry '{word}' due to error converting key or value: {e.Message}.");
-                    WriteDebug($"Entry type: key - {word.GetType().FullName} ; value - {WordSizes[word]!.GetType().FullName}");
+                    result[wordString] = wordScale;
                 }
             }
 
             return result;
+        }
+
+        private bool TryConvertWordScale(object word, object scale, out string wordString, out float wordScale)
+        {
+            wordString = string.Empty;
+            wordScale = 0;
+            try
+            {
+                wordString = word.ConvertTo<string>();
+                wordScale = scale.ConvertTo<float>();
+                return true;
+            }
+            catch (Exception e)
+            {
+                WriteWarning($"Skipping entry '{word}' due to error converting key or value: {e.Message}.");
+                WriteDebug($"Entry type: key - {word.GetType().FullName} ; value - {scale.GetType().FullName}");
+                return false;
+            }
         }
 
         private IReadOnlyList<Word> ScaleWordSizes(
