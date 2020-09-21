@@ -1,9 +1,9 @@
-using System.Collections.Generic;
-using System.Globalization;
+using System;
+using SkiaSharp;
 
 namespace PSWordCloud
 {
-    internal class Word
+    internal class Word : IDisposable
     {
         internal Word(string text, float relativeSize)
             : this(text, relativeSize, isFocusWord: false)
@@ -25,6 +25,31 @@ namespace PSWordCloud
 
         internal bool IsFocusWord { get; private set; } = false;
 
+        internal SKPath Path {
+            get => _path ??= new SKPath();
+            set
+            {
+                if (_path is not null)
+                {
+                    _path.Dispose();
+                }
+
+                _path = value;
+            }
+        }
+
+        internal SKPath? Bubble { get; set; } = null;
+
+        internal SKRect Bounds {
+            get => _bounds ?? Bubble?.TightBounds ?? Path.TightBounds;
+            set => _bounds = value;
+        }
+
+        internal float Padding { get; set; } = 0;
+
+        private SKRect? _bounds = null;
+        private SKPath? _path = null;
+
         /// <summary>
         /// Scale the <see cref="Word"/> by the global scale value and determine its final size.
         /// </summary>
@@ -39,5 +64,11 @@ namespace PSWordCloud
         }
 
         public override string ToString() => Text;
+
+        public void Dispose()
+        {
+            _path?.Dispose();
+            Bubble?.Dispose();
+        }
     }
 }

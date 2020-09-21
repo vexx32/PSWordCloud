@@ -592,33 +592,39 @@ namespace PSWordCloud
         {
             WriteVerbose("Drawing words on canvas.");
 
-            int totalWords = wordList.Count;
-            float strokeWidth = MyInvocation.BoundParameters.ContainsKey(nameof(StrokeWidth))
-                ? StrokeWidth
-                : -1;
-
-            for (int index = 0; index < wordList.Count; index++)
+            try
             {
-                Word currentWord = wordList[index];
-                WriteDebug($"Scanning for draw location for '{wordList[index]}'.");
-                WriteDrawingProgressMessage(
-                    wordNumber: index,
-                    totalWords,
-                    currentWord.Text,
-                    currentWord.ScaledSize);
+                int totalWords = wordList.Count;
+                float strokeWidth = MyInvocation.BoundParameters.ContainsKey(nameof(StrokeWidth))
+                    ? StrokeWidth
+                    : -1;
 
-                DrawWord(currentWord, strokeWidth, image);
+                for (int index = 0; index < wordList.Count; index++)
+                {
+                    Word currentWord = wordList[index];
+                    WriteDebug($"Scanning for draw location for '{wordList[index]}'.");
+                    WriteDrawingProgressMessage(
+                        wordNumber: index,
+                        totalWords,
+                        currentWord.Text,
+                        currentWord.ScaledSize);
+
+                    DrawWord(currentWord, strokeWidth, image);
+                }
+            }
+            finally
+            {
+                WCUtils.DisposeAll(wordList);
             }
         }
 
         private void DrawWord(Word word, float strokeWidth, Image image)
         {
-            SKPath? wordPath = null, bubblePath = null;
             try
             {
-                if (FindDrawLocation(word, Typeface, image, out wordPath, out bubblePath))
+                if (FindDrawLocation(word, Typeface, image))
                 {
-                    DrawWordInPlace(wordPath, strokeWidth, bubblePath, image);
+                    DrawWordInPlace(word, strokeWidth, image);
                 }
                 else
                 {
@@ -630,11 +636,6 @@ namespace PSWordCloud
                 // If we receive OperationCancelledException, StopProcessing() has been called,
                 // so the pipeline is terminating.
                 throw new PipelineStoppedException();
-            }
-            finally
-            {
-                wordPath?.Dispose();
-                bubblePath?.Dispose();
             }
         }
 
@@ -673,9 +674,9 @@ namespace PSWordCloud
             return (totalFrequency / wordList.Count, totalLength / wordList.Count);
         }
 
-        private float GetPaddingValue(Word word, SKPath wordPath)
+        private float GetPaddingValue(Word word)
         {
-            float padding = wordPath.TightBounds.Height * PaddingMultiplier / word.ScaledSize;
+            float padding = word.Path.TightBounds.Height * PaddingMultiplier / word.ScaledSize;
             return padding;
         }
 
@@ -687,11 +688,11 @@ namespace PSWordCloud
             float largestWordSize = largestWord.Scale(fontScale);
 
             using SKPaint brush = WCUtils.GetBrush(largestWordSize, StrokeWidth * Constants.StrokeBaseScale, Typeface);
-            using SKPath wordPath = brush.GetTextPath(largestWord.Text, x: 0, y: 0);
+            largestWord.Path = brush.GetTextPath(largestWord.Text, x: 0, y: 0);
 
-            float padding = GetPaddingValue(largestWord, wordPath);
+            float padding = GetPaddingValue(largestWord);
             float effectiveWidth = Math.Max(Constants.MinEffectiveWordWidth, largestWord.Text.Length);
-            float adjustedWidth = wordPath.Bounds.Width * (effectiveWidth / largestWord.Text.Length) + padding;
+            float adjustedWidth = largestWord.Path.Bounds.Width * (effectiveWidth / largestWord.Text.Length) + padding;
             if (adjustedWidth > maxWordWidth)
             {
                 return ConstrainScaleByWordWidth(
@@ -825,14 +826,14 @@ namespace PSWordCloud
 
         #region HelperMethods
 
-        private void DrawWordInPlace(SKPath wordPath, float strokeWidth, SKPath? bubblePath, Image image)
+        private void DrawWordInPlace(Word word, float strokeWidth, Image image)
         {
             using var brush = new SKPaint();
             SKColor wordColor;
             SKColor bubbleColor;
 
-            wordPath.FillType = SKPathFillType.Winding;
-            if (bubblePath == null)
+            word.Path.FillType = SKPathFillType.Winding;
+            if (word.Bubble is null)
             {
                 wordColor = GetContrastingColor(BackgroundColor);
             }
@@ -842,16 +843,16 @@ namespace PSWordCloud
                 wordColor = GetContrastingColor(bubbleColor);
 
                 brush.SetFill(bubbleColor);
-                image.DrawPath(bubblePath, brush);
+                image.DrawPath(word.Bubble, brush);
             }
 
             brush.SetFill(wordColor);
-            image.DrawPath(wordPath, brush);
+            image.DrawPath(word.Path, brush);
 
             if (strokeWidth > -1)
             {
                 brush.SetStroke(StrokeColor, strokeWidth);
-                image.DrawPath(wordPath, brush);
+                image.DrawPath(word.Path, brush);
             }
         }
 
@@ -904,10 +905,10 @@ namespace PSWordCloud
             for (int index = 0; index < wordList.Count; index++)
             {
                 brush.TextSize = wordList[index].Scale(baseFontScale * userFontScale);
-                using SKPath textPath = brush.GetTextPath(wordList[index].Text, x: 0, y: 0);
-                SKRect textRect = textPath.Bounds;
+                wordList[index].Path = brush.GetTextPath(wordList[index].Text, x: 0, y: 0);
+                SKRect textRect = wordList[index].Bounds;
 
-                float paddedWidth = textRect.Width + GetPaddingValue(wordList[index], textPath);
+                float paddedWidth = textRect.Width + GetPaddingValue(wordList[index]);
                 if (!AllowOverflow.IsPresent && paddedWidth > maxWordWidth)
                 {
                     return ScaleWordSizes(
@@ -921,51 +922,33 @@ namespace PSWordCloud
             return wordList;
         }
 
-        private bool FindDrawLocation(
-            Word word,
-            SKTypeface typeface,
-            Image image,
-            out SKPath wordPath,
-            out SKPath? bubblePath)
+        private bool FindDrawLocation(Word word, SKTypeface typeface, Image image)
         {
             WriteDebug($"Searching for an available point to draw '{word.Text}'");
             IReadOnlyList<float> availableAngles = word.IsFocusWord
                 ? new[] { FocusWordAngle }
                 : WCUtils.GetDrawAngles(AllowRotation, SafeRandom);
 
-            bubblePath = null;
-
             using SKPaint brush = WCUtils.GetBrush(word.ScaledSize, StrokeWidth * Constants.StrokeBaseScale, typeface);
-            wordPath = brush.GetTextPath(word.Text, 0, 0);
-
-            float wordPadding = GetPaddingValue(word, wordPath);
+            word.Path = brush.GetTextPath(word.Text, 0, 0);
+            word.Padding = GetPaddingValue(word);
 
             foreach (float drawAngle in availableAngles)
             {
-                wordPath.Rotate(drawAngle);
+                word.Path.Rotate(drawAngle);
 
                 for (
-                    float radius = SafeRandom.RandomFloat() / 25 * wordPath.TightBounds.Height;
+                    float radius = SafeRandom.RandomFloat() / 25 * word.Path.TightBounds.Height;
                     radius <= image.MaxDrawRadius;
-                    radius += GetRadiusIncrement(
-                        word.ScaledSize,
-                        DistanceStep,
-                        image.MaxDrawRadius,
-                        wordPadding))
+                    radius += GetRadiusIncrement(word, DistanceStep, image.MaxDrawRadius))
                 {
-                    if (FindDrawPointAtRadius(
-                        image,
-                        radius,
-                        drawAngle,
-                        wordPadding,
-                        wordPath,
-                        out bubblePath))
+                    if (FindDrawPointAtRadius(word, image, radius, drawAngle))
                     {
                         return true;
                     }
                 }
 
-                wordPath.Rotate(-drawAngle);
+                word.Path.Rotate(-drawAngle);
             }
 
             return false;
@@ -973,18 +956,11 @@ namespace PSWordCloud
 
         private void ThrowIfPipelineStopping() => _cancel.Token.ThrowIfCancellationRequested();
 
-        private bool FindDrawPointAtRadius(
-            Image image,
-            float radius,
-            float drawAngle,
-            float inflationValue,
-            SKPath wordPath,
-            out SKPath? bubblePath)
+        private bool FindDrawPointAtRadius(Word word, Image image, float radius, float drawAngle)
         {
             IReadOnlyList<SKPoint> radialPoints = GetOvalPoints(radius, RadialStep, image);
             int totalPoints = radialPoints.Count;
             int pointsChecked = 0;
-            bubblePath = null;
 
             foreach (SKPoint point in radialPoints)
             {
@@ -999,10 +975,7 @@ namespace PSWordCloud
 
                 WritePointProgress(point, drawAngle, radius, pointsChecked, totalPoints);
 
-                wordPath.CentreOnPoint(point);
-                SKRect wordBounds = SKRect.Inflate(wordPath.TightBounds, inflationValue, inflationValue);
-
-                if (WCUtils.WordWillFit(wordBounds, WordBubble, image, out bubblePath))
+                if (CanDrawWordUnobstructed(word, point, image))
                 {
                     WriteDebug($"Found usable draw point at [{point.X}, {point.Y}]");
                     return true;
@@ -1010,6 +983,14 @@ namespace PSWordCloud
             }
 
             return false;
+        }
+
+        private bool CanDrawWordUnobstructed(Word word, SKPoint point, Image image)
+        {
+            word.Path!.CentreOnPoint(point);
+            word.Bounds = SKRect.Inflate(word.Path!.TightBounds, word.Padding, word.Padding);
+
+            return WCUtils.WordWillFit(word, WordBubble, image);
         }
 
         private void WritePointProgress(SKPoint point, float drawAngle, float radius, int pointsChecked, int totalPoints)
@@ -1146,13 +1127,9 @@ namespace PSWordCloud
             return strings;
         }
 
-        private static float GetRadiusIncrement(
-            float wordSize,
-            float distanceStep,
-            float maxRadius,
-            float padding)
+        private static float GetRadiusIncrement(Word word, float distanceStep, float maxRadius)
         {
-            var wordScaleFactor = (1 + padding) * wordSize / 360;
+            var wordScaleFactor = (1 + word.Padding) * word.ScaledSize / 360;
             var stepScale = distanceStep / 15;
             var minRadiusIncrement = maxRadius / 1000;
 

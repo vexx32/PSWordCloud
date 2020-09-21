@@ -197,14 +197,10 @@ namespace PSWordCloud
         private static bool WordWillFit(SKRect wordBounds, SKRegion occupiedSpace)
             => !occupiedSpace.IntersectsRect(wordBounds);
 
-        private static bool WordBubbleWillFit(
-            WordBubbleShape shape,
-            SKRect wordBounds,
-            Image image,
-            out SKPath bubblePath)
+        private static bool WordBubbleWillFit(Word word, WordBubbleShape shape, Image image)
         {
-            bubblePath = GetWordBubblePath(shape, wordBounds);
-            return !image.OccupiedSpace.IntersectsPath(bubblePath);
+            word.Bubble = GetWordBubblePath(shape, word.Bounds);
+            return !image.OccupiedSpace.IntersectsPath(word.Bubble);
         }
 
         /// <summary>
@@ -216,24 +212,19 @@ namespace PSWordCloud
         /// <param name="bubbleShape">The shape of the word bubble we'll need to draw.</param>
         /// <param name="image">The <see cref="Image"/> that defines the occupied space and clipping regions.</param>
         /// <returns>Returns true if the word and its surrounding bubble have sufficient space to be drawn.</returns>
-        internal static bool WordWillFit(
-            SKRect wordBounds,
-            WordBubbleShape bubbleShape,
-            Image image,
-            out SKPath? bubblePath)
+        internal static bool WordWillFit(Word word, WordBubbleShape bubbleShape, Image image)
         {
-            bubblePath = null;
-            if (wordBounds.FallsOutside(image.ClippingRegion))
+            if (word.Bounds.FallsOutside(image.ClippingRegion))
             {
                 return false;
             }
 
             if (bubbleShape == WordBubbleShape.None)
             {
-                return WordWillFit(wordBounds, image.OccupiedSpace);
+                return WordWillFit(word.Bounds, image.OccupiedSpace);
             }
 
-            return WordBubbleWillFit(bubbleShape, wordBounds, image, out bubblePath);
+            return WordBubbleWillFit(word, bubbleShape, image);
         }
 
         /// <summary>
