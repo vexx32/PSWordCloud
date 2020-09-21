@@ -1084,7 +1084,7 @@ namespace PSWordCloud
         {
             IEnumerable enumerable = LanguagePrimitives.GetEnumerable(baseObject);
 
-            if (enumerable != null)
+            if (enumerable is not null)
             {
                 return GetStringsFromEnumerable(enumerable);
             }
