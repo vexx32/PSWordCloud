@@ -188,6 +188,11 @@ namespace PSWordCloud
             return path;
         }
 
+        /// <summary>
+        /// Returns true if the given angle is more aligned with vertical than horizontal.
+        /// </summary>
+        /// <param name="degrees">The angle to check.</param>
+        /// <returns>True if the angle is between 45 and 135 (exclusive), false otherwise.</returns>
         internal static bool AngleIsMostlyVertical(float degrees)
         {
             float remainder = Math.Abs(degrees % 180);
@@ -254,8 +259,7 @@ namespace PSWordCloud
         /// </summary>
         /// <param name="colorName"></param>
         /// <returns></returns>
-        internal static SKColor GetColorByName(string colorName)
-            => ColorLibrary[colorName];
+        internal static SKColor GetColorByName(string colorName) => ColorLibrary[colorName];
 
         internal static SKFontManager FontManager = SKFontManager.Default;
 
@@ -275,12 +279,12 @@ namespace PSWordCloud
                 {"Poster24x36", ("2304x3456",                   new SKSizeI(2304, 3456))},
             });
 
-        internal static readonly char[] SplitChars= new[] {
+        internal static readonly char[] SplitChars = new[] {
             ' ','\n','\t','\r','.',',',';','\\','/','|',
             ':','"','?','!','{','}','[',']',':','(',')',
             '<','>','“','”','*','#','%','^','&','+','=' };
 
-        internal static string[] StopWords= new[] {
+        internal static string[] StopWords = new[] {
             "a","about","above","after","again","against","all","am","an","and","any","are","aren't","as","at","be",
             "because","been","before","being","below","between","both","but","by","can't","cannot","could","couldn't",
             "did","didn't","do","does","doesn't","doing","don't","down","during","each","few","for","from","further",
