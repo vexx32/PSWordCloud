@@ -1329,29 +1329,32 @@ namespace PSWordCloud
                 return result;
             }
 
-            float angleIncrement = radialStep * Constants.BaseAngularIncrement / (15 * (float)Math.Sqrt(radius));
+            float angleIncrement = GetAngleIncrement(radius, radialStep);
 
-            float angle = SafeRandom.PickRandomQuadrant();
+            float startingAngle = SafeRandom.PickRandomQuadrant();
             bool clockwise = SafeRandom.RandomFloat() > 0.5;
 
             float maxAngle;
             if (clockwise)
             {
-                maxAngle = angle + 360;
+                maxAngle = startingAngle + 360;
             }
             else
             {
-                maxAngle = angle - 360;
+                maxAngle = startingAngle - 360;
                 angleIncrement *= -1;
             }
 
             return GenerateOvalPoints(
                 radius,
-                angle,
+                startingAngle,
                 angleIncrement,
                 maxAngle,
                 image);
         }
+
+        private static float GetAngleIncrement(float radius, float radialStep)
+            => radialStep * Constants.BaseAngularIncrement / (15 * (float)Math.Sqrt(radius));
 
         private static IReadOnlyList<SKPoint> GenerateOvalPoints(
             float radius,
