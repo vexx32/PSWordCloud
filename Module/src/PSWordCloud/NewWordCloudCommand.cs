@@ -1075,8 +1075,8 @@ namespace PSWordCloud
 
         private bool CanDrawWordUnobstructed(Word word, SKPoint point, Image image)
         {
-            word.Path!.CentreOnPoint(point);
-            word.Bounds = SKRect.Inflate(word.Path!.TightBounds, word.Padding, word.Padding);
+            word.Path.CentreOnPoint(point);
+            word.Bounds = SKRect.Inflate(word.Path.TightBounds, word.Padding, word.Padding);
 
             return WCUtils.WordWillFit(word, WordBubble, image);
         }
