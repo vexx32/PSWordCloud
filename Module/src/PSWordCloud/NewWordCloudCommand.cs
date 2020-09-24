@@ -772,20 +772,9 @@ namespace PSWordCloud
         {
             WriteDebug("Waiting for any remaining queued word processing work items to finish.");
 
-            var waitHandles = new WaitHandle[] { default!, _cancel.Token.WaitHandle };
             try
             {
-                for (int index = 0; index < _waitHandles.Count; index++)
-                {
-                    waitHandles[0] = _waitHandles[index];
-                    int waitHandleIndex = WaitHandle.WaitAny(waitHandles);
-                    if (waitHandleIndex == 1)
-                    {
-                        // If we receive a signal from the cancellation token, throw PipelineStoppedException() to
-                        // terminate the pipeline, as StopProcessing() has been called.
-                        throw new PipelineStoppedException();
-                    }
-                }
+                CancellableWaitAll(_waitHandles);
             }
             finally
             {
@@ -793,6 +782,22 @@ namespace PSWordCloud
             }
 
             WriteDebug("Word processing tasks complete.");
+        }
+
+        private void CancellableWaitAll(IReadOnlyList<WaitHandle> handles)
+        {
+            var waitOrCancel = new WaitHandle[] { default!, _cancel.Token.WaitHandle };
+            for (int index = 0; index < handles.Count; index++)
+            {
+                waitOrCancel[0] = handles[index];
+                int waitHandleIndex = WaitHandle.WaitAny(waitOrCancel);
+                if (waitHandleIndex == 1)
+                {
+                    // If we receive a signal from the cancellation token, throw PipelineStoppedException() to
+                    // terminate the pipeline, as StopProcessing() has been called.
+                    throw new PipelineStoppedException();
+                }
+            }
         }
 
         private static Dictionary<string, float> CountWords(IEnumerable<string> wordList)
