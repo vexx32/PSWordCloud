@@ -421,8 +421,6 @@ namespace PSWordCloud
 
         /// <summary>
         /// Implements the <see cref="ProcessRecord"/> method for <see cref="NewWordCloudCommand"/>.
-        /// Spins up a <see cref="Task{IEnumerable{string}}"/> for each input text string to split them all
-        /// asynchronously.
         /// </summary>
         protected override void ProcessRecord()
         {
