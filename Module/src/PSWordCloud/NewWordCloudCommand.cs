@@ -658,12 +658,8 @@ namespace PSWordCloud
                 return false;
             }
 
-            if (Regex.Replace(word, "[^a-zA-Z-]", string.Empty).Length < 2)
-            {
-                return false;
-            }
-
-            return true;
+            string onlyLetters = Regex.Replace(word, "[^a-zA-Z-]", string.Empty);
+            return onlyLetters.Length >= 2;
         }
 
         #endregion
