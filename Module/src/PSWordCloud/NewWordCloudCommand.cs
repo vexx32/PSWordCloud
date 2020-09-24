@@ -1043,11 +1043,14 @@ namespace PSWordCloud
 
         private bool FindDrawPointAtRadius(Word word, Image image, float radius, float drawAngle)
         {
-            IReadOnlyList<SKPoint> radialPoints = GetOvalPoints(radius, RadialStep, image);
-            int totalPoints = radialPoints.Count;
+            var ellipse = MyInvocation.BoundParameters.ContainsKey(nameof(RandomSeed))
+                ? new Ellipse(radius, RadialStep, image, RandomSeed)
+                : new Ellipse(radius, RadialStep, image);
+
+            int totalPoints = ellipse.Points.Count;
             int pointsChecked = 0;
 
-            foreach (SKPoint point in radialPoints)
+            foreach (SKPoint point in ellipse.Points)
             {
                 ThrowIfPipelineStopping();
 
@@ -1318,71 +1321,6 @@ namespace PSWordCloud
             var radiusIncrement = minRadiusIncrement * stepScale + wordScaleFactor;
 
             return radiusIncrement;
-        }
-
-        private static IReadOnlyList<SKPoint> GetOvalPoints(float radius, float radialStep, Image image)
-        {
-            var result = new List<SKPoint>();
-            if (radius == 0)
-            {
-                result.Add(image.Centre);
-                return result;
-            }
-
-            float angleIncrement = GetAngleIncrement(radius, radialStep);
-
-            float startingAngle = SafeRandom.PickRandomQuadrant();
-            bool clockwise = SafeRandom.RandomFloat() > 0.5;
-
-            float maxAngle;
-            if (clockwise)
-            {
-                maxAngle = startingAngle + 360;
-            }
-            else
-            {
-                maxAngle = startingAngle - 360;
-                angleIncrement *= -1;
-            }
-
-            return GenerateOvalPoints(
-                radius,
-                startingAngle,
-                angleIncrement,
-                maxAngle,
-                image);
-        }
-
-        private static float GetAngleIncrement(float radius, float radialStep)
-            => radialStep * Constants.BaseAngularIncrement / (15 * (float)Math.Sqrt(radius));
-
-        private static IReadOnlyList<SKPoint> GenerateOvalPoints(
-            float radius,
-            float startingAngle,
-            float angleIncrement,
-            float maxAngle,
-            Image image)
-        {
-            List<SKPoint> points = new List<SKPoint>();
-            float angle = startingAngle;
-            bool clockwise = angleIncrement > 0;
-
-            do
-            {
-                points.Add(GetPointOnOval(radius, angle, image));
-                angle += angleIncrement;
-            } while (clockwise ? angle <= maxAngle : angle >= maxAngle);
-
-            return points;
-        }
-
-        private static SKPoint GetPointOnOval(float semiMinorAxis, float degrees, Image image)
-        {
-            Complex point = Complex.FromPolarCoordinates(semiMinorAxis, degrees.ToRadians());
-            float xPosition = image.Centre.X + (float)point.Real * image.AspectRatio;
-            float yPosition = image.Centre.Y + (float)point.Imaginary;
-
-            return new SKPoint(xPosition, yPosition);
         }
 
         #endregion
