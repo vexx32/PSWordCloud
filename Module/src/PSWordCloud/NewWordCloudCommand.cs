@@ -476,9 +476,7 @@ namespace PSWordCloud
 
         private void CreateWordCloud()
         {
-            using var image = ParameterSetName.StartsWith(FILE_SET)
-                ? new Image(BackgroundImage!, AllowOverflow.IsPresent)
-                : new Image(ImageSize, BackgroundColor, AllowOverflow.IsPresent);
+            using var image = CreateImage();
 
             BackgroundColor = image.BackgroundColor;
 
@@ -910,6 +908,10 @@ namespace PSWordCloud
         #endregion
 
         #region Helpers - Drawing Words
+
+        private Image CreateImage() => ParameterSetName.StartsWith(FILE_SET)
+            ? new Image(BackgroundImage!, AllowOverflow.IsPresent)
+            : new Image(ImageSize, BackgroundColor, AllowOverflow.IsPresent);
 
         private void DrawAllWordsOnCanvas(IReadOnlyList<Word> wordList, Image image)
         {
