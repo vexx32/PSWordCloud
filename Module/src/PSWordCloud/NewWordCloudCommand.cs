@@ -534,9 +534,9 @@ namespace PSWordCloud
 
         private void QueueInputProcessing(PSObject inputObject)
         {
-            var state = new EventWaitHandle(initialState: false, EventResetMode.ManualReset);
-            ThreadPool.QueueUserWorkItem(StartProcessingInput, (inputObject, state), preferLocal: false);
-            _waitHandles.Add(state);
+            var waitHandle = new EventWaitHandle(initialState: false, EventResetMode.ManualReset);
+            ThreadPool.QueueUserWorkItem(StartProcessingInput, (inputObject, waitHandle), preferLocal: false);
+            _waitHandles.Add(waitHandle);
         }
 
         private void StartProcessingInput((PSObject, EventWaitHandle) state)
