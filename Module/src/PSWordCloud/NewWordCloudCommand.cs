@@ -720,28 +720,20 @@ namespace PSWordCloud
 
         private float GetWordScaleFactor(IReadOnlyList<Word> wordList, float maxWordWidth, SKRect drawableBounds)
         {
-            (float averageWordFrequency, float averageWordLength) = GetWordListStatistics(wordList);
-
-            float estimatedScale = EstimateWordScale(
-                drawableBounds,
-                averageWordFrequency,
-                averageWordLength,
-                wordList.Count,
-                Typeface);
-
+            float estimatedScale = EstimateWordScale(drawableBounds, wordList, Typeface);
             return ConstrainScaleByWordWidth(maxWordWidth, wordList[0], estimatedScale);
         }
 
-        private static float EstimateWordScale(
+        private float EstimateWordScale(
             SKRect canvasRect,
-            float averageWordFrequency,
-            float averageWordLength,
-            int wordCount,
+            IReadOnlyList<Word> wordList,
             SKTypeface typeface)
         {
+            (float averageWordFrequency, float averageWordLength) = GetWordListStatistics(wordList);
+
             float fontCharArea = WCUtils.GetAverageCharArea(typeface);
             float estimatedPadding = (float)Math.Sqrt(fontCharArea) * Constants.PaddingBaseScale / averageWordFrequency;
-            float estimatedWordArea = fontCharArea * averageWordLength * averageWordFrequency * wordCount + estimatedPadding;
+            float estimatedWordArea = fontCharArea * averageWordLength * averageWordFrequency * wordList.Count + estimatedPadding;
             float canvasArea = canvasRect.Height * canvasRect.Width;
 
             return canvasArea * Constants.MaxWordAreaPercent / estimatedWordArea;
