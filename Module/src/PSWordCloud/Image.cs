@@ -6,26 +6,64 @@ using SkiaSharp;
 
 namespace PSWordCloud
 {
+    /// <summary>
+    /// Defines the <see cref="Image"/> class.
+    /// Keeps track of the various image components needed for drawing a word cloud and generating the SVG output.
+    /// </summary>
     internal class Image : IDisposable
     {
+        /// <summary>
+        /// Gets the viewbox that defines the visible area of the image.
+        /// </summary>
         internal SKRect Viewbox { get; }
 
+        /// <summary>
+        /// Gets the centre point of the <see cref="Image"/>.
+        /// </summary>
         internal SKPoint Centre { get => _centrePoint ??= new SKPoint(Viewbox.MidX, Viewbox.MidY); }
 
+        /// <summary>
+        /// Gets the origin point of the <see cref="Image"/>.
+        /// </summary>
         internal SKPoint Origin { get => Viewbox.Location; }
 
+        /// <summary>
+        /// Gets the aspect ratio of the <see cref="Image"/>.
+        /// </summary>
         internal float AspectRatio { get => _aspect ??= Viewbox.Width / Viewbox.Height; }
 
+        /// <summary>
+        /// Gets the maximum draw radius of the <see cref="Image"/>.
+        /// </summary>
         internal float MaxDrawRadius { get => _maxDrawRadius ??= GetMaxRadius(); }
 
+        /// <summary>
+        /// Gets the background color of the <see cref="Image"/>.
+        /// </summary>
+        /// <value>The average color of all the background pixels.</value>
         internal SKColor BackgroundColor { get; }
 
+        /// <summary>
+        /// Gets the <see cref="SKRegion"/> that defines the clipping bounds of the image.
+        /// Any items that cross this boundary should not be drawn.
+        /// </summary>
+        /// <value>A region slightly larger than the <see cref="Viewbox"/>.</value>
         internal SKRegion ClippingRegion { get; }
 
+        /// <summary>
+        /// Gets the bounds of the <see cref="ClippingRegion"/>.
+        /// </summary>
         internal SKRectI ClippingBounds { get => ClippingRegion.Bounds; }
 
+        /// <summary>
+        /// Gets the occupied space of the <see cref="Image"/>.
+        /// Each item drawn will update this region.
+        /// </summary>
         internal SKRegion OccupiedSpace { get; }
 
+        /// <summary>
+        /// Gets the <see cref="SKCanvas"/> that captures the drawing state for the <see cref="Image"/>.
+        /// </summary>
         internal SKCanvas Canvas { get; }
 
         private readonly SKDynamicMemoryWStream _memoryStream;
@@ -34,6 +72,14 @@ namespace PSWordCloud
         private float? _maxDrawRadius;
         private readonly bool _allowOverflow;
 
+        /// <summary>
+        /// Creates a new instance of the <see cref="Image"/> class, with the specified <paramref name="size"/> and
+        /// <paramref name="backgroundColor"/>.
+        /// </summary>
+        /// <param name="size">The size of the image.</param>
+        /// <param name="backgroundColor">The color to fill the background with.</param>
+        /// <param name="allowOverflow">If true, defines the acceptable draw bounds as slightly larger than the image, leaving
+        /// room for some drawing to occur that overflows the given image bounds.</param>
         internal Image(SKSizeI size, SKColor backgroundColor, bool allowOverflow)
         {
             _allowOverflow = allowOverflow;
@@ -48,6 +94,13 @@ namespace PSWordCloud
             DrawBackground(backgroundColor);
         }
 
+        /// <summary>
+        /// Creates a new instance of the <see cref="Image"/> class, using the target <paramref name="backgroundPath"/>
+        /// to create a new <see cref="SKBitmap"/> and define the image bounds to match the background bitmap.
+        /// </summary>
+        /// <param name="backgroundPath">The full path to a background image to use.</param>
+        /// <param name="allowOverflow">If true, defines the acceptable draw bounds as slightly larger than the image, leaving
+        /// room for some drawing to occur that overflows the given image bounds.</param>
         internal Image(string backgroundPath, bool allowOverflow)
             : this(SKBitmap.Decode(backgroundPath), allowOverflow)
         {
@@ -157,6 +210,9 @@ namespace PSWordCloud
             Canvas.DrawPath(path, brush);
         }
 
+        /// <summary>
+        /// Dispose the <see cref="IDisposable"/> managed objects used by this instance.
+        /// </summary>
         public void Dispose()
         {
             ClippingRegion.Dispose();
