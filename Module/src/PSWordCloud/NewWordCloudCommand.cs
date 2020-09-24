@@ -479,11 +479,11 @@ namespace PSWordCloud
             using var image = CreateImage();
             BackgroundColor = image.BackgroundColor;
 
-            IReadOnlyList<Word> finalWordTable = GetScaledWords(image);
+            IReadOnlyList<Word> wordList = GetScaledWords(image);
 
             try
             {
-                DrawAllWordsOnCanvas(finalWordTable, image);
+                DrawAllWordsOnCanvas(wordList, image);
 
                 WriteDebug($"Saving canvas data to {string.Join(',', Path)}.");
                 SaveSvgData(image, Path);
