@@ -477,10 +477,9 @@ namespace PSWordCloud
         private void CreateWordCloud()
         {
             using var image = CreateImage();
-
             BackgroundColor = image.BackgroundColor;
 
-            IReadOnlyList<Word> finalWordTable = GetFinalWordList(image.ClippingBounds, image.Viewbox);
+            IReadOnlyList<Word> finalWordTable = GetScaledWords(image);
 
             try
             {
@@ -673,24 +672,20 @@ namespace PSWordCloud
 
         #region Helpers - Collating Input
 
-        private IReadOnlyList<Word> GetFinalWordList(SKRectI drawableBounds, SKRect viewbox)
+        private IReadOnlyList<Word> GetScaledWords(Image image)
         {
             IReadOnlyList<Word> wordList = GetRelativeWordSizes(ParameterSetName);
-            ThrowIfWordListEmpty(wordList);
+            ThrowIfEmpty(wordList);
 
             float maxWordWidth = MyInvocation.BoundParameters.ContainsKey(nameof(FocusWord))
-                ? GetMaxWordWidth(viewbox, FocusWordAngle)
-                : GetMaxWordWidth(viewbox, AllowRotation);
+                ? GetMaxWordWidth(image.Viewbox, FocusWordAngle)
+                : GetMaxWordWidth(image.Viewbox, AllowRotation);
 
-            float scaleFactor = GetWordScaleFactor(wordList, maxWordWidth, drawableBounds);
+            float scaleFactor = GetWordScaleFactor(wordList, maxWordWidth, image.ClippingBounds);
 
             WriteDebug($"Global font scale: {scaleFactor}");
 
-            return ScaleWordSizes(
-                wordList,
-                maxWordWidth,
-                scaleFactor,
-                WordScale);
+            return ScaleWordSizes(wordList, maxWordWidth, scaleFactor, WordScale);
         }
 
         private IReadOnlyList<Word> GetRelativeWordSizes(string parameterSet)
@@ -1133,9 +1128,9 @@ namespace PSWordCloud
 
         private void ThrowIfPipelineStopping() => _cancel.Token.ThrowIfCancellationRequested();
 
-        private void ThrowIfWordListEmpty(IReadOnlyList<Word> words)
+        private void ThrowIfEmpty<T>(IReadOnlyList<T> items)
         {
-            if (words.Count == 0)
+            if (items.Count == 0)
             {
                 ThrowTerminatingError(
                     new ArgumentException("No usable input was provided. Please provide string data via the pipeline or -WordSizes."),
