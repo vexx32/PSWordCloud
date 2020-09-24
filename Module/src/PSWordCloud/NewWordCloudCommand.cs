@@ -476,19 +476,16 @@ namespace PSWordCloud
 
         private void CreateWordCloud()
         {
-            SKRect viewbox = GetImageViewbox(BackgroundImage, out SKBitmap? backgroundBitmap);
-            if (backgroundBitmap is not null)
-            {
-                BackgroundColor = WCUtils.GetAverageColor(backgroundBitmap.Pixels);
-            }
+            using var image = ParameterSetName.StartsWith(FILE_SET)
+                ? new Image(BackgroundImage!, AllowOverflow.IsPresent)
+                : new Image(ImageSize, BackgroundColor, AllowOverflow.IsPresent);
 
-            using var image = new Image(viewbox, AllowOverflow.IsPresent);
+            BackgroundColor = image.BackgroundColor;
 
-            IReadOnlyList<Word> finalWordTable = GetFinalWordList(image.ClippingBounds, viewbox);
+            IReadOnlyList<Word> finalWordTable = GetFinalWordList(image.ClippingBounds, image.Viewbox);
 
             try
             {
-                DrawImageBackground(image, BackgroundColor, backgroundBitmap);
                 DrawAllWordsOnCanvas(finalWordTable, image);
 
                 WriteDebug($"Saving canvas data to {string.Join(',', Path)}.");
@@ -505,9 +502,6 @@ namespace PSWordCloud
             }
             finally
             {
-                WriteDebug("Disposing SkiaSharp objects.");
-                backgroundBitmap?.Dispose();
-
                 WriteProgressCompleted();
             }
         }
@@ -911,47 +905,6 @@ namespace PSWordCloud
 
             float largestWordSize = words.Max(w => w.RelativeSize);
             return words.Prepend(new Word(focusWord, largestWordSize * Constants.FocusWordScale, isFocusWord: true));
-        }
-
-        #endregion
-
-        #region Helpers - Image Prep
-
-        private SKRect GetImageViewbox(string? backgroundImagePath, out SKBitmap? backgroundBitmap)
-        {
-            backgroundBitmap = null;
-            if (backgroundImagePath is null)
-            {
-                return new SKRect(left: 0, top: 0, ImageSize.Width, ImageSize.Height);
-            }
-            else
-            {
-                backgroundBitmap = LoadBackground(backgroundImagePath, out SKRect backgroundRect);
-                return backgroundRect;
-            }
-        }
-
-        private SKBitmap LoadBackground(string path, out SKRect backgroundRect)
-        {
-            WriteDebug($"Importing background image from '{path}'.");
-            SKBitmap backgroundBitmap = SKBitmap.Decode(path);
-            backgroundRect = new SKRectI(left: 0, top: 0, backgroundBitmap.Width, backgroundBitmap.Height);
-            return backgroundBitmap;
-        }
-
-        private void DrawImageBackground(
-            Image image,
-            SKColor backgroundColor = default,
-            SKBitmap? backgroundImage = null)
-        {
-            if (ParameterSetName.StartsWith(FILE_SET))
-            {
-                image.Canvas.DrawBitmap(backgroundImage, 0, 0);
-            }
-            else if (backgroundColor != SKColor.Empty)
-            {
-                image.Canvas.Clear(backgroundColor);
-            }
         }
 
         #endregion

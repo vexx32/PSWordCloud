@@ -18,6 +18,8 @@ namespace PSWordCloud
 
         internal float MaxDrawRadius { get => _maxDrawRadius ??= GetMaxRadius(); }
 
+        internal SKColor BackgroundColor { get; }
+
         internal SKRegion ClippingRegion { get; }
 
         internal SKRectI ClippingBounds { get => ClippingRegion.Bounds; }
@@ -32,16 +34,37 @@ namespace PSWordCloud
         private float? _maxDrawRadius;
         private readonly bool _allowOverflow;
 
-        internal Image(SKRect viewbox, bool allowOverflow)
+        internal Image(SKSizeI size, SKColor backgroundColor, bool allowOverflow)
         {
             _allowOverflow = allowOverflow;
             _memoryStream = new SKDynamicMemoryWStream();
-            Viewbox = viewbox;
+            Viewbox = new SKRect(left: 0, top: 0, right: size.Width, bottom: size.Height);
             Canvas = SKSvgCanvas.Create(Viewbox, _memoryStream);
             OccupiedSpace = new SKRegion();
             ClippingRegion = new SKRegion();
+            BackgroundColor = backgroundColor;
 
             SetClippingRegion(Viewbox, _allowOverflow);
+            DrawBackground(backgroundColor);
+        }
+
+        internal Image(string backgroundPath, bool allowOverflow)
+            : this(SKBitmap.Decode(backgroundPath), allowOverflow)
+        {
+        }
+
+        private Image(SKBitmap background, bool allowOverflow)
+            : this(new SKSizeI(background.Width, background.Height), SKColor.Empty, allowOverflow)
+        {
+            try
+            {
+                DrawBackground(background);
+                BackgroundColor = WCUtils.GetAverageColor(background.Pixels);
+            }
+            finally
+            {
+                background.Dispose();
+            }
         }
 
         private void SetClippingRegion(SKRect viewbox, bool allowOverflow)
@@ -59,6 +82,12 @@ namespace PSWordCloud
                 ClippingRegion.SetRect(SKRectI.Round(viewbox));
             }
         }
+
+        private void DrawBackground(SKColor color)
+            => Canvas.Clear(color);
+
+        private void DrawBackground(SKBitmap bitmap)
+            => Canvas.DrawBitmap(bitmap, x: 0, y: 0);
 
         private float GetMaxRadius()
         {
