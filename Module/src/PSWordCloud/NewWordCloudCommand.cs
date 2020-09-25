@@ -1151,23 +1151,38 @@ namespace PSWordCloud
         {
             string[] path = new[] { savePath };
 
-            ClearFileContent(path);
+            ClearItemContent(path);
             WriteSvgDataToPSPath(path, image.GetFinalXml());
         }
 
-        private void ClearFileContent(string[] paths)
+        private void ClearItemContent(string[] paths)
         {
+            WriteDebug($"Clearing existing content from '{string.Join(", ", paths)}'.");
+            for (int index = 0; index < paths.Length; index++)
+            {
+                ClearOrRemoveExistingItem(paths[index]);
+            }
+        }
+
+        private void ClearOrRemoveExistingItem(string path)
+        {
+            if (!InvokeProvider.Item.Exists(path, force: false, literalPath: true))
+            {
+                return;
+            }
+
+            string[] target = new[] { path };
             try
             {
-                WriteDebug($"Clearing existing content from '{string.Join(", ", paths)}'.");
-                InvokeProvider.Content.Clear(paths, force: false, literalPath: true);
+                WriteDebug($"Item '{path}' already exists, clearing existing contents.");
+                InvokeProvider.Content.Clear(target, force: false, literalPath: true);
             }
             catch (Exception e)
             {
-                // Unconditionally suppress errors from the Content.Clear() operation. Errors here may indicate that
-                // a provider is being written to that does not support the Content.Clear() interface, so ignore errors
-                // at this point.
-                WriteDebug($"Error encountered while clearing content for item '{string.Join(", ", paths)}'. {e.Message}");
+                WriteDebug($"An error was encountered attempting to clear the content for '{path}': {e.Message}");
+                WriteDebug($"Attempting to remove the existing item at '{path}' instead...");
+
+                InvokeProvider.Item.Remove(target, recurse: false, force: false, literalPath: true);
             }
         }
 
