@@ -729,11 +729,11 @@ namespace PSWordCloud
             IReadOnlyList<Word> wordList,
             SKTypeface typeface)
         {
-            (float averageWordFrequency, float averageWordLength) = GetWordListStatistics(wordList);
+            var stats = new WordListStatistics(wordList);
 
             float fontCharArea = WCUtils.GetAverageCharArea(typeface);
-            float estimatedPadding = (float)Math.Sqrt(fontCharArea) * Constants.PaddingBaseScale / averageWordFrequency;
-            float estimatedWordArea = fontCharArea * averageWordLength * averageWordFrequency * wordList.Count + estimatedPadding;
+            float estimatedPadding = (float)Math.Sqrt(fontCharArea) * Constants.PaddingBaseScale / stats.AverageFrequency;
+            float estimatedWordArea = fontCharArea * stats.AverageLength * stats.AverageFrequency * stats.Count + estimatedPadding;
             float canvasArea = canvasRect.Height * canvasRect.Width;
 
             return canvasArea * Constants.MaxWordAreaPercent / estimatedWordArea;
@@ -1197,19 +1197,6 @@ namespace PSWordCloud
         #endregion
 
         #region Helpers - Miscellaneous
-
-        private (float averageFrequency, float averageLength) GetWordListStatistics(IReadOnlyList<Word> wordList)
-        {
-
-            float totalFrequency = 0, totalLength = 0;
-            for (int i = 0; i < wordList.Count; i++)
-            {
-                totalFrequency += wordList[i].RelativeSize;
-                totalLength += wordList[i].Text.Length;
-            }
-
-            return (totalFrequency / wordList.Count, totalLength / wordList.Count);
-        }
 
         private float GetPaddingValue(Word word)
         {
