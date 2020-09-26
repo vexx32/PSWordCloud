@@ -73,17 +73,18 @@ namespace PSWordCloud
         /// </summary>
         internal SKPath? Bubble { get; set; } = null;
 
-        internal SKRect Bounds {
-            get => _bounds ?? Bubble?.TightBounds ?? Path.TightBounds;
-            set => _bounds = value;
-        }
+        internal SKRect Bounds => Bubble?.TightBounds ?? Path.TightBounds;
 
         /// <summary>
         /// Gets or sets the width of the padding space on each side of the word.
         /// </summary>
         internal float Padding { get; set; } = 0;
 
-        private SKRect? _bounds = null;
+        /// <summary>
+        /// Gets the angle the word will be drawn at.
+        /// </summary>
+        internal float Angle { get; private set; } = 0;
+
         private SKPath? _path = null;
 
         /// <summary>
@@ -100,13 +101,35 @@ namespace PSWordCloud
         }
 
         /// <summary>
+        /// Rotates the <see cref="Path"/> and <see cref="Bubble"/> (if present) by the given angle.
+        /// </summary>
+        /// <param name="degrees">The angle to rotate the path by in degrees.</param>
+        internal void Rotate(float degrees)
+        {
+            Angle += degrees;
+            Path.Rotate(Angle);
+            Bubble?.Rotate(Angle);
+        }
+
+        /// <summary>
+        /// Translates the <see cref="Path"/> and <see cref="Bubble"/> (if present) to the given
+        /// <paramref name="point"/>, so that the centre of the path and bubble is the given point.
+        /// </summary>
+        /// <param name="point">The target point to move the word to.</param>
+        internal void MoveTo(SKPoint point)
+        {
+            Path.CentreOnPoint(point);
+            Bubble?.CentreOnPoint(point);
+        }
+
+        /// <summary>
         /// Returns the <see cref="Text"/> of the word.
         /// </summary>
         public override string ToString() => Text;
 
-    /// <summary>
-    /// Disposes the <see cref="IDisposable"/> managed objects owned by this instance.
-    /// </summary>
+        /// <summary>
+        /// Disposes the <see cref="IDisposable"/> managed objects owned by this instance.
+        /// </summary>
         public void Dispose()
         {
             _path?.Dispose();

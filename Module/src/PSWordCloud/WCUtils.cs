@@ -143,15 +143,19 @@ namespace PSWordCloud
         /// <param name="shape">The shape of the bubble.</param>
         /// <param name="wordBounds">The bounds of the word to surround.</param>
         /// <returns>The <see cref="SKPath"/> representing the word bubble.</returns>
-        internal static SKPath GetWordBubblePath(WordBubbleShape shape, SKRect wordBounds)
-            => shape switch
+        internal static SKPath? GetWordBubblePath(WordBubbleShape shape, Word word)
+        {
+            SKRect bounds = SKRect.Inflate(word.Bounds, x: word.Padding, y: word.Padding);
+
+            return shape switch
             {
-                WordBubbleShape.Rectangle => GetRectanglePath(wordBounds),
-                WordBubbleShape.Square => GetSquarePath(wordBounds),
-                WordBubbleShape.Circle => GetCirclePath(wordBounds),
-                WordBubbleShape.Oval => GetOvalPath(wordBounds),
+                WordBubbleShape.Rectangle => GetRectanglePath(bounds),
+                WordBubbleShape.Square => GetSquarePath(bounds),
+                WordBubbleShape.Circle => GetCirclePath(bounds),
+                WordBubbleShape.Oval => GetOvalPath(bounds),
                 _ => throw new ArgumentOutOfRangeException(nameof(shape))
             };
+        }
 
         private static SKPath GetRectanglePath(SKRect rectangle)
         {
@@ -182,8 +186,9 @@ namespace PSWordCloud
 
         private static SKPath GetOvalPath(SKRect rectangle)
         {
+            var padding = (float)Math.Sqrt(rectangle.Width * rectangle.Height) / 10;
             var path = new SKPath();
-            path.AddOval(rectangle);
+            path.AddOval(SKRect.Inflate(rectangle, x: padding, y: padding));
 
             return path;
         }
@@ -199,15 +204,6 @@ namespace PSWordCloud
             return 135 > remainder && remainder > 45;
         }
 
-        private static bool WordWillFit(SKRect wordBounds, SKRegion occupiedSpace)
-            => !occupiedSpace.IntersectsRect(wordBounds);
-
-        private static bool WordBubbleWillFit(Word word, WordBubbleShape shape, Image image)
-        {
-            word.Bubble = GetWordBubblePath(shape, word.Bounds);
-            return !image.OccupiedSpace.IntersectsPath(word.Bubble);
-        }
-
         /// <summary>
         /// Checks whether the given word bounds rectangle and the bubble surrounding it will fit in the desired
         /// location without bleeding over the clipping region or intersecting already-drawn words
@@ -217,19 +213,44 @@ namespace PSWordCloud
         /// <param name="bubbleShape">The shape of the word bubble we'll need to draw.</param>
         /// <param name="image">The <see cref="Image"/> that defines the occupied space and clipping regions.</param>
         /// <returns>Returns true if the word and its surrounding bubble have sufficient space to be drawn.</returns>
-        internal static bool WordWillFit(Word word, WordBubbleShape bubbleShape, Image image)
+        internal static bool WordWillFit(Word word, Image image)
         {
             if (word.Bounds.FallsOutside(image.ClippingRegion))
             {
                 return false;
             }
 
-            if (bubbleShape == WordBubbleShape.None)
+            if (word.Bubble is null)
             {
-                return WordWillFit(word.Bounds, image.OccupiedSpace);
+                return WordWillFit(word.Bounds, word.Padding, image);
             }
 
-            return WordBubbleWillFit(word, bubbleShape, image);
+            return WordWillFit(word.Bubble, word.Padding, image);
+        }
+
+        private static bool WordWillFit(SKRect rect, float padding, Image image)
+        {
+            SKRect paddedRect = SKRect.Inflate(rect, x: padding, y: padding);
+            return !image.OccupiedSpace.IntersectsRect(paddedRect);
+        }
+
+        private static bool WordWillFit(SKPath path, float padding, Image image)
+        {
+            using SKPath paddedPath = GetPaddedPath(path, padding);
+            return !image.OccupiedSpace.IntersectsPath(paddedPath);
+        }
+
+        private static SKPath GetPaddedPath(SKPath path, float padding)
+        {
+            var resultPath = new SKPath();
+            SKMatrix scale = SKMatrix.CreateScale(
+                x: 1 + padding / path.TightBounds.Width,
+                y: 1 + padding / path.TightBounds.Height,
+                pivotX: path.TightBounds.MidX,
+                pivotY: path.TightBounds.MidY);
+            path.Transform(scale, resultPath);
+
+            return resultPath;
         }
 
         /// <summary>

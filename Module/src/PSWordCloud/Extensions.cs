@@ -255,10 +255,7 @@ namespace PSWordCloud
                 return false;
             }
 
-            using SKRegion rectRegion = new SKRegion();
-
-            rectRegion.SetRect(SKRectI.Round(rect));
-            return region.Intersects(rectRegion);
+            return region.Intersects(SKRectI.Round(rect));
         }
 
         /// <summary>
@@ -273,10 +270,7 @@ namespace PSWordCloud
                 return false;
             }
 
-            using SKRegion pathRegion = new SKRegion();
-
-            pathRegion.SetPath(path, region);
-            return region.Intersects(pathRegion);
+            return region.Intersects(path);
         }
 
         internal static string GetPrettyString(this XmlDocument document)

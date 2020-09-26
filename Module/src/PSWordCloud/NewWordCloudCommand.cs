@@ -395,7 +395,8 @@ namespace PSWordCloud
 
         #region Private Variables
 
-        private float PaddingMultiplier { get => Padding * Constants.PaddingBaseScale; }
+        private float PaddingMultiplier
+            => Padding * Constants.PaddingBaseScale * (float)Math.Sqrt(ImageSize.Width * ImageSize.Height) / 100;
 
         private readonly ConcurrentBag<string> _processedWords = new ConcurrentBag<string>();
         private readonly List<EventWaitHandle> _waitHandles = new List<EventWaitHandle>();
@@ -915,7 +916,7 @@ namespace PSWordCloud
                     Word currentWord = wordList[index];
                     WriteDebug($"Scanning for draw location for '{wordList[index]}'.");
                     WriteDrawingProgressMessage(
-                        wordNumber: index,
+                        wordNumber: index + 1,
                         totalWords,
                         currentWord.Text,
                         currentWord.ScaledSize);
@@ -961,9 +962,14 @@ namespace PSWordCloud
             word.Path = brush.GetTextPath(word.Text, 0, 0);
             word.Padding = GetPaddingValue(word);
 
+            if (WordBubble != WordBubbleShape.None)
+            {
+                word.Bubble = WCUtils.GetWordBubblePath(WordBubble, word);
+            }
+
             foreach (float drawAngle in availableAngles)
             {
-                word.Path.Rotate(drawAngle);
+                word.Rotate(drawAngle);
 
                 for (
                     float radius = SafeRandom.RandomFloat() / 25 * word.Path.TightBounds.Height;
@@ -976,7 +982,7 @@ namespace PSWordCloud
                     }
                 }
 
-                word.Path.Rotate(-drawAngle);
+                word.Rotate(-drawAngle);
             }
 
             return false;
@@ -1016,10 +1022,9 @@ namespace PSWordCloud
 
         private bool CanDrawWordUnobstructed(Word word, SKPoint point, Image image)
         {
-            word.Path.CentreOnPoint(point);
-            word.Bounds = SKRect.Inflate(word.Path.TightBounds, word.Padding, word.Padding);
+            word.MoveTo(point);
 
-            return WCUtils.WordWillFit(word, WordBubble, image);
+            return WCUtils.WordWillFit(word, image);
         }
 
         private void DrawWordInPlace(Word word, float strokeWidth, Image image)
