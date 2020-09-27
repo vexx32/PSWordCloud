@@ -953,19 +953,9 @@ namespace PSWordCloud
 
         private bool FindDrawLocation(Word word, SKTypeface typeface, Image image)
         {
+            IReadOnlyList<float> availableAngles = GetAvailableAngles(word);
             WriteDebug($"Searching for an available point to draw '{word.Text}'");
-            IReadOnlyList<float> availableAngles = word.IsFocusWord
-                ? new[] { FocusWordAngle }
-                : WCUtils.GetDrawAngles(AllowRotation, SafeRandom);
-
-            using SKPaint brush = WCUtils.GetBrush(word.ScaledSize, StrokeWidth * Constants.StrokeBaseScale, typeface);
-            word.Path = brush.GetTextPath(word.Text, 0, 0);
-            word.Padding = GetPaddingValue(word);
-
-            if (WordBubble != WordBubbleShape.None)
-            {
-                word.Bubble = WCUtils.GetWordBubblePath(WordBubble, word);
-            }
+            SetWordPaths(word, typeface);
 
             foreach (float drawAngle in availableAngles)
             {
@@ -986,6 +976,23 @@ namespace PSWordCloud
             }
 
             return false;
+        }
+
+        private IReadOnlyList<float> GetAvailableAngles(Word word)
+            => word.IsFocusWord
+                ? new[] { FocusWordAngle }
+                : WCUtils.GetDrawAngles(AllowRotation, SafeRandom);
+
+        private void SetWordPaths(Word word, SKTypeface typeface)
+        {
+            using SKPaint brush = WCUtils.GetBrush(word.ScaledSize, StrokeWidth * Constants.StrokeBaseScale, typeface);
+            word.Path = brush.GetTextPath(word.Text, 0, 0);
+            word.Padding = GetPaddingValue(word);
+
+            if (WordBubble != WordBubbleShape.None)
+            {
+                word.Bubble = WCUtils.GetWordBubblePath(WordBubble, word);
+            }
         }
 
         private bool FindDrawPointAtRadius(Word word, Image image, float radius, float drawAngle)
