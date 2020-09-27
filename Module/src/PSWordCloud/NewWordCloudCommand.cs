@@ -401,7 +401,9 @@ namespace PSWordCloud
 
         private int _colorSetIndex = 0;
 
-        private int _progressId;
+        private int ProgressId { get; set; }
+
+        private int SecondaryProgressId => ProgressId + 1;
 
         #endregion
 
@@ -511,7 +513,7 @@ namespace PSWordCloud
 
         private void SetProgressId()
         {
-            _progressId = SafeRandom.GetRandomInt();
+            ProgressId = SafeRandom.GetRandomInt();
         }
 
         private void PrepareColorSet()
@@ -1073,7 +1075,7 @@ namespace PSWordCloud
             var percentComplete = 100f * wordNumber / totalWords;
 
             var wordProgress = new ProgressRecord(
-                _progressId,
+                ProgressId,
                 "Drawing word cloud...",
                 $"Finding space for word: '{word}'...")
             {
@@ -1091,12 +1093,12 @@ namespace PSWordCloud
 
         private void WriteProgressCompleted()
         {
-            WriteProgress(new ProgressRecord(_progressId, "Completed", "Completed")
+            WriteProgress(new ProgressRecord(ProgressId, "Completed", "Completed")
             {
                 RecordType = ProgressRecordType.Completed
             });
 
-            WriteProgress(new ProgressRecord(_progressId + 1, "Completed", "Completed")
+            WriteProgress(new ProgressRecord(SecondaryProgressId, "Completed", "Completed")
             {
                 RecordType = ProgressRecordType.Completed
             });
@@ -1105,11 +1107,11 @@ namespace PSWordCloud
         private void WritePointProgress(SKPoint point, float drawAngle, float radius, int pointsChecked, int totalPoints)
         {
             var pointProgress = new ProgressRecord(
-                _progressId + 1,
+                SecondaryProgressId,
                 "Scanning available space...",
                 "Scanning radial points...")
             {
-                ParentActivityId = _progressId,
+                ParentActivityId = ProgressId,
                 Activity = string.Format(
                     "Finding available space to draw at angle: {0}",
                     drawAngle),
