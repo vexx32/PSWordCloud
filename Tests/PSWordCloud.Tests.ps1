@@ -13,7 +13,7 @@ Describe 'PSWordCloud Tests' {
     }
 
     It 'should error out for empty or otherwise unusable input' {
-        { [string]::Empty | New-WordCloud -Path ./test.svg } | Should -Throw -ExpectedMessage "No usable input was provided. Please provide string data via the pipeline or in a word size dictionary."
+        { [string]::Empty | New-WordCloud -Path ./test.svg } | Should -Throw -ExpectedMessage "No usable input was provided. Please provide string data via the pipeline or -WordSizes."
     }
 
     Context 'FileSystem Provider' {
