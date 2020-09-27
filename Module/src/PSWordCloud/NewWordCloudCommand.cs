@@ -889,7 +889,9 @@ namespace PSWordCloud
             WriteDebug($"Adding focus word '{focusWord}' to the list.");
 
             float largestWordSize = words.Max(w => w.RelativeSize);
-            return words.Prepend(new Word(focusWord, largestWordSize * Constants.FocusWordScale, isFocusWord: true));
+            return words
+                .Where(w => !string.Equals(w.Text, focusWord, StringComparison.CurrentCultureIgnoreCase))
+                .Prepend(new Word(focusWord, largestWordSize * Constants.FocusWordScale, isFocusWord: true));
         }
 
         #endregion
