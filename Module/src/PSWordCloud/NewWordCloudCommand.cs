@@ -6,11 +6,9 @@ using System.IO;
 using System.Linq;
 using System.Management.Automation;
 using System.Management.Automation.Provider;
-using System.Numerics;
 using System.Runtime.CompilerServices;
 using System.Text.RegularExpressions;
 using System.Threading;
-using System.Threading.Tasks;
 using System.Xml;
 using SkiaSharp;
 

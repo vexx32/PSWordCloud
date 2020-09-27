@@ -7,7 +7,6 @@ using System.Management.Automation.Language;
 using System.Text.RegularExpressions;
 using SkiaSharp;
 
-
 namespace PSWordCloud
 {
     public class ImageSizeCompleter : IArgumentCompleter
