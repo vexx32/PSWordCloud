@@ -111,7 +111,7 @@ namespace PSWordCloud
             try
             {
                 DrawBackground(background);
-                BackgroundColor = WCUtils.GetAverageColor(background.Pixels);
+                BackgroundColor = Utils.GetAverageColor(background.Pixels);
             }
             finally
             {

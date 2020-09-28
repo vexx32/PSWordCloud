@@ -10,6 +10,8 @@ using System.Runtime.CompilerServices;
 using System.Text.RegularExpressions;
 using System.Threading;
 using System.Xml;
+using PSWordCloud.Attributes;
+using PSWordCloud.Completers;
 using SkiaSharp;
 
 [assembly: InternalsVisibleTo("PSWordCloud.Tests")]
@@ -164,7 +166,7 @@ namespace PSWordCloud
         [Alias("FontFamily", "FontFace")]
         [ArgumentCompleter(typeof(FontFamilyCompleter))]
         [TransformToSKTypeface()]
-        public SKTypeface Typeface { get; set; } = WCUtils.FontManager.MatchFamily("Consolas", SKFontStyle.Normal);
+        public SKTypeface Typeface { get; set; } = Utils.FontManager.MatchFamily("Consolas", SKFontStyle.Normal);
 
         /// <summary>
         /// <para>Gets or sets the SKColor value used as the background for the word cloud image.</para>
@@ -206,7 +208,7 @@ namespace PSWordCloud
         [SupportsWildcards()]
         [TransformToSKColor()]
         [ArgumentCompleter(typeof(SKColorCompleter))]
-        public SKColor[] ColorSet { get; set; } = WCUtils.StandardColors
+        public SKColor[] ColorSet { get; set; } = Utils.StandardColors
             .Where(c => c != SKColor.Empty && c.Alpha != 0).ToArray();
 
         /// <summary>
@@ -626,7 +628,7 @@ namespace PSWordCloud
             var wordList = new List<string>(text.Count);
             for (int i = 0; i < text.Count; i++)
             {
-                string[] initialWords = text[i].Split(WCUtils.SplitChars, StringSplitOptions.RemoveEmptyEntries);
+                string[] initialWords = text[i].Split(Utils.SplitChars, StringSplitOptions.RemoveEmptyEntries);
 
                 for (int index = 0; index < initialWords.Length; index++)
                 {
@@ -654,7 +656,7 @@ namespace PSWordCloud
                 return false;
             }
 
-            if (!allowStopWords && WCUtils.IsStopWord(word))
+            if (!allowStopWords && Utils.IsStopWord(word))
             {
                 return false;
             }
@@ -710,7 +712,7 @@ namespace PSWordCloud
         }
 
         private float GetMaxWordWidth(SKRect viewbox, float focusWordAngle)
-            => WCUtils.AngleIsMostlyVertical(focusWordAngle)
+            => Utils.AngleIsMostlyVertical(focusWordAngle)
                 ? viewbox.Height * Constants.MaxWordWidthPercent
                 : viewbox.Width * Constants.MaxWordWidthPercent;
 
@@ -732,7 +734,7 @@ namespace PSWordCloud
         {
             var stats = new WordListStatistics(wordList);
 
-            float fontCharArea = WCUtils.GetAverageCharArea(typeface);
+            float fontCharArea = Utils.GetAverageCharArea(typeface);
             float estimatedPadding = (float)Math.Sqrt(fontCharArea) * Constants.PaddingBaseScale / stats.AverageFrequency;
             float estimatedWordArea = fontCharArea * stats.AverageLength * stats.AverageFrequency * stats.Count + estimatedPadding;
             float canvasArea = canvasRect.Height * canvasRect.Width;
@@ -744,7 +746,7 @@ namespace PSWordCloud
         {
             float largestWordSize = largestWord.Scale(fontScale);
 
-            using SKPaint brush = WCUtils.GetBrush(largestWordSize, StrokeWidth * Constants.StrokeBaseScale, Typeface);
+            using SKPaint brush = Utils.GetBrush(largestWordSize, StrokeWidth * Constants.StrokeBaseScale, Typeface);
             largestWord.Path = brush.GetTextPath(largestWord.Text, x: 0, y: 0);
 
             float padding = GetPaddingValue(largestWord);
@@ -779,7 +781,7 @@ namespace PSWordCloud
             }
             finally
             {
-                WCUtils.DisposeAll(_waitHandles);
+                Utils.DisposeAll(_waitHandles);
             }
 
             WriteDebug("Word processing tasks complete.");
@@ -928,7 +930,7 @@ namespace PSWordCloud
             }
             finally
             {
-                WCUtils.DisposeAll(wordList);
+                Utils.DisposeAll(wordList);
             }
         }
 
@@ -983,17 +985,17 @@ namespace PSWordCloud
         private IReadOnlyList<float> GetAvailableAngles(Word word)
             => word.IsFocusWord
                 ? new[] { FocusWordAngle }
-                : WCUtils.GetDrawAngles(AllowRotation, SafeRandom);
+                : Utils.GetDrawAngles(AllowRotation, SafeRandom);
 
         private void SetWordPaths(Word word, SKTypeface typeface)
         {
-            using SKPaint brush = WCUtils.GetBrush(word.ScaledSize, StrokeWidth * Constants.StrokeBaseScale, typeface);
+            using SKPaint brush = Utils.GetBrush(word.ScaledSize, StrokeWidth * Constants.StrokeBaseScale, typeface);
             word.Path = brush.GetTextPath(word.Text, 0, 0);
             word.Padding = GetPaddingValue(word);
 
             if (WordBubble != WordBubbleShape.None)
             {
-                word.Bubble = WCUtils.GetWordBubblePath(WordBubble, word);
+                word.Bubble = Utils.GetWordBubblePath(WordBubble, word);
             }
         }
 
@@ -1033,7 +1035,7 @@ namespace PSWordCloud
         {
             word.MoveTo(point);
 
-            return WCUtils.WordWillFit(word, image);
+            return Utils.WordWillFit(word, image);
         }
 
         private void DrawWordInPlace(Word word, float strokeWidth, Image image)
@@ -1224,7 +1226,7 @@ namespace PSWordCloud
             float baseFontScale,
             float userFontScale)
         {
-            using SKPaint brush = WCUtils.GetBrush(wordSize: 0, StrokeWidth * Constants.StrokeBaseScale, Typeface);
+            using SKPaint brush = Utils.GetBrush(wordSize: 0, StrokeWidth * Constants.StrokeBaseScale, Typeface);
             for (int index = 0; index < wordList.Count; index++)
             {
                 brush.TextSize = wordList[index].Scale(baseFontScale * userFontScale);

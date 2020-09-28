@@ -32,7 +32,7 @@ namespace PSWordCloud
         Oval
     }
 
-    internal static class WCUtils
+    internal static class Utils
     {
         /// <summary>
         /// Returns a font scale value based on the size of the letter X in a given typeface when the text size is 1 unit.
@@ -279,7 +279,7 @@ namespace PSWordCloud
 
         internal static SKFontManager FontManager = SKFontManager.Default;
 
-        internal static IOrderedEnumerable<string> FontList = WCUtils.FontManager.FontFamilies
+        internal static IOrderedEnumerable<string> FontList = Utils.FontManager.FontFamilies
             .OrderBy(name => name, StringComparer.OrdinalIgnoreCase);
 
         internal static ReadOnlyDictionary<string, (string Tooltip, SKSizeI Size)> StandardImageSizes =
@@ -324,7 +324,7 @@ namespace PSWordCloud
         /// <remarks>The library contains both SkiaSharp.SKColors named colors and X11 named colors.</remarks>
         internal static ReadOnlyDictionary<string, SKColor> ColorLibrary { get => new ReadOnlyDictionary<string, SKColor>(_library); }
 
-        static WCUtils()
+        static Utils()
         {
             _library = new Dictionary<string, SKColor>(StringComparer.CurrentCultureIgnoreCase)
             {
