@@ -399,7 +399,7 @@ namespace PSWordCloud
             => Padding * Constants.PaddingBaseScale * (float)Math.Sqrt(ImageSize.Width * ImageSize.Height) / 100;
 
         private readonly ConcurrentBag<string> _processedWords = new ConcurrentBag<string>();
-        private readonly List<EventWaitHandle> _waitHandles = new List<EventWaitHandle>();
+        private readonly List<ProcessingState> _processingStates = new List<ProcessingState>();
 
         private int _colorSetIndex = 0;
 
@@ -453,7 +453,7 @@ namespace PSWordCloud
         protected override void EndProcessing()
         {
             bool wordSizesWereSpecified = WordSizes?.Count > 0;
-            bool hasTextInput = _waitHandles.Count > 0;
+            bool hasTextInput = _processingStates.Count > 0;
             if (!(wordSizesWereSpecified || hasTextInput))
             {
                 WriteDebug("No input was received. Ending processing.");
@@ -537,20 +537,19 @@ namespace PSWordCloud
 
         private void QueueInputProcessing(PSObject inputObject)
         {
-            var waitHandle = new EventWaitHandle(initialState: false, EventResetMode.ManualReset);
-            ThreadPool.QueueUserWorkItem(StartProcessingInput, (inputObject, waitHandle), preferLocal: false);
-            _waitHandles.Add(waitHandle);
+            var state = new ProcessingState(inputObject);
+            ThreadPool.QueueUserWorkItem(StartProcessingInput, state, preferLocal: false);
+            _processingStates.Add(state);
         }
 
-        private void StartProcessingInput((PSObject, EventWaitHandle) state)
+        private void StartProcessingInput(ProcessingState state)
         {
-            (PSObject? inputObject, EventWaitHandle waitHandle) = state;
             ProcessInput(
-                CreateStringList(PSObject.AsPSObject(inputObject)),
+                CreateStringList(PSObject.AsPSObject(state.Data)),
                 IncludeWord,
                 ExcludeWord);
 
-            waitHandle.Set();
+            state.WaitHandle.Set();
         }
 
         private IReadOnlyList<string> CreateStringList(PSObject input)
@@ -777,22 +776,22 @@ namespace PSWordCloud
 
             try
             {
-                CancellableWaitAll(_waitHandles);
+                CancellableWaitAll(_processingStates);
             }
             finally
             {
-                Utils.DisposeAll(_waitHandles);
+                Utils.DisposeAll(_processingStates);
             }
 
             WriteDebug("Word processing tasks complete.");
         }
 
-        private void CancellableWaitAll(IReadOnlyList<WaitHandle> handles)
+        private void CancellableWaitAll(IReadOnlyList<ProcessingState> stateObjects)
         {
             var waitOrCancel = new WaitHandle[] { default!, _cancel.Token.WaitHandle };
-            for (int index = 0; index < handles.Count; index++)
+            for (int index = 0; index < stateObjects.Count; index++)
             {
-                waitOrCancel[0] = handles[index];
+                waitOrCancel[0] = stateObjects[index].WaitHandle;
                 int waitHandleIndex = WaitHandle.WaitAny(waitOrCancel);
                 if (waitHandleIndex == 1)
                 {
